@@ -47,7 +47,7 @@ let make name ~dir =
 let dep t = Build.path t.file
 
 let is_standard = function
-  | "runtest" | "install" | "doc" | "lint" -> true
+  | "runtest" | "install" | "doc" | "lint" | "bench" -> true
   | _ -> false
 
 let dep_rec ~loc ~file_tree t =

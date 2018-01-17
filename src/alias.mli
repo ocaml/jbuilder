@@ -27,6 +27,7 @@ val runtest : dir:Path.t -> t
 val install : dir:Path.t -> t
 val doc     : dir:Path.t -> t
 val lint    : dir:Path.t -> t
+val bench   : dir:Path.t -> t
 
 val dep : t -> ('a, 'a) Build.t
 
