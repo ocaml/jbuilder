@@ -414,6 +414,8 @@ let expand_and_eval_set t ~scope ~dir ?bindings set ~standard =
 module Env : sig
   val ocaml_flags : t -> dir:Path.t -> Ocaml_flags.t
   val get : t -> dir:Path.t -> Env_node.t
+
+  val jsoo_compilation : t -> dir:Path.t -> Dune_env.Stanza.Jsoo_compilation.t
 end = struct
   open Env_node
 
@@ -467,6 +469,27 @@ end = struct
     in
     loop t (get t ~dir)
 
+  let jsoo_compilation t ~dir =
+    let rec loop t node =
+      match List.find_map node.config.rules ~f:(fun (pat, cfg) ->
+        match (pat : Dune_env.Stanza.pattern), profile t with
+        | Any, _ -> Some cfg
+        | Profile a, b -> Option.some_if (a = b) cfg)
+      with
+      | None ->
+        begin match node.inherit_from with
+        | None ->
+          Dune_env.Stanza.Jsoo_compilation.default ~profile:(profile t)
+        | Some (lazy node) -> loop t node
+        end
+      | Some cfg ->
+        begin match cfg.jsoo_compilation with
+        | None ->
+          Dune_env.Stanza.Jsoo_compilation.default ~profile:(profile t)
+        | Some jc -> jc
+        end
+    in
+    loop t (get t ~dir)
 end
 
 

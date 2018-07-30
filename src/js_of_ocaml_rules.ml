@@ -4,14 +4,19 @@ open Build.O
 
 module SC = Super_context
 
-let dev_mode sctx = SC.profile sctx = "dev"
+let jsoo_compilation = SC.Env.jsoo_compilation
 
-let separate_compilation_enabled = dev_mode
+let pretty sctx ~dir =
+  match jsoo_compilation sctx ~dir with
+  | Separate ->  ["--pretty"]
+  | Classic ->   []
 
-let pretty    sctx = if dev_mode sctx then ["--pretty"           ] else []
-let sourcemap sctx = if dev_mode sctx then ["--source-map-inline"] else []
+let sourcemap sctx ~dir =
+  match jsoo_compilation sctx ~dir with
+  | Separate ->  ["--source-map-inline"]
+  | Classic ->   []
 
-let standard sctx = pretty sctx @ sourcemap sctx
+let standard sctx ~dir = pretty sctx ~dir @ sourcemap sctx ~dir
 
 let install_jsoo_hint = "opam install js_of_ocaml-compiler"
 
@@ -97,18 +102,19 @@ let link_rule ~sctx ~dir ~runtime ~target ~requires =
     jsoo_link
     [ Arg_spec.A "-o"; Target target
     ; Arg_spec.Dep runtime
-    ; Arg_spec.As (sourcemap sctx)
+    ; Arg_spec.As (sourcemap sctx ~dir)
     ; Arg_spec.Dyn get_all
     ]
 
 let build_cm sctx ~scope ~dir ~(js_of_ocaml:Jbuild.Js_of_ocaml.t) ~src ~target =
-  if separate_compilation_enabled sctx
-  then
+  match jsoo_compilation sctx ~dir with
+  | Classic -> []
+  | Separate ->
     let itarget = Path.extend_basename src ~suffix:".js" in
     let spec = Arg_spec.Dep src in
     let flags =
       SC.expand_and_eval_set sctx ~scope ~dir js_of_ocaml.flags
-        ~standard:(Build.return (standard sctx))
+        ~standard:(Build.return (standard sctx ~dir))
     in
     [ flags
       >>>
@@ -118,40 +124,36 @@ let build_cm sctx ~scope ~dir ~(js_of_ocaml:Jbuild.Js_of_ocaml.t) ~src ~target =
          []
        else
          [Build.symlink ~src:itarget ~dst:target])
-  else []
 
 let setup_separate_compilation_rules sctx components =
-  if separate_compilation_enabled sctx
-  then
-    match components with
-    | [] | _ :: _ :: _ -> ()
-    | [pkg] ->
-      let ctx = SC.context sctx in
-      match Lib.DB.find (SC.installed_libs sctx) pkg with
-      | Error _ -> ()
-      | Ok pkg ->
-        let archives = (Lib.archives pkg).byte in
-        let archives =
-          (* Special case for the stdlib because it is not referenced
-             in the META *)
-          match Lib.name pkg with
-          | "stdlib" -> Path.relative ctx.stdlib_dir "stdlib.cma" :: archives
-          | _ -> archives
+  match components with
+  | [] | _ :: _ :: _ -> ()
+  | [pkg] ->
+    let ctx = SC.context sctx in
+    match Lib.DB.find (SC.installed_libs sctx) pkg with
+    | Error _ -> ()
+    | Ok pkg ->
+      let archives = (Lib.archives pkg).byte in
+      let archives =
+        (* Special case for the stdlib because it is not referenced
+           in the META *)
+        match Lib.name pkg with
+        | "stdlib" -> Path.relative ctx.stdlib_dir "stdlib.cma" :: archives
+        | _ -> archives
+      in
+      List.iter archives ~f:(fun fn ->
+        let name = Path.basename fn in
+        let src = Path.relative (Lib.src_dir pkg) name in
+        let target =
+          in_build_dir ~ctx [ Lib.name pkg; sprintf "%s.js" name]
         in
-        List.iter archives ~f:(fun fn ->
-          let name = Path.basename fn in
-          let src = Path.relative (Lib.src_dir pkg) name in
-          let target =
-            in_build_dir ~ctx [ Lib.name pkg; sprintf "%s.js" name]
-          in
-          let dir = in_build_dir ~ctx [ Lib.name pkg ] in
-          let spec = Arg_spec.Dep src in
-          SC.add_rule sctx
-            (Build.return (standard sctx)
-             >>>
-             js_of_ocaml_rule ~sctx ~dir ~flags:(fun flags ->
-               As flags) ~spec ~target)
-        )
+        let dir = in_build_dir ~ctx [ Lib.name pkg ] in
+        let spec = Arg_spec.Dep src in
+        SC.add_rule sctx
+          (Build.return (standard sctx ~dir)
+           >>>
+           js_of_ocaml_rule ~sctx ~dir ~flags:(fun flags ->
+             As flags) ~spec ~target))
 
 let build_exe sctx ~dir ~js_of_ocaml ~src ~requires =
   let {Jbuild.Js_of_ocaml.javascript_files; _} = js_of_ocaml in
@@ -159,10 +161,11 @@ let build_exe sctx ~dir ~js_of_ocaml ~src ~requires =
   let mk_target ext = Path.extend_basename src ~suffix:ext in
   let target = mk_target ".js" in
   let standalone_runtime = mk_target ".runtime.js" in
-  if separate_compilation_enabled sctx then
+  match jsoo_compilation sctx ~dir with
+  | Separate ->
     [ link_rule ~sctx ~dir ~runtime:standalone_runtime ~target ~requires
     ; standalone_runtime_rule ~sctx ~dir ~javascript_files
         ~target:standalone_runtime ~requires
     ]
-  else
+  | Classic ->
     [ exe_rule ~sctx ~dir ~javascript_files ~src ~target ~requires ]

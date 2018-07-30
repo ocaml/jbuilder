@@ -259,3 +259,7 @@ module Scope_key : sig
 
   val to_string : string -> Dune_project.Name.t -> string
 end
+
+module Env : sig
+  val jsoo_compilation : t -> dir:Path.t -> Dune_env.Stanza.Jsoo_compilation.t
+end
