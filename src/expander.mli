@@ -21,6 +21,7 @@ val make
   -> artifacts:Artifacts.t
   -> artifacts_host:Artifacts.t
   -> cxx_flags:string list
+  -> config_vars:(string * string) list
   -> t
 
 val set_env : t -> var:string -> value:string -> t

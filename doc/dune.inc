@@ -72,6 +72,15 @@
  (files   dune-installed-libraries.1))
 
 (rule
+ (with-stdout-to dune-list-variables.1
+  (run dune list-variables --help=groff)))
+
+(install
+ (section man)
+ (package dune)
+ (files   dune-list-variables.1))
+
+(rule
  (with-stdout-to dune-printenv.1
   (run dune printenv --help=groff)))
 

@@ -63,6 +63,14 @@
    (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
 
 (alias
+ (name config-variables)
+ (deps (package dune) (source_tree test-cases/config-variables))
+ (action
+  (chdir
+   test-cases/config-variables
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name configurator)
  (deps (package dune) (source_tree test-cases/configurator))
  (action
@@ -1219,6 +1227,7 @@
   (alias byte-code-only)
   (alias c-stubs)
   (alias check-alias)
+  (alias config-variables)
   (alias configurator)
   (alias configurator-gh1166)
   (alias copy-files-non-sub-dir-error)
@@ -1369,6 +1378,7 @@
   (alias byte-code-only)
   (alias c-stubs)
   (alias check-alias)
+  (alias config-variables)
   (alias configurator)
   (alias configurator-gh1166)
   (alias copy-files-non-sub-dir-error)

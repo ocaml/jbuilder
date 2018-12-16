@@ -39,6 +39,7 @@ module Macro = struct
     | Path_no_dep
     | Ocaml_config
     | Env
+    | Config_var
 
   let to_sexp =
     let open Sexp.Encoder in
@@ -56,6 +57,7 @@ module Macro = struct
     | Path_no_dep -> string "Path_no_dep"
     | Ocaml_config -> string "Ocaml_config"
     | Env -> string "Env"
+    | Config_var -> string "Config_var"
 
   let pp_debug fmt t =
     Sexp.pp fmt (to_sexp t)
@@ -152,6 +154,8 @@ module Map = struct
       ; "path-no-dep", deleted_in ~version:(1, 0) Macro.Path_no_dep
       ; "ocaml-config", macro Ocaml_config
       ; "env", since ~version:(1, 4) Macro.Env
+      ; "var", since ~version:(1, 6) Macro.Config_var (* XXX check extension, or
+                                                         bump to 1.7 *)
       ]
 
   let create ~(context : Context.t) ~cxx_flags =

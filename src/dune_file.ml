@@ -1768,6 +1768,37 @@ module Include_subdirs = struct
       ]
 end
 
+module Variable = struct
+
+  let syntax =
+    Syntax.create ~name:"experimental-variables"
+      ~desc:"configuration variables"
+      [ (1, 0) ]
+
+  type t =
+    { name : string
+    ; doc : string
+    ; default : string
+    }
+
+  type Stanza.t += T of t
+
+  let decode =
+    record
+      (let%map name = field "name" string
+       and doc = field "doc" string
+       and default = field "default" string
+       in
+       { name
+       ; doc
+       ; default
+       })
+
+  let () =
+    Dune_project.Extension.register_simple ~experimental:true
+      syntax (return [ "variable", decode >>| fun x -> [T x] ])
+end
+
 type Stanza.t +=
   | Library         of Library.t
   | Executables     of Executables.t

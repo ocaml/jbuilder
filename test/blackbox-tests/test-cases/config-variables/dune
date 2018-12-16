@@ -1,0 +1,17 @@
+(variable
+ (name variable_name)
+ (doc "Doc for variable_name")
+ (default "default value for variable_name"))
+
+(variable
+ (name another_variable)
+ (doc "Doc for another_variable")
+ (default "default value for another_variable"))
+
+(alias
+ (name print-variable)
+ (action (echo %{var:variable_name})))
+
+(alias
+ (name print-unknown-variable)
+ (action (echo %{var:unknown_variable})))

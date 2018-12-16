@@ -28,6 +28,7 @@ type t =
        workspace. It is used as default at the root of every project
        in the workspace. *)
     default_env : Env_node.t Lazy.t
+  ; variables : Dune_file.Variable.t list
   }
 
 let context t = t.context
@@ -42,21 +43,26 @@ let build_dir t = t.context.build_dir
 let profile t = t.context.profile
 let build_system t = t.build_system
 let external_lib_deps_mode t = t.external_lib_deps_mode
+let variables t = t.variables
 
 let host t = Option.value t.host ~default:t
 
+let fold_stanzas stanzas ~init ~f =
+  List.fold_left stanzas ~init
+    ~f:(fun acc { Dir_with_dune.data = stanzas; _ } ->
+      List.fold_left stanzas ~init:acc ~f)
+
 let internal_lib_names t =
-  List.fold_left t.stanzas ~init:Lib_name.Set.empty
-    ~f:(fun acc { Dir_with_dune. data = stanzas; _ } ->
-      List.fold_left stanzas ~init:acc ~f:(fun acc -> function
-        | Library lib ->
-          Lib_name.Set.add
-            (match lib.public with
-             | None -> acc
-             | Some { name = (_, name); _ } ->
-               Lib_name.Set.add acc name)
-            (Lib_name.of_local lib.name)
-        | _ -> acc))
+  fold_stanzas t.stanzas ~init:Lib_name.Set.empty
+    ~f:(fun acc -> function
+      | Library lib ->
+        Lib_name.Set.add
+          (match lib.public with
+           | None -> acc
+           | Some { name = (_, name); _ } ->
+             Lib_name.Set.add acc name)
+          (Lib_name.of_local lib.name)
+      | _ -> acc)
 
 let public_libs    t = t.public_libs
 let installed_libs t = t.installed_libs
@@ -322,6 +328,17 @@ let create
         ~inherit_from:(Some (lazy (make ~inherit_from:None
                                      ~config:workspace)))
   ) in
+  let variables =
+    fold_stanzas stanzas ~init:[]
+      ~f:(fun acc -> function
+        | Dune_file.Variable.T t ->
+          t :: acc
+        | _ -> acc)
+  in
+  let config_vars =
+    List.map variables
+      ~f:(fun {Dune_file.Variable.name; default; _} -> (name, default))
+  in
   let expander =
     let artifacts_host =
       match host with
@@ -334,6 +351,7 @@ let create
       ~artifacts
       ~artifacts_host
       ~cxx_flags
+      ~config_vars
   in
   let dir_status_db = Dir_status.DB.make file_tree ~stanzas_per_dir in
   { context
@@ -367,6 +385,7 @@ let create
   ; default_env
   ; external_lib_deps_mode
   ; dir_status_db
+  ; variables
   }
 
 module Libs = struct

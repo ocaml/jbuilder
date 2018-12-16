@@ -94,7 +94,7 @@ let expand_var_exn t var syn =
         (String_with_vars.Var.describe var))
 
 let make ~scope ~(context : Context.t) ~artifacts
-      ~artifacts_host ~cxx_flags =
+      ~artifacts_host ~cxx_flags ~config_vars =
   let expand_var ({ bindings; ocaml_config; env = _; scope
                   ; hidden_env = _
                   ; dir = _ ; artifacts = _; expand_var = _
@@ -107,6 +107,10 @@ let make ~scope ~(context : Context.t) ~artifacts
         Some (Ok (expand_ocaml_config (Lazy.force ocaml_config) var s))
       | Macro (Env, s) -> Option.map ~f:Result.ok (expand_env t var s)
       | Var Project_root -> Some (Ok [Value.Dir (Scope.root scope)])
+      | Macro (Config_var, var_name) ->
+        Option.map
+          (List.assoc config_vars var_name)
+          ~f:(fun value -> Ok [Value.String value])
       | expansion -> Some (Error expansion))
   in
   let ocaml_config = lazy (make_ocaml_config context.ocaml_config) in
@@ -218,7 +222,7 @@ let expand_and_record acc ~map_exe ~dep_kind ~scope
   let open Build.O in
   match (expansion : Pform.Expansion.t) with
   | Var (Project_root | First_dep | Deps | Targets | Named_local | Values _)
-  | Macro ((Ocaml_config | Env ), _) -> assert false
+  | Macro ((Ocaml_config | Env | Config_var), _) -> assert false
   | Macro (Path_no_dep, s) -> Some [Value.Dir (relative dir s)]
   | Macro (Exe, s) -> Some (path_exp (map_exe (relative dir s)))
   | Macro (Dep, s) -> Some (path_exp (relative dir s))

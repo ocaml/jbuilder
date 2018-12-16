@@ -1128,6 +1128,30 @@ let fmt =
   in
   (term, Term.info "unstable-fmt" ~doc ~man )
 
+let list_variables =
+  let doc = "List variables" in
+  let man =
+    [ `S "DESCRIPTION"
+    ; `P {|$(b,dune list-variables) displays information about variables defined
+           in (variable) stanzas.|}
+    ] in
+  let term =
+    let%map common = Common.term in
+    Common.set_common common ~targets:[];
+    let log = Log.create common in
+    Scheduler.go ~log ~common
+      (Main.setup ~log common >>= fun setup ->
+       let context_name = "default" in
+       let sctx = String.Map.find_exn setup.scontexts context_name in
+       List.iter (Super_context.variables sctx)
+         ~f:(fun {Dune_file.Variable.name; doc; default} ->
+           Printf.printf "%s:\n    %s\n    (default: %s)\n" name doc default
+         );
+       Fiber.return ()
+      )
+  in
+  (term, Term.info "list-variables" ~doc ~man )
+
 module Help = struct
   let config =
     ("dune-config", 5, "", "Dune", "Dune manual"),
@@ -1250,6 +1274,7 @@ let all =
   ; Help.help
   ; fmt
   ; compute
+  ; list_variables
   ]
 
 let default =

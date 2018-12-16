@@ -378,6 +378,16 @@ module Include_subdirs : sig
   type t = No | Unqualified
 end
 
+module Variable : sig
+  type t =
+    { name : string
+    ; doc : string
+    ; default : string
+    }
+
+  type Stanza.t += T of t
+end
+
 type Stanza.t +=
   | Library         of Library.t
   | Executables     of Executables.t
