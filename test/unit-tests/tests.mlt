@@ -87,7 +87,7 @@ val meta : Simplified.t =
 
 let conf =
   Findlib.Config.load (Path.in_source "test/unit-tests/toolchain")
-    ~toolchain:"tlc" ~context:"<context>"
+  |> Findlib.Config.toolchain ~toolchain:"tlc"
 
 [%%expect{|
 val conf : Findlib.Config.t =

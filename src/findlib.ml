@@ -101,6 +101,9 @@ module Vars = struct
     match get t var preds with
     | None -> []
     | Some s -> String.extract_comma_space_separated_words s
+
+  let empty = String.Map.empty
+  let superpose = String.Map.superpose
 end
 
 module Config = struct
@@ -118,19 +121,37 @@ module Config = struct
       , Fmt.const Ps.pp preds
       ]
 
-  let load path ~toolchain ~context =
-    let path = Path.extend_basename path ~suffix:".d" in
-    let conf_file = Path.relative path (toolchain ^ ".conf") in
-    if not (Path.exists conf_file) then
-      die "@{<error>Error@}: ocamlfind toolchain %s isn't defined in %a \
-           (context: %s)" toolchain Path.pp path context;
-    let vars = (Meta.load ~name:None conf_file).vars in
-    { vars = String.Map.map vars ~f:Rules.of_meta_rules
-    ; preds = Ps.make [toolchain]
+  let load config_file =
+    let load p =
+      (Meta.load ~name:None p).vars
+      |> String.Map.map ~f:Rules.of_meta_rules
+    in
+    let vars = Vars.empty in
+    let vars =
+      if Path.exists config_file then
+        load config_file
+      else
+        vars
+    in
+    let config_dir = Path.extend_basename config_file ~suffix:".d" in
+    let vars =
+      if Path.is_directory config_dir then
+        Path.readdir_unsorted config_dir
+        |> List.fold_left ~init:vars ~f:(fun acc p ->
+          let p = Path.relative config_dir p in
+          Vars.superpose acc (load p))
+      else
+        vars
+    in
+    { vars
+    ; preds = Ps.empty
     }
 
   let get { vars; preds } var =
     Vars.get vars var preds
+
+  let toolchain t ~toolchain =
+    { t with preds = Ps.singleton (P.make toolchain) }
 
   let env t =
     let preds = Ps.add t.preds (P.make "env") in

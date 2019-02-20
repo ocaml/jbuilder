@@ -56,8 +56,11 @@ module Config : sig
 
   val pp : t Fmt.t
 
-  val load : Path.t -> toolchain:string -> context:string -> t
+  val load : Path.t -> t
+
   val get : t -> string -> string option
 
   val env : t -> Env.t
+
+  val toolchain : t -> toolchain:string -> t
 end

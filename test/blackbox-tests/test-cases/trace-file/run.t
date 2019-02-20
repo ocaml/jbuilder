@@ -3,6 +3,8 @@
 This captures the commands that are being run:
 
   $ <trace.json grep '"[be]"' | cut -c 2- | sed -E 's/ [0-9]+/ .../g'
+  {"cat": "process", "name": "ocamlfind", "id": ..., "pid": ..., "ph": "b", "ts": ..., "args": ["printconf","conf"]}
+  {"cat": "process", "name": "ocamlfind", "id": ..., "pid": ..., "ph": "e", "ts": ...}
   {"cat": "process", "name": "ocamlc.opt", "id": ..., "pid": ..., "ph": "b", "ts": ..., "args": ["-config"]}
   {"cat": "process", "name": "ocamlc.opt", "id": ..., "pid": ..., "ph": "e", "ts": ...}
   {"cat": "process", "name": "ocamldep.opt", "id": ..., "pid": ..., "ph": "b", "ts": ..., "args": ["-modules","-impl","prog.ml"]}
