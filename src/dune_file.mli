@@ -279,6 +279,18 @@ module Executables : sig
     }
 end
 
+module C_executables : sig
+  type t =
+    { names     : (Loc.t * string) list
+    ; loc       : Loc.t
+    ; libraries : Lib_dep.t list
+    ; c_flags   : Ordered_set_lang.Unexpanded.t
+    ; c_names   : Ordered_set_lang.t option
+    ; cxx_flags : Ordered_set_lang.Unexpanded.t
+    ; cxx_names : Ordered_set_lang.t option
+    }
+end
+
 module Rule : sig
   module Targets : sig
     type t =
@@ -383,6 +395,7 @@ end
 type Stanza.t +=
   | Library         of Library.t
   | Executables     of Executables.t
+  | C_executables   of C_executables.t
   | Rule            of Rule.t
   | Install         of String_with_vars.t Install_conf.t
   | Alias           of Alias_conf.t

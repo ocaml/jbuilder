@@ -64,6 +64,11 @@ module Kind = struct
       { c = f t1.c t2.c
       ; cxx = f t1.cxx t2.cxx
       }
+
+    let mapi { c; cxx } ~f =
+      { c = f C c
+      ; cxx = f Cxx cxx
+      }
   end
 end
 

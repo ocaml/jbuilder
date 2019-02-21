@@ -653,3 +653,5 @@ let cc_g (ctx : t) =
 let name t = t.name
 
 let has_native t = Option.is_some t.ocamlopt
+
+let c_compiler ctx = Path.of_string ctx.c_compiler

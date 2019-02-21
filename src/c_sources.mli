@@ -8,6 +8,8 @@ val empty : t
 
 val for_lib : t -> dir:Path.t -> name:Lib_name.t -> C.Sources.t
 
+val for_exes : t -> first_exe:string -> C.Sources.t
+
 (** [load_sources dir ~files] will load the C sources in [dir] into a two double
     map. The first level will is keyed by C vs. C++ sources. The second level is
     keyed by the object name of the source. *)

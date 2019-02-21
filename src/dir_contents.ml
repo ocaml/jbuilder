@@ -219,6 +219,9 @@ let modules_of_executables t ~first_exe =
       ; "available", Sexp.Encoder.(list string) (String.Map.keys map)
       ]
 
+let c_sources_of_executables t ~first_exe =
+  C_sources.for_exes (Lazy.force t.c_sources) ~first_exe
+
 let c_sources_of_library t ~name =
   C_sources.for_lib (Lazy.force t.c_sources) ~dir:t.dir ~name
 

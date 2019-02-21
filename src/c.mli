@@ -28,11 +28,15 @@ module Kind : sig
       ; cxx : 'a
       }
 
+    val get : 'a t -> kind -> 'a
+
     val make : 'a -> 'a t
 
     val update : 'a t -> kind -> f:('a -> 'a) -> 'a t
 
     val merge : 'a t -> 'b t -> f:('a -> 'b -> 'c) -> 'c t
+
+    val mapi : 'a t -> f:(kind -> 'a -> 'b) -> 'b t
   end with type kind := t
 end
 

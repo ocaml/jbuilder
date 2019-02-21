@@ -1,0 +1,6 @@
+(c_executable
+ (name foo))
+
+(alias
+ (name default)
+ (action (run ./foo.exe)))

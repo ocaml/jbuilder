@@ -5,6 +5,7 @@ module Library = Dune_file.Library
 
 type t =
   { libraries : C.Sources.t Lib_name.Map.t
+  ; executables : C.Sources.t String.Map.t
   }
 
 let for_lib t ~dir ~name =
@@ -18,8 +19,18 @@ let for_lib t ~dir ~name =
                        (Lib_name.Map.keys t.libraries)
       ]
 
+let for_exes t ~first_exe =
+  match String.Map.find t.executables first_exe with
+  | Some m -> m
+  | None ->
+    Exn.code_error "C_sources.for_exes"
+      [ "first_exe", Sexp.Encoder.string first_exe
+      ; "available", Sexp.Encoder.(list string) (String.Map.keys t.executables)
+      ]
+
 let empty =
   { libraries = Lib_name.Map.empty
+  ; executables = String.Map.empty
   }
 
 let c_name, cxx_name =
@@ -64,9 +75,44 @@ let load_sources ~dune_version ~dir ~files =
 
 let make (d : _ Dir_with_dune.t)
       ~(c_sources : C.Source.t String.Map.t C.Kind.Dict.t) =
-  let libs =
-    List.filter_map d.data ~f:(fun stanza ->
+  let libs, exes =
+    List.filter_partition_map d.data ~f:(fun stanza ->
       match (stanza : Stanza.t) with
+      | C_executables exes ->
+        let eval (kind : C.Kind.t) (c_sources : C.Source.t String.Map.t)
+              validate osl =
+          Eval.eval_unordered osl
+            ~parse:(fun ~loc s ->
+              let s = validate ~loc s in
+              let s' = Filename.basename s in
+              if s' <> s then begin
+                Errors.fail loc "relative part of stub are no longer \
+                                 necessary and are ignored."
+              end;
+              s'
+            )
+            ~standard:String.Map.empty
+          |> String.Map.map ~f:(fun (loc, s) ->
+            match String.Map.find c_sources s with
+            | Some source -> (loc, source)
+            | None ->
+              Errors.fail loc "%s does not exist as a C source. \
+                               %s must be present"
+                s (String.enumerate_one_of (C.Kind.possible_fns kind s))
+          )
+        in
+        let names =
+          Option.value ~default:Ordered_set_lang.standard in
+        let c = eval C.Kind.C c_sources.c c_name (names exes.c_names) in
+        let cxx =
+          eval C.Kind.Cxx c_sources.cxx cxx_name (names exes.cxx_names) in
+        let all = String.Map.union c cxx ~f:(fun _ (_loc1, c) (loc2, cxx) ->
+          Errors.fail loc2 "%a and %a have conflicting names. \
+                            You must rename one of them."
+            Path.pp_in_source (C.Source.path cxx)
+            Path.pp_in_source (C.Source.path c)
+        ) in
+        Right (exes, all)
       | Library lib ->
         let eval (kind : C.Kind.t) (c_sources : C.Source.t String.Map.t)
               validate osl =
@@ -102,8 +148,8 @@ let make (d : _ Dir_with_dune.t)
             Path.pp_in_source (C.Source.path cxx)
             Path.pp_in_source (C.Source.path c)
         ) in
-        Some (lib, all)
-      | _ -> None
+        Left (lib, all)
+      | _ -> Skip
     )
   in
   let libraries =
@@ -117,6 +163,26 @@ let make (d : _ Dir_with_dune.t)
         "Library %a appears for the second time \
          in this directory"
         Lib_name.pp_quoted name
+  in
+  let executables =
+    match
+      String.Map.of_list_map exes
+        ~f:(fun (exes, m) -> snd (List.hd exes.names), m)
+    with
+    | Ok x -> x
+    | Error (name, _, (exes2, _)) ->
+      let loc =
+        List.find_map exes2.names ~f:(fun (loc, s) ->
+          if s = name then
+            Some loc
+          else
+            None)
+        |> Option.value_exn
+      in
+      Errors.fail loc
+        "Executable %S appears for the second time \
+         in this directory"
+        name
   in
   let () =
     let rev_map =
@@ -136,4 +202,5 @@ let make (d : _ Dir_with_dune.t)
         loc1
   in
   { libraries
+  ; executables
   }

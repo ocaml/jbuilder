@@ -146,6 +146,8 @@ val install_ocaml_libdir : t -> Path.t option Fiber.t
 (** Return the compiler needed for this compilation mode *)
 val compiler : t -> Mode.t -> Path.t option
 
+val c_compiler : t -> Path.t
+
 (** The best compilation mode for this context *)
 val best_mode : t -> Mode.t
 

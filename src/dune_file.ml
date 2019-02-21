@@ -1408,6 +1408,58 @@ module Executables = struct
     (make false, make true)
 end
 
+module C_executables = struct
+  type t =
+    { names     : (Loc.t * string) list
+    ; loc       : Loc.t
+    ; libraries : Lib_dep.t list
+    ; c_flags   : Ordered_set_lang.Unexpanded.t
+    ; c_names   : Ordered_set_lang.t option
+    ; cxx_flags : Ordered_set_lang.Unexpanded.t
+    ; cxx_names : Ordered_set_lang.t option
+    }
+
+  let common =
+    let%map loc = loc
+    and libraries = field "libraries" Lib_deps.decode ~default:[]
+    and c_flags = field_oslu "c_flags"
+    and cxx_flags = field_oslu "cxx_flags"
+    and c_names = field_o "c_names" Ordered_set_lang.decode
+    and cxx_names = field_o "cxx_names" Ordered_set_lang.decode
+    in
+    fun names ->
+      let install_conf = Executables.Names.install_conf names ~ext:".exe" in
+      let t =
+        { names = Executables.Names.names names
+        ; libraries
+        ; c_flags
+        ; cxx_flags
+        ; c_names
+        ; cxx_names
+        ; loc
+        }
+      in
+      match install_conf with
+      | None -> (t, None)
+      | Some (Error msg) ->
+        let loc = Executables.Names.loc_of_package_field names in
+        of_sexp_errorf loc "%s" msg
+      | Some (Ok install_conf) ->
+        (t, Some install_conf)
+
+  let (single, multi) =
+    let stanza = "c_executable" in
+    let make multi =
+      record
+        (let%map names = Executables.Names.make ~multi ~stanza
+                           ~allow_omit_names_version:(1, 7)
+         and f = common
+         in
+         f names)
+    in
+    (make false, make true)
+end
+
 module Rule = struct
   module Targets = struct
     type t =
@@ -1876,6 +1928,7 @@ end
 type Stanza.t +=
   | Library         of Library.t
   | Executables     of Executables.t
+  | C_executables   of C_executables.t
   | Rule            of Rule.t
   | Install         of String_with_vars.t Install_conf.t
   | Alias           of Alias_conf.t
@@ -1892,10 +1945,10 @@ module Stanzas = struct
 
   let rules l = List.map l ~f:(fun x -> Rule x)
 
-  let execs (exe, install) =
+  let execs make (exe, install) =
     match install with
-    | None -> [Executables exe]
-    | Some i -> [Executables exe; Install i]
+    | None -> [make exe]
+    | Some i -> [make exe; Install i]
 
   type Stanza.t += Include of Loc.t * string
 
@@ -1905,8 +1958,16 @@ module Stanzas = struct
     [ "library",
       (let%map x = Library.decode in
        [Library x])
-    ; "executable" , Executables.single >>| execs
-    ; "executables", Executables.multi  >>| execs
+    ; "executable" , Executables.single >>| execs (fun e -> Executables e)
+    ; "executables", Executables.multi >>| execs (fun e -> Executables e)
+    ; "c_executable",
+      (let%map () = Syntax.since Stanza.syntax (1, 7)
+       and t = C_executables.single in
+       execs (fun e -> C_executables e) t)
+    ; "c_executables",
+      (let%map () = Syntax.since Stanza.syntax (1, 7)
+       and t = C_executables.multi in
+       execs (fun e -> C_executables e) t)
     ; "rule",
       (let%map loc = loc
        and x = Rule.decode in
