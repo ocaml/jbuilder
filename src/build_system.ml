@@ -292,35 +292,35 @@ module Dir_status = struct
     val create : unit -> t
 
     type immutable =
-      { deps     : Path.Set.t
-      ; dyn_deps : (unit, Path.Set.t) Build.t
+      { deps     : Dep.Set.t
+      ; dyn_deps : (unit, Dep.Set.t) Build.t
       ; actions  : alias_action list
       }
 
     val freeze : t -> immutable
     val assert_frozen : t -> immutable
 
-    val add_deps : t -> Path.Set.t -> unit
-    val add_dyn_deps : t -> (unit, Path.Set.t) Build.t -> unit
+    val add_deps : t -> Dep.Set.t -> unit
+    val add_dyn_deps : t -> (unit, Dep.Set.t) Build.t -> unit
     val add_action : t -> alias_action -> unit
   end = struct
     type t =
-      { mutable deps     : Path.Set.t
-      ; mutable dyn_deps : (unit, Path.Set.t) Build.t
+      { mutable deps     : Dep.Set.t
+      ; mutable dyn_deps : (unit, Dep.Set.t) Build.t
       ; mutable actions  : alias_action list
       ; mutable frozen : bool
       }
 
     let create () =
-      { deps     = Path.Set.empty
-      ; dyn_deps = Build.return Path.Set.empty
+      { deps     = Dep.Set.empty
+      ; dyn_deps = Build.return Dep.Set.empty
       ; actions  = []
       ; frozen = false
       }
 
     type immutable =
-      { deps     : Path.Set.t
-      ; dyn_deps : (unit, Path.Set.t) Build.t
+      { deps     : Dep.Set.t
+      ; dyn_deps : (unit, Dep.Set.t) Build.t
       ; actions  : alias_action list
       }
 
@@ -342,14 +342,14 @@ module Dir_status = struct
 
     let add_deps (t : t) deps =
       assert (not t.frozen);
-      t.deps <- Path.Set.union t.deps deps
+      t.deps <- Dep.Set.union t.deps deps
 
     let add_dyn_deps (t : t) deps =
       assert (not t.frozen);
       t.dyn_deps <-
         (let open Build.O in
          Build.fanout t.dyn_deps deps >>^ fun (a, b) ->
-         Path.Set.union a b)
+         Dep.Set.union a b)
 
     let add_action (t : t) action =
       assert (not t.frozen);
@@ -890,6 +890,29 @@ let handle_add_rule_effects f =
     List.iter (Appendable_list.to_list l) ~f:(Thunk_with_backtrace.run));
   res
 
+module Pred = struct
+  let eval_def =
+    Memo.create "eval-pred"
+      ~doc:"Evaluate a predicate in a directory"
+      ~input:(module File_selector)
+      ~output:(Allow_cutoff (module Path.Set))
+      ~visibility:Hidden
+      Sync
+      None
+
+  let build_def =
+    Memo.create "build-pred"
+      ~doc:"build a predicate"
+      ~input:(module File_selector)
+      ~output:(Allow_cutoff (module Unit))
+      ~visibility:Hidden
+      Async
+      None
+end
+
+let eval_pred g = Memo.exec Pred.eval_def g
+let build_pred g = Memo.exec Pred.build_def g
+
 let rec compile_rule t ?(copy_source=false) pre_rule =
   let { Pre_rule.
         context
@@ -1025,13 +1048,13 @@ and load_dir_step2_exn t ~dir ~collector =
           | None -> aliases
           | Some dir ->
             String.Map.add aliases "default"
-              ({ deps = Path.Set.empty
-              ; dyn_deps =
-                  (Alias0.dep_rec_internal ~name:"install" ~dir ~ctx_dir
-                   >>^ fun (_ : bool) ->
-                   Path.Set.empty)
-              ; actions = []
-              } : Dir_status.Alias.immutable)
+              ({ deps = Dep.Set.empty
+               ; dyn_deps =
+                   (Alias0.dep_rec_internal ~name:"install" ~dir ~ctx_dir
+                    >>^ fun (_ : bool) ->
+                    Dep.Set.empty)
+               ; actions = []
+               } : Dir_status.Alias.immutable)
     in
     String.Map.foldi aliases ~init:([], Path.Set.empty)
       ~f:(fun name { Dir_status.Alias.deps; dyn_deps; actions } (rules, alias_stamp_files) ->
@@ -1048,23 +1071,29 @@ and load_dir_step2_exn t ~dir ~collector =
                    Pre_rule.make ~locks ~context:(Some context) ~env ?loc
                      (Build.progn [ action; Build.create_file path ])
                  in
-                 (rule :: rules, Path.Set.add deps path))
+                 (rule :: rules, Dep.Set.add deps (Dep.file path)))
         in
         let path = Path.extend_basename base_path ~suffix:Alias0.suffix in
-        (Pre_rule.make
-           ~context:None
-           ~env:None
-           (Build.path_set deps >>>
-            dyn_deps >>>
-            Build.dyn_path_set (Build.arr Fn.id)
-            >>^ (fun dyn_deps ->
-              let deps = Path.Set.union deps dyn_deps in
-              Action.with_stdout_to path
-                (Action.digest_files (Path.Set.to_list deps)))
-            >>>
-            Build.action_dyn () ~targets:[path])
-         :: rules,
-         Path.Set.add alias_stamp_files path))
+        let rule =
+          Pre_rule.make
+            ~context:None
+            ~env:None
+            (Build.deps deps >>>
+             dyn_deps >>>
+             Build.dyn_deps (Build.arr Fn.id)
+             >>^ (fun dyn_deps ->
+               let deps = Dep.Set.union deps dyn_deps in
+               let trace = Dep.Set.trace ~env:Env.initial ~eval_pred deps in
+               Marshal.to_string trace []
+               |> Digest.string
+               |> Digest.to_string)
+             >>>
+             Build.write_file_dyn path)
+        in
+        ( rule :: rules
+        , Path.Set.add alias_stamp_files path
+        )
+      )
   in
   Path.Table.replace t.dirs ~key:alias_dir ~data:(Loaded alias_stamp_files);
 
@@ -1250,31 +1279,7 @@ let execute_rule_def =
     Async
     None
 
-module Pred = struct
-  let eval_def =
-    Memo.create "eval-pred"
-      ~doc:"Evaluate a predicate in a directory"
-      ~input:(module File_selector)
-      ~output:(Allow_cutoff (module Path.Set))
-      ~visibility:Hidden
-      Sync
-      None
-
-  let build_def =
-    Memo.create "build-pred"
-      ~doc:"build a predicate"
-      ~input:(module File_selector)
-      ~output:(Allow_cutoff (module Unit))
-      ~visibility:Hidden
-      Async
-      None
-end
-
-let eval_pred g = Memo.exec Pred.eval_def g
-
 let execute_rule = Memo.exec execute_rule_def
-
-let build_pred g = Memo.exec Pred.build_def g
 
 let build_deps =
   Dep.Set.parallel_iter ~f:(function

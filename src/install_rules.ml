@@ -303,15 +303,15 @@ let install_file sctx (package : Local_package.t) entries =
   let files = Install.files entries in
   Build_system.Alias.add_deps
     (Build_system.Alias.package_install ~context:ctx ~pkg:package_name)
-    files
+    (Dep.Set.of_files_set files)
     ~dyn_deps:
       (Build_system.package_deps package_name files
        >>^ fun packages ->
        Package.Name.Set.to_list packages
        |> List.map ~f:(fun pkg ->
          Build_system.Alias.package_install ~context:ctx ~pkg
-         |> Alias.stamp_file)
-       |> Path.Set.of_list);
+         |> Dep.alias)
+       |> Dep.Set.of_list);
   Super_context.add_rule sctx ~dir:pkg_build_dir
     ~mode:(if promote_install_file ctx then
              Promote (Until_clean, None)
@@ -400,7 +400,7 @@ let init_install_files (ctx : Context.t) (package : Local_package.t) =
     let path = Local_package.build_dir package in
     let install_alias = Alias.install ~dir:path in
     let install_file = Path.relative path install_fn in
-    Build_system.Alias.add_deps install_alias (Path.Set.singleton install_file)
+    Build_system.Alias.add_deps install_alias (Dep.Set.of_files [install_file])
 
 let init sctx =
   let packages = Local_package.of_sctx sctx in

@@ -126,8 +126,8 @@ module Alias : sig
       [alias]. *)
   val add_deps
     :  t
-    -> ?dyn_deps:(unit, Path.Set.t) Build.t
-    -> Path.Set.t
+    -> ?dyn_deps:(unit, Dep.Set.t) Build.t
+    -> Dep.Set.t
     -> unit
 
   (** [add_action store alias ~stamp action] arrange things so that
