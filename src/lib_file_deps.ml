@@ -44,16 +44,16 @@ module Group = struct
       sprintf "lib-%s%s-all" (Lib_name.to_string name) (to_string t)
       |> Alias.make ~dir
 
-    let setup_alias t ~dir ~lib ~files =
+    let setup_alias t ~dir ~lib ~deps =
       Build_system.Alias.add_deps
         (alias t ~dir ~name:(Library.best_name lib))
-        files
+        deps
 
     let setup_file_deps_group_alias t ~dir ~lib =
-      setup_alias t ~dir ~lib ~files:(
+      setup_alias t ~dir ~lib ~deps:(
         List.map t ~f:(fun t ->
-          Alias.stamp_file (alias [t] ~dir ~name:(Library.best_name lib)))
-        |> Path.Set.of_list
+          Dep.alias (alias [t] ~dir ~name:(Library.best_name lib)))
+        |> Dep.Set.of_list
       )
   end
 end
@@ -69,14 +69,15 @@ let setup_file_deps =
         | Some fn -> Path.Set.add acc fn)
     in
     List.iter cm_kinds ~f:(fun cm_kind ->
-      let files = add_cms ~cm_kind ~init:Path.Set.empty modules in
+      let deps =
+        Dep.Set.of_files_set (add_cms ~cm_kind ~init:Path.Set.empty modules) in
       let groups = [Group.of_cm_kind cm_kind] in
-      Group.L.setup_alias groups ~dir ~lib ~files);
+      Group.L.setup_alias groups ~dir ~lib ~deps);
     Group.L.setup_file_deps_group_alias groups ~dir ~lib;
-    Group.L.setup_alias [Header] ~dir ~lib ~files:(
+    Group.L.setup_alias [Header] ~dir ~lib ~deps:(
       List.map lib.install_c_headers ~f:(fun header ->
         Path.relative dir (header ^ ".h"))
-      |> Path.Set.of_list)
+      |> Dep.Set.of_files)
 
 let deps_of_lib (lib : Lib.t) ~groups =
   if Lib.is_local lib then

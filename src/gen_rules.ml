@@ -130,7 +130,7 @@ module Gen(P : sig val sctx : Super_context.t end) = struct
         List.map files ~f:(fun { File_bindings. src; dst = _ } ->
           let src_expanded = Expander.expand_str expander src in
           Path.relative ctx_dir src_expanded)
-        |> Path.Set.of_list
+        |> Dep.Set.of_files
         |> Build_system.Alias.add_deps (Alias.all ~dir:ctx_dir);
         For_stanza.empty_none
       | _ ->
@@ -184,7 +184,7 @@ module Gen(P : sig val sctx : Super_context.t end) = struct
           Menhir_rules.gen_rules cctx m ~dir:ctx_dir
         end
       | _ -> ());
-    let dyn_deps =
+    let deps =
       let pred =
         let id = lazy (
           let open Sexp.Encoder in
@@ -197,11 +197,10 @@ module Gen(P : sig val sctx : Super_context.t end) = struct
             String.equal (Path.basename js_target) basename)))
       in
       File_selector.create ~dir:ctx_dir pred
-      |> Build.paths_matching ~loc:Loc.none
+      |> Dep.glob
+      |> Dep.Set.singleton
     in
-    Build_system.Alias.add_deps
-      ~dyn_deps
-      (Alias.all ~dir:ctx_dir) Path.Set.empty;
+    Build_system.Alias.add_deps (Alias.all ~dir:ctx_dir) deps;
     cctxs
 
   let gen_rules dir_contents cctxs ~dir : (Loc.t * Compilation_context.t) list =

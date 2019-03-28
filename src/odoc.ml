@@ -65,7 +65,7 @@ module Paths = struct
   let toplevel_index ctx = html_root ctx ++ "index.html"
 end
 
-module Dep = struct
+module Deps = struct
   let html_alias ctx m =
     Alias.doc ~dir:(Paths.html ctx m)
 
@@ -86,7 +86,7 @@ module Dep = struct
 
   (* let static_deps t lib = Build_system.Alias.dep (alias t lib) *)
 
-  let setup_deps ctx m files = Build_system.Alias.add_deps (alias ctx m) files
+  let setup_deps ctx m deps = Build_system.Alias.add_deps (alias ctx m) deps
 end
 
 let odoc_ext = ".odoc"
@@ -171,7 +171,7 @@ let odoc_include_flags ctx requires =
 
 let setup_html sctx (odoc_file : odoc) ~requires =
   let ctx = Super_context.context sctx in
-  let deps = Dep.deps ctx requires in
+  let deps = Deps.deps ctx requires in
   let to_remove, dune_keep =
     match odoc_file.source with
     | Mld -> odoc_file.html_file, []
@@ -207,15 +207,15 @@ let setup_library_odoc_rules sctx (library : Library.t) ~scope ~modules
   let ctx = Super_context.context sctx in
   let doc_dir = Paths.odocs ctx (Lib lib) in
   let odoc_include_flags = odoc_include_flags ctx requires in
-  let includes = (Dep.deps ctx requires, odoc_include_flags) in
+  let includes = (Deps.deps ctx requires, odoc_include_flags) in
   let modules_and_odoc_files =
     List.map (Module.Name.Map.values modules) ~f:(
       compile_module sctx ~includes ~dep_graphs
         ~doc_dir ~pkg_or_lnu)
   in
-  Dep.setup_deps ctx (Lib lib)
+  Deps.setup_deps ctx (Lib lib)
     (List.map modules_and_odoc_files ~f:snd
-     |> Path.Set.of_list)
+     |> Dep.Set.of_files)
 
 let setup_css_rule sctx =
   let ctx = Super_context.context sctx in
@@ -356,8 +356,8 @@ let setup_lib_html_rules_def =
     List.iter odocs ~f:(setup_html sctx ~requires);
     let html_files = List.map ~f:(fun o -> o.html_file) odocs in
     let static_html = static_html ctx in
-    Build_system.Alias.add_deps (Dep.html_alias ctx (Lib lib))
-      (Path.Set.of_list (List.rev_append static_html html_files))
+    Build_system.Alias.add_deps (Deps.html_alias ctx (Lib lib))
+      (Dep.Set.of_files (List.rev_append static_html html_files))
   in
   Memo.With_implicit_output.create "setup-library-html-rules"
     ~doc:"setup html rules for library"
@@ -416,8 +416,8 @@ let setup_pkg_html_rules_def =
          ) in
        let html_files = List.map ~f:(fun o -> o.html_file) odocs in
        let static_html = static_html ctx in
-       Build_system.Alias.add_deps (Dep.html_alias ctx (Pkg pkg))
-         (Path.Set.of_list (List.rev_append static_html html_files)))
+       Build_system.Alias.add_deps (Deps.html_alias ctx (Pkg pkg))
+         (Dep.Set.of_files (List.rev_append static_html html_files)))
 
 let setup_pkg_html_rules sctx ~pkg ~libs =
   Memo.With_implicit_output.exec setup_pkg_html_rules_def (sctx, pkg, libs)
@@ -429,12 +429,12 @@ let setup_package_aliases sctx (pkg : Package.t) =
     Alias.doc ~dir
   in
   Build_system.Alias.add_deps alias (
-    Dep.html_alias ctx (Pkg pkg.name)
+    Deps.html_alias ctx (Pkg pkg.name)
     :: (libs_of_pkg sctx ~pkg:pkg.name
         |> Lib.Set.to_list
-        |> List.map ~f:(fun lib -> Dep.html_alias ctx (Lib lib)))
+        |> List.map ~f:(fun lib -> Deps.html_alias ctx (Lib lib)))
     |> List.map ~f:Alias.stamp_file
-    |> Path.Set.of_list
+    |> Dep.Set.of_files
   )
 
 let entry_modules_by_lib sctx lib =
@@ -545,7 +545,7 @@ let setup_package_odoc_rules_def =
            ~doc_dir:(Paths.odocs ctx (Pkg pkg))
            ~includes:(Build.arr (fun _ -> Arg_spec.As []))
        ) in
-       Dep.setup_deps ctx (Pkg pkg) (Path.Set.of_list odocs))
+       Deps.setup_deps ctx (Pkg pkg) (Dep.Set.of_files odocs))
 
 let setup_package_odoc_rules sctx ~pkg ~mlds =
   Memo.With_implicit_output.exec setup_package_odoc_rules_def (sctx, pkg, mlds)
@@ -575,9 +575,8 @@ let init sctx =
            end
          | _ -> None
        ))
-     |> List.map ~f:(fun (lib : Lib.t) ->
-       Alias.stamp_file (Dep.html_alias ctx (Lib lib)))
-     |> Path.Set.of_list
+     |> List.map ~f:(fun (lib : Lib.t) -> Dep.alias (Deps.html_alias ctx (Lib lib)))
+     |> Dep.Set.of_list
     )
 
 let gen_rules sctx ~dir:_ rest =
