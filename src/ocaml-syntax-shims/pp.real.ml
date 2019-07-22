@@ -131,7 +131,7 @@ module Map_ast = struct
                     | None ->
                       Location.raise_errorf ~loc
                         "Custom 'and' operator expected, \
-                         got stantard 'and' keyword"
+                         got standard 'and' keyword"
                   in
                   (patt, (loc, op, expr)))
                 |> List.split

@@ -1,0 +1,5 @@
+(library
+ (public_name lib1)
+ (libraries lib1-dep1 lib1-dep2)
+ (synopsis "What lib1 does")
+)

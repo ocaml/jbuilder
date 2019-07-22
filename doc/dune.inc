@@ -27,6 +27,15 @@
  (files   dune-compute.1))
 
 (rule
+ (with-stdout-to dune-describe-project.1
+  (run dune describe-project --help=groff)))
+
+(install
+ (section man)
+ (package dune)
+ (files   dune-describe-project.1))
+
+(rule
  (with-stdout-to dune-exec.1
   (run dune exec --help=groff)))
 
