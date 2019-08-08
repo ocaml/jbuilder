@@ -54,7 +54,7 @@ module Context = struct
       ; toolchain    : string option
       ; name         : string
       ; host_context : string option
-      ; paths        : (string * Ordered_set_lang.t) list
+      ; paths        : (string * Ordered_set_lang.Unexpanded.t) list
       }
 
     let t ~profile =
@@ -78,7 +78,7 @@ module Context = struct
         in
         field "paths" ~default:[]
           (Syntax.since Stanza.syntax (1, 12) >>>
-           map ~f (repeat (pair (located string) Ordered_set_lang.decode)))
+           map ~f (repeat (pair (located string) Ordered_set_lang.Unexpanded.decode)))
       and+ loc = loc
       in
       Option.iter
@@ -167,6 +167,14 @@ module Context = struct
   let targets = function
     | Default x -> x.targets
     | Opam    x -> x.base.targets
+
+  let profile = function
+    | Default x -> x.profile
+    | Opam    x -> x.base.profile
+
+  let paths = function
+    | Default x -> x.paths
+    | Opam    x -> x.base.paths
 
   let all_names t =
     let n = name t in

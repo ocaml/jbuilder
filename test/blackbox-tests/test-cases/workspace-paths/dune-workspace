@@ -2,4 +2,4 @@
 
 (context
  (default
-   (paths (PATH bin :standard) (FOO a b /c \ b))))
+   (paths (PATH bin :standard) (FOO a b /c %{workspace_root}/d \ b))))
