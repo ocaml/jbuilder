@@ -19,6 +19,7 @@ module Context : sig
       ; name         : string
       ; host_context : string option
       ; paths        : (string * Ordered_set_lang.t) list
+      ; hidden_libraries : Lib_name.Set.t
       }
   end
   module Opam : sig

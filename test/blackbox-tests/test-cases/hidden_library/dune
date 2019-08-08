@@ -1,0 +1,11 @@
+(library
+ (public_name a)
+ (modules a)
+ (libraries a_opt)
+)
+
+(library
+ (public_name a.opt)
+ (name a_opt)
+ (modules a_opt)
+)

@@ -882,6 +882,14 @@
    (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
 
 (alias
+ (name hidden_library)
+ (deps (package dune) (source_tree test-cases/hidden_library))
+ (action
+  (chdir
+   test-cases/hidden_library
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name ignored_subdirs)
  (deps (package dune) (source_tree test-cases/ignored_subdirs))
  (action
@@ -1812,6 +1820,7 @@
   (alias github784)
   (alias github992)
   (alias glob-deps)
+  (alias hidden_library)
   (alias ignored_subdirs)
   (alias include-loop)
   (alias include-qualified)
@@ -2009,6 +2018,7 @@
   (alias github784)
   (alias github992)
   (alias glob-deps)
+  (alias hidden_library)
   (alias ignored_subdirs)
   (alias include-loop)
   (alias include-qualified)

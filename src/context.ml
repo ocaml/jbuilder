@@ -198,7 +198,7 @@ let ocamlfind_printconf_path ~env ~ocamlfind ~toolchain =
   List.map l ~f:Path.of_filename_relative_to_initial_cwd
 
 let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~targets
-      ~host_context ~host_toolchain ~profile =
+      ~host_context ~host_toolchain ~profile ~hidden_libraries =
   let opam_var_cache = Table.create (module String) 128 in
   (match kind with
    | Opam { root = Some root; _ } ->
@@ -457,6 +457,7 @@ let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~targets
 
       ; env
       ; findlib = Findlib.create ~stdlib_dir ~paths:findlib_paths ~version
+                    ~hidden_libraries
       ; findlib_toolchain
       ; arch_sixtyfour
 
@@ -561,9 +562,9 @@ let extend_paths t ~env =
 let opam_config_var t var =
   opam_config_var ~env:t.env ~cache:t.opam_var_cache var
 
-let default ~merlin ~env_nodes ~env ~targets =
+let default ~merlin ~env_nodes ~env ~targets ~hidden_libraries =
   let path = Env.path env in
-  create ~kind:Default ~path ~env ~env_nodes ~merlin ~targets
+  create ~kind:Default ~path ~env ~env_nodes ~merlin ~targets ~hidden_libraries
 
 let opam_version =
   let res = ref None in
@@ -590,7 +591,8 @@ let opam_version =
       Fiber.Future.wait future
 
 let create_for_opam ~root ~env ~env_nodes ~targets ~profile
-      ~switch ~name ~merlin ~host_context ~host_toolchain =
+      ~switch ~name ~merlin ~host_context ~host_toolchain
+      ~hidden_libraries =
   let opam =
     match Lazy.force opam with
     | None -> Utils.program_not_found "opam" ~loc:None
@@ -635,7 +637,7 @@ let create_for_opam ~root ~env ~env_nodes ~targets ~profile
   in
   let env = Env.extend env ~vars in
   create ~kind:(Opam { root; switch }) ~profile ~targets ~path ~env ~env_nodes
-    ~name ~merlin ~host_context ~host_toolchain
+    ~name ~merlin ~host_context ~host_toolchain ~hidden_libraries
 
 let instantiate_context env (workspace : Workspace.t)
       ~(context : Workspace.Context.t) ~host_context =
@@ -648,7 +650,7 @@ let instantiate_context env (workspace : Workspace.t)
   in
   match context with
   | Default { targets; name; host_context = _; profile; env = _
-            ; toolchain ; paths; loc = _ } ->
+            ; toolchain ; paths; loc = _; hidden_libraries } ->
     let merlin =
       workspace.merlin_context = Some (Workspace.Context.name context)
     in
@@ -659,13 +661,13 @@ let instantiate_context env (workspace : Workspace.t)
     in
     let env = extend_paths ~env paths in
     default ~env ~env_nodes ~profile ~targets ~name ~merlin ~host_context
-      ~host_toolchain
+      ~host_toolchain ~hidden_libraries
   | Opam { base = { targets; name; host_context = _; profile; env = _
-                  ; toolchain; paths; loc = _ }
+                  ; toolchain; paths; loc = _; hidden_libraries }
          ; switch; root; merlin } ->
     let env = extend_paths ~env paths in
     create_for_opam ~root ~env_nodes ~env ~profile ~switch ~name ~merlin
-      ~targets ~host_context ~host_toolchain:toolchain
+      ~targets ~host_context ~host_toolchain:toolchain ~hidden_libraries
 
 let create ~env (workspace : Workspace.t) =
   let rec contexts : t list Fiber.Once.t String.Map.t Lazy.t = lazy (

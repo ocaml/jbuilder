@@ -509,6 +509,11 @@ context or can be the description of an opam switch, as follows:
   Relative paths are interpreted with respect to the workspace root, see
   :ref:`finding-root`.
 
+- ``(hidden_libraries <name1> .. <nameN>)`` allows to hide external libraries.
+  They will be considered as unavailable for optional libraries and `select`
+  library dependencies. They could be still linked to the produced library if
+  they are dependencies of not hidden libraries.
+
 Both ``(default ...)`` and ``(opam ...)`` accept a ``targets`` field in order to
 setup cross compilation. See :ref:`advanced-cross-compilation` for more
 information.

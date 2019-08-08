@@ -10,6 +10,7 @@ val create
   :  stdlib_dir:Path.t
   -> paths:Path.t list
   -> version:Ocaml_version.t
+  -> hidden_libraries:Lib_name.Set.t
   -> t
 
 (** The search path for this DB *)
@@ -25,6 +26,7 @@ module Unavailable_reason : sig
     (** The package is hidden because it contains an unsatisfied
         'exist_if' clause *)
     | Hidden of Sub_system_info.t Dune_package.Lib.t
+    | User_hidden of Sub_system_info.t Dune_package.Lib.t
 
   val to_string : t -> string
   val to_dyn : t -> Dyn.t

@@ -1,0 +1,8 @@
+(executable
+ (name b)
+ (modules b)
+ (libraries a (select b.ml from
+               ( a.opt -> b_ok.ml )
+               (       -> b_ko.ml )
+  ))
+)

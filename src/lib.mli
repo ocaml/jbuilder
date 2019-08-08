@@ -143,9 +143,10 @@ module DB : sig
   module Resolve_result : sig
     type nonrec t =
       | Not_found
-      | Found    of Lib_info.external_
-      | Hidden   of Lib_info.external_ * string
-      | Redirect of t option * Lib_name.t
+      | Found         of Lib_info.external_
+      | Hidden        of Lib_info.external_ * string
+      | User_hidden   of Lib_info.external_ * string
+      | Redirect      of t option * Lib_name.t
   end
 
   (** Create a new library database. [resolve] is used to resolve

@@ -16,6 +16,7 @@ let findlib =
     ~stdlib_dir:cwd
     ~paths:[db_path]
     ~version:(Ocaml_version.make (4, 02, 3))
+    ~hidden_libraries:Lib_name.Set.empty
 
 let%expect_test _ =
   let pkg =

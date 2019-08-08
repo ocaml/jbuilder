@@ -55,6 +55,7 @@ module Context = struct
       ; name         : string
       ; host_context : string option
       ; paths        : (string * Ordered_set_lang.t) list
+      ; hidden_libraries : Lib_name.Set.t
       }
 
     let t ~profile =
@@ -79,6 +80,11 @@ module Context = struct
         field "paths" ~default:[]
           (Syntax.since Stanza.syntax (1, 12) >>>
            map ~f (repeat (pair (located string) Ordered_set_lang.decode)))
+      and+ hidden_libraries =
+        field "hidden_libraries"
+          ~default:Lib_name.Set.empty
+          (Syntax.since Stanza.syntax (2,0) >>> repeat Lib_name.decode
+          >>| Lib_name.Set.of_list)
       and+ loc = loc
       in
       Option.iter
@@ -97,6 +103,7 @@ module Context = struct
       ; host_context
       ; toolchain
       ; paths
+      ; hidden_libraries
       }
   end
 
@@ -184,6 +191,7 @@ module Context = struct
       ; env = Dune_env.Stanza.empty
       ; toolchain = None
       ; paths = []
+      ; hidden_libraries = Lib_name.Set.empty
       }
 end
 

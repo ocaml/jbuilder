@@ -334,6 +334,7 @@ type status =
   | St_found        of t
   | St_not_found
   | St_hidden       of t * Path.t * string (* reason *)
+  | St_user_hidden  of t * Path.t * string (* reason *)
 
 type db =
   { parent               : db option
@@ -345,9 +346,10 @@ type db =
 
 and resolve_result =
   | Not_found
-  | Found    of Lib_info.external_
-  | Hidden   of Lib_info.external_ * string
-  | Redirect of db option * Lib_name.t
+  | Found         of Lib_info.external_
+  | Hidden        of Lib_info.external_ * string
+  | User_hidden   of Lib_info.external_ * string
+  | Redirect      of db option * Lib_name.t
 
 type lib = t
 
@@ -671,6 +673,8 @@ let already_in_table info name x =
     | St_not_found -> constr "Not_found" []
     | St_hidden (_, path, reason) ->
       constr "Hidden" [Path.to_dyn path; string reason]
+    | St_user_hidden (_, path, reason) ->
+      constr "User_hidden" [Path.to_dyn path; string reason]
   in
   let src_dir = Lib_info.src_dir info in
   Code_error.raise
@@ -899,17 +903,19 @@ module rec Resolve : sig
     -> allow_private_deps:bool
     -> loc:Loc.t
     -> stack:Dep_stack.t
+    -> exterior:bool
     -> lib Or_exn.t
 
   val resolve_name : db -> Lib_name.t -> stack:Dep_stack.t -> status
 
-  val available_internal : db -> Lib_name.t -> stack:Dep_stack.t -> bool
+  val available_internal : db -> Lib_name.t -> stack:Dep_stack.t -> exterior:bool -> bool
 
   val resolve_simple_deps
     : db ->
     (Loc.t * Lib_name.t) list
     -> allow_private_deps:bool
     -> stack:Dep_stack.t
+    -> exterior:bool
     -> (t list, exn) Result.t
 
 
@@ -919,6 +925,7 @@ module rec Resolve : sig
     -> allow_private_deps:bool
     -> pps:(Loc.t * Lib_name.t) list
     -> stack:Dep_stack.t
+    -> exterior:bool
     -> lib list Or_exn.t
        * lib list Or_exn.t
        * Resolved_select.t list
@@ -948,7 +955,7 @@ end = struct
     let allow_private_deps = Lib_info.Status.is_private status in
 
     let resolve (loc, name) =
-      resolve_dep db (name : Lib_name.t) ~allow_private_deps ~loc ~stack in
+      resolve_dep db (name : Lib_name.t) ~allow_private_deps ~loc ~stack ~exterior:true in
 
     let implements =
       let open Option.O in
@@ -1011,7 +1018,7 @@ end = struct
     let requires, pps, resolved_selects =
       let pps = Lib_info.pps info in
       Lib_info.requires info
-      |> resolve_user_deps db ~allow_private_deps ~pps ~stack
+      |> resolve_user_deps db ~allow_private_deps ~pps ~stack ~exterior:true
     in
     let requires =
       match implements with
@@ -1023,7 +1030,7 @@ end = struct
     in
     let ppx_runtime_deps =
       Lib_info.ppx_runtime_deps info
-      |> resolve_simple_deps db ~allow_private_deps ~stack
+      |> resolve_simple_deps db ~allow_private_deps ~stack ~exterior:true
     in
     let src_dir = Lib_info.src_dir info in
     let map_error x =
@@ -1056,22 +1063,24 @@ end = struct
     let res =
       let hidden =
         match hidden with
-        | Some _ -> hidden
-        | None ->
+        | `Hidden _ | `User_hidden _ -> hidden
+        | `No ->
           let enabled = Lib_info.enabled info in
           match enabled with
-          | Normal -> None
+          | Normal -> `No
           | Optional ->
-            Option.some_if
-              (not (Result.is_ok t.requires && Result.is_ok t.ppx_runtime_deps))
-              "optional with unavailable dependencies"
+            if (not (Result.is_ok t.requires && Result.is_ok t.ppx_runtime_deps))
+            then `Hidden "optional with unavailable dependencies"
+            else `No
           | Disabled_because_of_enabled_if ->
-            Some "unsatisfied 'enabled_if'"
+            `Hidden "unsatisfied 'enabled_if'"
       in
       match hidden with
-      | None -> St_found t
-      | Some reason ->
+      | `No -> St_found t
+      | `Hidden reason ->
         St_hidden (t, src_dir, reason)
+      | `User_hidden reason ->
+        St_user_hidden (t, src_dir, reason)
     in
     Table.set db.table name res;
     res
@@ -1082,14 +1091,19 @@ end = struct
     | None   -> resolve_name db name ~stack
 
   let resolve_dep db (name : Lib_name.t) ~allow_private_deps
-        ~loc ~stack : t Or_exn.t =
+        ~loc ~stack ~exterior : t Or_exn.t =
     match find_internal db name ~stack with
     | St_initializing id ->
       Dep_stack.dependency_cycle stack id
-    | St_found lib -> check_private_deps lib ~loc ~allow_private_deps
+    | St_found lib ->
+      check_private_deps lib ~loc ~allow_private_deps
     | St_not_found -> Error.not_found ~loc ~name
     | St_hidden (_, dir, reason) ->
       Error.hidden ~loc ~name ~dir ~reason
+    | St_user_hidden (lib, dir, reason) ->
+      if exterior
+      then check_private_deps lib ~loc ~allow_private_deps
+      else Error.hidden ~loc ~name ~dir ~reason
 
   let resolve_name db name ~stack =
     match db.resolve name with
@@ -1102,7 +1116,7 @@ end = struct
           x
       end
     | Found info ->
-      instantiate db name info ~stack ~hidden:None
+      instantiate db name info ~stack ~hidden:`No
     | Not_found ->
       let res =
         match db.parent with
@@ -1111,7 +1125,7 @@ end = struct
       in
       Table.add_exn db.table name res;
       res
-    | Hidden (info, hidden) ->
+    | Hidden (info, hidden) -> begin
       match
         match db.parent with
         | None    -> St_not_found
@@ -1121,15 +1135,28 @@ end = struct
         Table.add_exn db.table name x;
         x
       | _ ->
-        instantiate db name info ~stack ~hidden:(Some hidden)
+        instantiate db name info ~stack ~hidden:(`Hidden hidden)
+    end
+    | User_hidden (info, hidden) -> begin
+      match
+        match db.parent with
+        | None    -> St_not_found
+        | Some db -> find_internal db name ~stack
+      with
+      | St_found _ as x ->
+        Table.add_exn db.table name x;
+        x
+      | _ ->
+        instantiate db name info ~stack ~hidden:(`User_hidden hidden)
+    end
 
-  let available_internal db (name : Lib_name.t) ~stack =
-    resolve_dep db name ~allow_private_deps:true ~loc:Loc.none ~stack
+  let available_internal db (name : Lib_name.t) ~stack ~exterior =
+    resolve_dep db name ~allow_private_deps:true ~loc:Loc.none ~stack ~exterior
     |> Result.is_ok
 
-  let resolve_simple_deps db names ~allow_private_deps ~stack =
+  let resolve_simple_deps db names ~allow_private_deps ~stack ~exterior =
     Result.List.map names ~f:(fun (loc, name) ->
-      resolve_dep db name ~allow_private_deps ~loc ~stack)
+      resolve_dep db name ~allow_private_deps ~loc ~stack ~exterior)
 
   let resolve_complex_deps db deps ~allow_private_deps ~stack =
     let res, resolved_selects =
@@ -1138,7 +1165,7 @@ end = struct
           match (dep : Dune_file.Lib_dep.t) with
           | Direct (loc, name) ->
             let res =
-              resolve_dep db name ~allow_private_deps ~loc ~stack
+              resolve_dep db name ~allow_private_deps ~loc ~stack ~exterior:false
               >>| List.singleton
             in
             (res, acc_selects)
@@ -1147,18 +1174,20 @@ end = struct
               match
                 List.find_map choices ~f:(fun { required; forbidden; file } ->
                   if Lib_name.Set.exists forbidden
-                       ~f:(available_internal db ~stack) then
+                       ~f:(available_internal db ~stack ~exterior:false) then
                     None
-                  else
+                  else begin
                     match
                       let deps =
                         Lib_name.Set.fold required ~init:[] ~f:(fun x acc ->
                           (loc, x) :: acc)
                       in
                       resolve_simple_deps ~allow_private_deps db deps ~stack
+                        ~exterior:false
                     with
                     | Ok ts -> Some (ts, file)
-                    | Error _ -> None)
+                    | Error _ -> None
+                  end)
               with
               | Some (ts, file) ->
                 (Ok ts, Ok file)
@@ -1185,21 +1214,22 @@ end = struct
     (res, resolved_selects)
 
 
-  let resolve_deps db deps ~allow_private_deps ~stack =
+  let resolve_deps db deps ~allow_private_deps ~stack ~exterior =
     (* Compute transitive closure *)
     let libs, selects = match (deps : Lib_info.Deps.t) with
       | Simple  names ->
-        (resolve_simple_deps db names ~allow_private_deps ~stack, [])
+        (resolve_simple_deps db names ~allow_private_deps ~stack ~exterior, [])
       | Complex names ->
+        assert (not exterior);
         resolve_complex_deps db names ~allow_private_deps ~stack
     in
     (* Find implementations for virtual libraries. *)
     libs, selects
 
 
-  let resolve_user_deps db deps ~allow_private_deps ~pps ~stack =
+  let resolve_user_deps db deps ~allow_private_deps ~pps ~stack ~exterior =
     let deps, resolved_selects =
-      resolve_deps db deps ~allow_private_deps ~stack in
+      resolve_deps db deps ~allow_private_deps ~stack ~exterior in
     let deps, pps =
       match pps with
       | [] -> (deps, Ok [])
@@ -1212,7 +1242,7 @@ end = struct
         in
         let pps =
           let* pps =
-            resolve_simple_deps db pps ~allow_private_deps:true ~stack in
+            resolve_simple_deps db pps ~allow_private_deps:true ~stack ~exterior in
           closure_with_overlap_checks None pps ~stack ~linking:true
             ~variants:None
         in
@@ -1341,7 +1371,7 @@ end = struct
           | None -> Ok ()
           | Some db ->
             match find_internal db t.name ~stack with
-            | St_found t' ->
+            | St_found t' | St_user_hidden (t',_,_) ->
               if t = t' then
                 Ok ()
               else begin
@@ -1466,6 +1496,7 @@ module DB = struct
       | Not_found
       | Found    of Lib_info.external_
       | Hidden   of Lib_info.external_ * string
+      | User_hidden   of Lib_info.external_ * string
       | Redirect of db option * Lib_name.t
   end
 
@@ -1488,7 +1519,7 @@ module DB = struct
              either [Found] or [Redirect (_, name)] where [name] is in
              [libmap] for sure and maps to [Found _]. *)
           match res with
-          | Not_found | Hidden _ -> assert false
+          | Not_found | Hidden _  | User_hidden _ -> assert false
           | Found x -> x
           | Redirect (_, name') ->
             match Lib_name.Map.find libmap name' with
@@ -1640,7 +1671,10 @@ module DB = struct
             else
               Not_found
           | Hidden pkg ->
-            Hidden (Lib_info.of_dune_lib pkg, "unsatisfied 'exist_if'"))
+            Hidden (Lib_info.of_dune_lib pkg, "unsatisfied 'exist_if'")
+          | User_hidden pkg ->
+            User_hidden (Lib_info.of_dune_lib pkg, "in dune-workspace")
+      )
       ~all:(fun () ->
         Findlib.all_packages findlib
         |> List.map ~f:Dune_package.Lib.name)
@@ -1649,12 +1683,12 @@ module DB = struct
     match Resolve.find_internal t name ~stack:Dep_stack.empty with
     | St_initializing _ -> assert false
     | St_found t -> Some t
-    | St_not_found | St_hidden _ -> None
+    | St_not_found | St_hidden _ | St_user_hidden _ -> None
 
   let find_even_when_hidden t name =
     match Resolve.find_internal t name ~stack:Dep_stack.empty with
     | St_initializing _ -> assert false
-    | St_found t | St_hidden (t, _, _) -> Some t
+    | St_found t | St_hidden (t, _, _) | St_user_hidden (t, _, _) -> Some t
     | St_not_found -> None
 
   let resolve t (loc, name) =
@@ -1663,9 +1697,10 @@ module DB = struct
     | St_found t  -> Ok t
     | St_not_found -> Error.not_found ~loc ~name
     | St_hidden (_, dir, reason) -> Error.hidden ~loc ~name ~dir ~reason
+    | St_user_hidden (_, _dir, _reason) -> assert false (* Error.hidden ~loc ~name ~dir ~reason *)
 
   let available t name =
-    Resolve.available_internal t name ~stack:Dep_stack.empty
+    Resolve.available_internal t name ~stack:Dep_stack.empty ~exterior:false
 
   let get_compile_info t ?(allow_overlaps=false) name =
     match find_even_when_hidden t name with
@@ -1688,6 +1723,7 @@ module DB = struct
     let res, pps, resolved_selects =
       Resolve.resolve_user_deps t (Lib_info.Deps.of_lib_deps deps) ~pps
         ~stack:Dep_stack.empty ~allow_private_deps:true
+        ~exterior:false
     in
     let requires_link = lazy (
       res
@@ -1710,6 +1746,7 @@ module DB = struct
   let resolve_pps t pps =
     Resolve.resolve_simple_deps t ~allow_private_deps:true pps
       ~stack:Dep_stack.empty
+      ~exterior:false
 
   let rec all ?(recursive=false) t =
     let l =

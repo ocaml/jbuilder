@@ -143,12 +143,15 @@ module Unavailable_reason = struct
   type t =
     | Not_found
     | Hidden of Sub_system_info.t Dune_package.Lib.t
+    | User_hidden of Sub_system_info.t Dune_package.Lib.t
 
   let to_string = function
     | Not_found  -> "not found"
     | Hidden pkg ->
       sprintf "in %s is hidden (unsatisfied 'exist_if')"
         (Path.to_string_maybe_quoted (Dune_package.Lib.dir pkg))
+    | User_hidden _ ->
+      "is hidden by the user in dune-workspace file"
 
   let to_dyn =
     let open Dyn.Encoder in
@@ -156,6 +159,8 @@ module Unavailable_reason = struct
     | Not_found -> constr "Not_found" []
     | Hidden lib ->
       constr "Hidden" [Path.to_dyn (Dune_package.Lib.dir lib)]
+    | User_hidden lib ->
+      constr "User_hidden" [Path.to_dyn (Dune_package.Lib.dir lib)]
 end
 
 type t =
@@ -166,7 +171,11 @@ type t =
                  , ( Sub_system_info.t Dune_package.Lib.t
                    , Unavailable_reason.t) result
                  ) Table.t
+  ; hidden_libraries : Lib_name.Set.t
   }
+
+let is_hidden_library t name =
+  Lib_name.Set.mem t.hidden_libraries name
 
 module Package = struct
   type t =
@@ -374,6 +383,8 @@ end = struct
   (* Parse a single package from a META file *)
   let parse_package t ~meta_file ~name ~parent_dir ~vars =
     match Package.parse t ~meta_file ~name ~parent_dir ~vars with
+    | Ok pkg when is_hidden_library t name ->
+      (pkg.dir, Error (Unavailable_reason.User_hidden (Package.to_dune pkg)))
     | Ok pkg ->
       (pkg.dir, Ok (Package.to_dune pkg))
     | Error pkg ->
@@ -437,7 +448,13 @@ let find_and_acknowledge_package t ~fq_name =
     Meta_source.parse_and_acknowledge findlib_package t
   | Some (Dune pkg) ->
     List.iter pkg.libs ~f:(fun lib ->
-      Table.set t.packages (Dune_package.Lib.name lib) (Ok lib))
+      let name = Dune_package.Lib.name lib in
+      let res =
+        if is_hidden_library t name
+        then Error (Unavailable_reason.User_hidden lib)
+        else Ok lib
+      in
+      Table.set t.packages name res)
 
 let find t name =
   match Table.find t.packages name with
@@ -488,11 +505,12 @@ let all_packages t =
     | Error _ -> acc)
   |> List.sort ~compare:Dune_package.Lib.compare_name
 
-let create ~stdlib_dir ~paths ~version =
+let create ~stdlib_dir ~paths ~version ~hidden_libraries =
   { stdlib_dir
   ; paths
   ; builtins = Meta.builtins ~stdlib_dir ~version
   ; packages = Table.create (module Lib_name) 1024
+  ; hidden_libraries
   }
 
 let all_unavailable_packages t =
