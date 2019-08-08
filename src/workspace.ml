@@ -168,6 +168,14 @@ module Context = struct
     | Default x -> x.targets
     | Opam    x -> x.base.targets
 
+  let profile = function
+    | Default x -> x.profile
+    | Opam    x -> x.base.profile
+
+  let paths = function
+    | Default x -> x.paths
+    | Opam    x -> x.base.paths
+
   let all_names t =
     let n = name t in
     n :: List.filter_map (targets t) ~f:(function

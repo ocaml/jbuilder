@@ -23,6 +23,7 @@ val get : t -> Var.t -> string option
 val extend : t -> vars:string Map.t -> t
 
 val extend_env : t -> t -> t
+(** [extend_env x y] gives priority to the values of y *)
 
 val add : t -> var:Var.t -> value:string -> t
 

@@ -42,6 +42,9 @@ module Context : sig
 
   val env : t -> Dune_env.Stanza.t
 
+  val profile : t -> string
+  val paths : t -> (string * Ordered_set_lang.t) list
+
   val host_context : t -> string option
 end
 

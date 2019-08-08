@@ -20,7 +20,7 @@ used.
   $ dune exec --root precedence ./printenv.exe VARIABLE_FROM_BOTH
   Entering directory 'precedence'
   Entering directory 'precedence'
-  VARIABLE_FROM_BOTH=from_workspace
+  VARIABLE_FROM_BOTH=from_context
 
 When a variable is repeated, an error message is displayed:
 

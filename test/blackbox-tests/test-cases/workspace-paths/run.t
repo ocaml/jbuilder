@@ -1,6 +1,8 @@
-  $ dune build
+  $ dune build bin/hello.exe
+
+  $ dune build @default
          hello alias default
-  Hello: $TESTCASE_ROOT/a:/c
+  Hello: $TESTCASE_ROOT/_build/default/a:/c
 
   $ mkdir sub
   $ cat > sub/dune-workspace <<EOF

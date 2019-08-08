@@ -501,13 +501,15 @@ context or can be the description of an opam switch, as follows:
   are meant to be executed on the host machine, such as preprocessors.
 
 - ``(paths (<var1> <val1>) .. (<varN> <valN>))`` allows to set the value of any
-  ``PATH``-like variables in this context. If ``PATH`` itself is modified in
-  this way, its value will be used to resolve binaries in the workspace,
-  including finding the compiler and related tools. These variables will also be
-  passed as part of the environment to any program launched by ``dune``. For
-  each variable, the value is specified using the :ref:`ordered-set-language`.
-  Relative paths are interpreted with respect to the workspace root, see
-  :ref:`finding-root`.
+  ``PATH``-like variables in this context. These variables are passed as part of
+  the environment to any program launched by ``dune``. For each variable, the
+  value is specified using the :ref:`ordered-set-language`. Relative paths are
+  interpreted with respect to the context build directory.
+
+
+If environment variables, such as ``PATH``, are modified in the `dune-workspace`
+through `env-vars` or `paths`, its value will be used to resolve binaries in the
+workspace, including finding the compiler and related tools.
 
 Both ``(default ...)`` and ``(opam ...)`` accept a ``targets`` field in order to
 setup cross compilation. See :ref:`advanced-cross-compilation` for more
