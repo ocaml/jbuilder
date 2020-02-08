@@ -210,8 +210,10 @@ let rec is_dynamic = function
     false
 
 let prepare_managed_paths ~link ~sandboxed deps ~eval_pred =
-  let steps =
-    Path.Set.fold (Dep.Set.paths deps ~eval_pred) ~init:[] ~f:(fun path acc ->
+  let open Fiber.O in
+  let+ steps =
+    let+ deps = Dep.Set.paths deps ~eval_pred in
+    Path.Set.fold deps ~init:[] ~f:(fun path acc ->
         match Path.as_in_build_dir path with
         | None ->
           (* This can actually raise if we try to sandbox the "copy from source
@@ -245,10 +247,12 @@ let maybe_sandbox_path f p =
   | None -> p
   | Some p -> Path.build (f p)
 
-let sandbox t ~sandboxed ~mode ~deps ~eval_pred : t =
+let sandbox t ~sandboxed ~mode ~deps ~eval_pred : t Fiber.t =
   let link = link_function ~mode in
+  let open Fiber.O in
+  let+ managed_paths = prepare_managed_paths ~sandboxed ~link deps ~eval_pred in
   Progn
-    [ prepare_managed_paths ~sandboxed ~link deps ~eval_pred
+    [ managed_paths
     ; map t ~dir:Path.root
         ~f_string:(fun ~dir:_ x -> x)
         ~f_path:(fun ~dir:_ p -> maybe_sandbox_path sandboxed p)

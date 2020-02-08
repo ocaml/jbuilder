@@ -123,11 +123,11 @@ type t =
   { kind : kind
   ; dir : Path.Build.t
   ; text_files : String.Set.t
-  ; modules : Dir_modules.t Memo.Lazy.t
-  ; foreign_sources : Foreign_sources.t Memo.Lazy.t
+  ; modules : Dir_modules.t Memo.Lazy.Async.t
+  ; foreign_sources : Foreign_sources.t Memo.Lazy.Async.t
   ; mlds : (Dune_file.Documentation.t * Path.Build.t list) list Memo.Lazy.t
   ; coq_modules : Coq_module.t list Lib_name.Map.t Memo.Lazy.t
-  ; artifacts : Dir_artifacts.t Memo.Lazy.t
+  ; artifacts : Dir_artifacts.t Memo.Lazy.Async.t
   }
 
 and kind =
@@ -139,11 +139,11 @@ let empty kind ~dir =
   { kind
   ; dir
   ; text_files = String.Set.empty
-  ; modules = Memo.Lazy.of_val Dir_modules.empty
+  ; modules = Memo.Lazy.Async.of_val Dir_modules.empty
   ; mlds = Memo.Lazy.of_val []
-  ; foreign_sources = Memo.Lazy.of_val Foreign_sources.empty
+  ; foreign_sources = Memo.Lazy.Async.of_val Foreign_sources.empty
   ; coq_modules = Memo.Lazy.of_val Lib_name.Map.empty
-  ; artifacts = Memo.Lazy.of_val Dir_artifacts.empty
+  ; artifacts = Memo.Lazy.Async.of_val Dir_artifacts.empty
   }
 
 type gen_rules_result =
@@ -152,7 +152,7 @@ type gen_rules_result =
 
 let dir t = t.dir
 
-let artifacts t = Memo.Lazy.force t.artifacts
+let artifacts t = Memo.Lazy.Async.force t.artifacts
 
 let dirs t =
   match t.kind with
@@ -165,26 +165,37 @@ let dirs t =
 let text_files t = t.text_files
 
 let modules_of_library t ~name =
-  let map = (Memo.Lazy.force t.modules).libraries in
-  Lib_name.Map.find_exn map name
+  let open Fiber.O in
+  let+ modules = Memo.Lazy.Async.force t.modules in
+  Lib_name.Map.find_exn modules.libraries name
 
 let modules_of_executables t ~obj_dir ~first_exe =
-  let map = (Memo.Lazy.force t.modules).executables in
+  let open Fiber.O in
+  let+ modules = Memo.Lazy.Async.force t.modules in
   (* we need to relocate the alias module to its own directory. *)
   let src_dir = Path.build (Obj_dir.obj_dir obj_dir) in
-  String.Map.find_exn map first_exe |> Modules.relocate_alias_module ~src_dir
+  String.Map.find_exn modules.executables first_exe
+  |> Modules.relocate_alias_module ~src_dir
 
 let foreign_sources_of_executables t ~first_exe =
-  Foreign_sources.for_exes (Memo.Lazy.force t.foreign_sources) ~first_exe
+  let open Fiber.O in
+  let+ foreign_sources = Memo.Lazy.Async.force t.foreign_sources in
+  Foreign_sources.for_exes foreign_sources ~first_exe
 
 let foreign_sources_of_library t ~name =
-  Foreign_sources.for_lib (Memo.Lazy.force t.foreign_sources) ~name
+  let open Fiber.O in
+  let+ foreign_sources = Memo.Lazy.Async.force t.foreign_sources in
+  Foreign_sources.for_lib foreign_sources ~name
 
 let foreign_sources_of_archive t ~archive_name =
-  Foreign_sources.for_archive (Memo.Lazy.force t.foreign_sources) ~archive_name
+  let open Fiber.O in
+  let+ foreign_sources = Memo.Lazy.Async.force t.foreign_sources in
+  Foreign_sources.for_archive foreign_sources ~archive_name
 
 let lookup_module t name =
-  Module_name.Map.find (Memo.Lazy.force t.modules).rev_map name
+  let open Fiber.O in
+  let+ modules = Memo.Lazy.Async.force t.modules in
+  Module_name.Map.find modules.rev_map name
 
 let mlds t (doc : Documentation.t) =
   let map = Memo.Lazy.force t.mlds in
@@ -299,18 +310,20 @@ let build_coq_modules_map (d : _ Dir_with_dune.t) ~dir ~modules =
     | _ -> map)
 
 module rec Load : sig
-  val get : Super_context.t -> dir:Path.Build.t -> t
+  val get : Super_context.t -> dir:Path.Build.t -> t Fiber.t
 
-  val gen_rules : Super_context.t -> dir:Path.Build.t -> gen_rules_result
+  val gen_rules :
+    Super_context.t -> dir:Path.Build.t -> gen_rules_result Fiber.t
 end = struct
-  let virtual_modules sctx vlib =
+  let virtual_modules sctx vlib : _ Fiber.t =
     let info = Lib.info vlib in
-    let modules =
+    let open Fiber.O in
+    let+ modules =
       match Option.value_exn (Lib_info.virtual_ info) with
-      | External modules -> modules
+      | External modules -> Fiber.return modules
       | Local ->
         let src_dir = Lib_info.src_dir info |> Path.as_in_build_dir_exn in
-        let t = Load.get sctx ~dir:src_dir in
+        let* t = Load.get sctx ~dir:src_dir in
         modules_of_library t ~name:(Lib.name vlib)
     in
     let existing_virtual_modules = Modules.virtual_module_names modules in
@@ -346,7 +359,7 @@ end = struct
           | None -> Exe_or_normal_lib
           | Some virtual_modules -> Virtual { virtual_modules }
         in
-        (kind, main_module_name, wrapped)
+        (Fiber.return kind, main_module_name, wrapped)
       | Some _ ->
         assert (Option.is_none lib.virtual_modules);
         let resolved =
@@ -367,8 +380,10 @@ end = struct
                to the same library. *)
             (Option.value_exn (Lib.implements resolved))
         in
-        let kind : Modules_field_evaluator.kind =
-          Implementation (virtual_modules sctx vlib)
+        let kind =
+          let open Fiber.O in
+          let+ impl = virtual_modules sctx vlib in
+          Modules_field_evaluator.Implementation impl
         in
         let main_module_name, wrapped =
           Result.ok_exn
@@ -379,6 +394,8 @@ end = struct
         in
         (kind, main_module_name, wrapped)
     in
+    let open Fiber.O in
+    let+ kind = kind in
     let modules =
       Modules_field_evaluator.eval ~modules ~buildable:lib.buildable ~kind
         ~private_modules:
@@ -423,25 +440,36 @@ end = struct
       } =
     (* Interpret a few stanzas in order to determine the list of files generated
        by the user. *)
-    let lookup ~f ~dir name = f (artifacts (Load.get sctx ~dir)) name in
+    let open Fiber.O in
+    let* loaded_dir = Load.get sctx ~dir in
+    let lookup ~f ~dir name =
+      let+ artifacts = artifacts loaded_dir in
+      f artifacts name
+    in
     let lookup_module = lookup ~f:Dir_artifacts.lookup_module in
     let lookup_library = lookup ~f:Dir_artifacts.lookup_library in
     let expander = Super_context.expander sctx ~dir in
     let expander = Expander.set_lookup_module expander ~lookup_module in
     let expander = Expander.set_lookup_library expander ~lookup_library in
     let expander = Expander.set_artifacts_dynamic expander true in
-    let generated_files =
-      List.concat_map stanzas ~f:(fun stanza ->
+    let open Fiber.O in
+    let+ generated_files =
+      Fiber.parallel_map stanzas ~f:(fun stanza ->
           match (stanza : Stanza.t) with
-          | Coqpp.T { modules; _ } -> List.map modules ~f:(fun m -> m ^ ".ml")
-          | Menhir.T menhir -> Menhir_rules.targets menhir
+          | Coqpp.T { modules; _ } ->
+            Fiber.return (List.map modules ~f:(fun m -> m ^ ".ml"))
+          | Menhir.T menhir -> Fiber.return (Menhir_rules.targets menhir)
           | Rule rule ->
             Simple_rules.user_rule sctx rule ~dir ~expander
             |> Path.Build.Set.to_list
             |> List.map ~f:Path.Build.basename
+            |> Fiber.return
           | Copy_files def ->
-            Simple_rules.copy_files sctx def ~src_dir ~dir ~expander
-            |> Path.Set.to_list |> List.map ~f:Path.basename
+            let open Fiber.O in
+            let+ files =
+              Simple_rules.copy_files sctx def ~src_dir ~dir ~expander
+            in
+            files |> Path.Set.to_list |> List.map ~f:Path.basename
           | Library { buildable; _ }
           | Executables { buildable; _ } ->
             (* Manually add files generated by the (select ...) dependencies *)
@@ -451,8 +479,9 @@ end = struct
                 | Direct _ ->
                   None
                 | Select s -> Some s.result_fn)
-          | _ -> [])
-      |> String.Set.of_list
+            |> Fiber.return
+          | _ -> Fiber.return [])
+      |> Fiber.map ~f:(fun files -> String.Set.of_list (List.concat files))
     in
     String.Set.union generated_files (File_tree.Dir.files ft_dir)
 
@@ -490,52 +519,62 @@ end = struct
       User_error.raise ~loc
         [ Pp.text "(include_subdirs qualified) is not supported yet" ]
 
-  let get0_impl (sctx, dir) : result0 =
+  let get0_impl (sctx, dir) : result0 Fiber.t =
     let dir_status_db = Super_context.dir_status_db sctx in
     let ctx = Super_context.context sctx in
     match Dir_status.DB.get dir_status_db ~dir with
     | Is_component_of_a_group_but_not_the_root { group_root; stanzas = _ } ->
-      See_above group_root
+      Fiber.return (See_above group_root)
     | Standalone x -> (
       match x with
       | Some (_, None)
       | None ->
-        Here
-          { t = empty Standalone ~dir
-          ; rules = None
-          ; subdirs = Path.Build.Map.empty
-          }
+        Fiber.return
+          (Here
+             { t = empty Standalone ~dir
+             ; rules = None
+             ; subdirs = Path.Build.Map.empty
+             })
       | Some (ft_dir, Some d) ->
-        let files, rules =
-          Rules.collect_opt (fun () -> load_text_files sctx ft_dir d)
+        let open Fiber.O in
+        let+ files, rules =
+          Rules.collect_opt_async (fun () -> load_text_files sctx ft_dir d)
         in
         let libs_and_exes =
           let dialects = Dune_project.dialects (Scope.project d.scope) in
-          Memo.lazy_ (fun () ->
-              libs_and_exes sctx d
-                ~modules:(modules_of_files ~dialects ~dir:d.ctx_dir ~files))
+          Memo.Lazy.Async.create (fun () ->
+              let libs, exes =
+                libs_and_exes sctx d
+                  ~modules:(modules_of_files ~dialects ~dir:d.ctx_dir ~files)
+              in
+              let+ libs =
+                Fiber.parallel_map libs ~f:(fun (libs, modules) ->
+                    let+ modules = modules in
+                    (libs, modules))
+              in
+              (libs, exes))
         in
         Here
           { t =
               { kind = Standalone
               ; dir
               ; text_files = files
-              ; modules = Memo.Lazy.map ~f:Dir_modules.make libs_and_exes
-              ; mlds = Memo.lazy_ (fun () -> build_mlds_map d ~files)
+              ; modules = Memo.Lazy.Async.map ~f:Dir_modules.make libs_and_exes
+              ; mlds = Memo.Lazy.create (fun () -> build_mlds_map d ~files)
               ; foreign_sources =
-                  Memo.lazy_ (fun () ->
+                  Memo.Async.Lazy.create (fun () ->
                       let dune_version = d.dune_version in
                       Foreign_sources.make d ~ext_obj:ctx.lib_config.ext_obj
                         ~sources:
                           (Foreign.Sources.Unresolved.load ~dune_version
                              ~dir:d.ctx_dir ~files))
               ; coq_modules =
-                  Memo.lazy_ (fun () ->
+                  Memo.Lazy.Async.create (fun () ->
                       build_coq_modules_map d ~dir:d.ctx_dir
                         ~modules:
                           (coq_modules_of_files ~subdirs:[ (dir, [], files) ]))
               ; artifacts =
-                  Memo.Lazy.map ~f:(Dir_artifacts.make d) libs_and_exes
+                  Memo.Lazy.Async.map ~f:(Dir_artifacts.make d) libs_and_exes
               }
           ; rules
           ; subdirs = Path.Build.Map.empty
@@ -547,7 +586,7 @@ end = struct
             { stanzas = d; group_root = _ } ->
           let files =
             match d with
-            | None -> File_tree.Dir.files ft_dir
+            | None -> Fiber.return (File_tree.Dir.files ft_dir)
             | Some d -> load_text_files sctx ft_dir d
           in
           walk_children ft_dir ~dir ~local ((dir, List.rev local, files) :: acc)
@@ -563,10 +602,16 @@ end = struct
             in
             walk ft_dir ~dir ~local acc)
       in
-      let (files, (subdirs : (Path.Build.t * _ * _) list)), rules =
-        Rules.collect_opt (fun () ->
-            let files = load_text_files sctx ft_dir d in
-            let subdirs = walk_children ft_dir ~dir ~local:[] [] in
+      let open Fiber.O in
+      let* (files, (subdirs : (Path.Build.t * _ * _) list)), rules =
+        Rules.collect_opt_async (fun () ->
+            let* files = load_text_files sctx ft_dir d in
+            let children = walk_children ft_dir ~dir ~local:[] [] in
+            let+ subdirs =
+              Fiber.sequential_map children ~f:(fun (dirs, locals, files) ->
+                  let+ files = files in
+                  (dirs, locals, files))
+            in
             (files, subdirs))
       in
       let libs_and_exes =
@@ -651,12 +696,13 @@ end = struct
         ; artifacts
         }
       in
-      Here
-        { t
-        ; rules
-        ; subdirs =
-            Path.Build.Map.of_list_map_exn subdirs ~f:(fun x -> (x.dir, x))
-        }
+      Fiber.return
+        (Here
+           { t
+           ; rules
+           ; subdirs =
+               Path.Build.Map.of_list_map_exn subdirs ~f:(fun x -> (x.dir, x))
+           })
 
   let memo0 =
     let module Output = struct
@@ -667,18 +713,23 @@ end = struct
     Memo.create "dir-contents-get0"
       ~input:(module Key)
       ~output:(Simple (module Output))
-      ~doc:"dir contents" ~visibility:Hidden Sync get0_impl
+      ~doc:"dir contents" ~visibility:Hidden Async get0_impl
 
   let get sctx ~dir =
-    match Memo.exec memo0 (sctx, dir) with
-    | Here { t; rules = _; subdirs = _ } -> t
+    let open Fiber.O in
+    let* contents = Memo.exec memo0 (sctx, dir) in
+    match contents with
+    | Here { t; rules = _; subdirs = _ } -> Fiber.return t
     | See_above group_root -> (
-      match Memo.exec memo0 (sctx, group_root) with
+      let+ group_root = Memo.exec memo0 (sctx, group_root) in
+      match group_root with
       | See_above _ -> assert false
       | Here { t; rules = _; subdirs = _ } -> t )
 
   let gen_rules sctx ~dir =
-    match Memo.exec memo0 (sctx, dir) with
+    let open Fiber.O in
+    let+ contents = Memo.exec memo0 (sctx, dir) in
+    match contents with
     | See_above group_root -> Group_part group_root
     | Here { t; rules; subdirs } ->
       Rules.produce_opt rules;

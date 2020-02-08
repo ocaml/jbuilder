@@ -9,4 +9,5 @@ val setup_library_odoc_rules :
 
 val init : Super_context.t -> unit
 
-val gen_rules : Super_context.t -> dir:Path.Build.t -> string list -> unit
+val gen_rules :
+  Super_context.t -> dir:Path.Build.t -> string list -> unit Fiber.t

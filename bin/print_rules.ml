@@ -34,14 +34,18 @@ let print_rule_makefile ppf (rule : Build_system.Evaluated_rule.t) =
       ; Action.for_shell rule.action
       ]
   in
-  let eval_pred = Build_system.eval_pred in
+  let open Fiber.O in
+  let+ deps =
+    let eval_pred = Build_system.eval_pred in
+    Dep.Set.paths rule.deps ~eval_pred
+  in
   Format.fprintf ppf
     "@[<hov 2>@{<makefile-stuff>%a:%t@}@]@,@<0>\t@{<makefile-action>%a@}@,@,"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf p ->
          Format.pp_print_string ppf (Path.to_string p)))
     (List.map ~f:Path.build (Path.Build.Set.to_list rule.targets))
     (fun ppf ->
-      Path.Set.iter (Dep.Set.paths rule.deps ~eval_pred) ~f:(fun dep ->
+      Path.Set.iter deps ~f:(fun dep ->
           Format.fprintf ppf "@ %s" (Path.to_string dep)))
     Pp.render_ignore_tags (Action_to_sh.pp action)
 
@@ -80,14 +84,18 @@ module Syntax = struct
     else
       Sexp
 
-  let print_rule = function
-    | Makefile -> print_rule_makefile
-    | Sexp -> print_rule_sexp
+  let print_rule syntax ppf rule =
+    match syntax with
+    | Makefile -> print_rule_makefile ppf rule
+    | Sexp -> Fiber.return (print_rule_sexp ppf rule)
 
-  let print_rules syntax ppf rules =
+  let print_rules syntax ppf rules : unit Fiber.t =
     Dune_lang.Deprecated.prepare_formatter ppf;
     Format.pp_open_vbox ppf 0;
-    Format.pp_print_list (print_rule syntax) ppf rules;
+    let open Fiber.O in
+    let+ () =
+      Fiber.sequential_iter rules ~f:(fun rule -> print_rule syntax ppf rule)
+    in
     Format.pp_print_flush ppf ()
 end
 
@@ -124,8 +132,7 @@ let term =
       let* rules = Build_system.evaluate_rules ~request ~recursive in
       let print oc =
         let ppf = Format.formatter_of_out_channel oc in
-        Syntax.print_rules syntax ppf rules;
-        Fiber.return ()
+        Syntax.print_rules syntax ppf rules
       in
       match out with
       | None -> print stdout

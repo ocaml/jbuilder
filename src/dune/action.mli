@@ -106,7 +106,7 @@ val sandbox :
   -> mode:Sandbox_mode.some
   -> deps:Dep.Set.t
   -> eval_pred:Dep.eval_pred
-  -> t
+  -> t Fiber.t
 
 type is_useful =
   | Clearly_not

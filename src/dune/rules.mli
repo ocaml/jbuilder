@@ -104,6 +104,10 @@ val is_subset : t -> of_:t -> bool
 
 val map_rules : t -> f:(Rule.t -> Rule.t) -> t
 
+val collect_async : (unit -> 'a Fiber.t) -> ('a * t) Fiber.t
+
+val collect_opt_async : (unit -> 'a Fiber.t) -> ('a * t option) Fiber.t
+
 val collect : (unit -> 'a) -> 'a * t
 
 val collect_unit : (unit -> unit) -> t

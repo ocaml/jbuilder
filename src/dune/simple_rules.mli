@@ -20,7 +20,7 @@ val copy_files :
   -> expander:Expander.t
   -> src_dir:Path.Source.t
   -> Copy_files.t
-  -> Path.Set.t
+  -> Path.Set.t Fiber.t
 
 (** Interpret an [(alias ...)] stanza. *)
 val alias :

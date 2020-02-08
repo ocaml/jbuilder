@@ -106,7 +106,10 @@ let term =
   let hints () =
     let candidates =
       let path = path_relative_to_build_root "" in
-      Path.Set.to_list (Build_system.targets_of ~dir:path)
+      let targets =
+        Scheduler.go ~common (fun () -> Build_system.targets_of ~dir:path)
+      in
+      Path.Set.to_list targets
       |> List.filter ~f:(fun p -> Path.extension p = ".exe")
       |> List.map ~f:(fun p -> "./" ^ Path.basename p)
     in

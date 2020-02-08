@@ -60,10 +60,12 @@ end
 
     [init] can generate rules in any directory, so it's always called. *)
 val set_rule_generators :
-     init:(unit -> unit)
+     init:(unit -> unit Fiber.t)
   -> gen_rules:
        (   Context_or_install.t
-        -> (dir:Path.Build.t -> string list -> extra_sub_directories_to_keep)
+        -> (   dir:Path.Build.t
+            -> string list
+            -> extra_sub_directories_to_keep Fiber.t)
            option)
   -> unit
 
@@ -79,13 +81,13 @@ val prefix_rules : unit Build.t -> f:(unit -> 'a) -> 'a
 (** [eval_pred t [glob]] returns the list of files in [File_selector.dir glob]
     that matches [File_selector.predicate glob]. The list of files includes the
     list of targets. *)
-val eval_pred : File_selector.t -> Path.Set.t
+val eval_pred : File_selector.t -> Path.Set.t Fiber.t
 
 (** Returns the set of targets in the given directory. *)
-val targets_of : dir:Path.t -> Path.Set.t
+val targets_of : dir:Path.t -> Path.Set.t Fiber.t
 
 (** Load the rules for this directory. *)
-val load_dir : dir:Path.t -> unit
+val load_dir : dir:Path.t -> unit Fiber.t
 
 (** Sets the package assignment *)
 val set_packages : (Path.Build.t -> Package.Name.Set.t) -> unit

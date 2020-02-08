@@ -163,7 +163,8 @@ let copy_files sctx ~dir ~expander ~src_dir (def : Copy_files.t) =
     let context = Context.DB.get dir in
     Path.Build.append_source context.build_dir src_in_src
   in
-  let files =
+  let open Fiber.O in
+  let+ files =
     Build_system.eval_pred
       (File_selector.create ~dir:(Path.build src_in_build) pred)
   in

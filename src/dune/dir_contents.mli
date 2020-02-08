@@ -73,4 +73,4 @@ type gen_rules_result =
 
     However, if the directory is part of a group, this function simply returns
     the root of the group without emitting any rule. *)
-val gen_rules : Super_context.t -> dir:Path.Build.t -> gen_rules_result
+val gen_rules : Super_context.t -> dir:Path.Build.t -> gen_rules_result Fiber.t

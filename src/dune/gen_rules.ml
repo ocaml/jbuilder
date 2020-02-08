@@ -281,62 +281,74 @@ let gen_rules sctx dir_contents cctxs ~dir :
   | None -> []
   | Some d -> gen_rules sctx dir_contents cctxs d
 
-let gen_rules ~sctx ~dir components : Build_system.extra_sub_directories_to_keep
-    =
+let gen_rules ~sctx ~dir components :
+    Build_system.extra_sub_directories_to_keep Fiber.t =
   Install_rules.meta_and_dune_package_rules sctx ~dir;
   let subdirs_to_keep1 = Install_rules.gen_rules sctx ~dir in
   Opam_create.add_rules sctx ~dir;
-  let subdirs_to_keep2 : Build_system.extra_sub_directories_to_keep =
+  let subdirs_to_keep2 : Build_system.extra_sub_directories_to_keep Fiber.t =
+    let open Fiber.O in
     match components with
-    | ".js" :: rest -> (
+    | ".js" :: rest ->
       Js_of_ocaml_rules.setup_separate_compilation_rules sctx rest;
-      match rest with
-      | [] -> All
-      | _ -> These String.Set.empty )
+      Fiber.return
+        ( match rest with
+        | [] -> Build_system.Subdir_set.All
+        | _ -> These String.Set.empty )
     | "_doc" :: rest -> (
-      Odoc.gen_rules sctx rest ~dir;
+      let+ () = Odoc.gen_rules sctx rest ~dir in
       match rest with
-      | [] -> All
+      | [] -> Build_system.Subdir_set.All
       | _ -> These String.Set.empty )
-    | ".ppx" :: rest -> (
+    | ".ppx" :: rest ->
       Preprocessing.gen_rules sctx rest;
-      match rest with
-      | [] -> All
-      | _ -> These String.Set.empty )
+      Fiber.return
+        ( match rest with
+        | [] -> Build_system.Subdir_set.All
+        | _ -> These String.Set.empty )
     | comps ->
       let subdirs = [ ".formatted"; ".bin"; ".utop" ] in
-      ( match List.last comps with
-      | Some ".formatted" ->
-        let expander = Super_context.expander sctx ~dir in
-        gen_format_rules sctx ~expander ~output_dir:dir
-      | Some ".bin" ->
-        let src_dir = Path.Build.parent_exn dir in
-        Super_context.local_binaries sctx ~dir:src_dir
-        |> List.iter ~f:(fun t ->
-               let loc = File_binding.Expanded.src_loc t in
-               let src = Path.build (File_binding.Expanded.src t) in
-               let dst = File_binding.Expanded.dst_path t ~dir in
-               Super_context.add_rule sctx ~loc ~dir (Build.symlink ~src ~dst))
-      | _ -> (
-        match File_tree.find_dir (Path.Build.drop_build_context_exn dir) with
-        | None ->
-          (* We get here when [dir] is a generated directory, such as [.utop] or
-             [.foo.objs]. *)
-          if Utop.is_utop_dir dir then
-            Utop.setup sctx ~dir:(Path.Build.parent_exn dir)
-          else if components <> [] then
-            Build_system.load_dir ~dir:(Path.parent_exn (Path.build dir))
-        | Some _ -> (
-          (* This interprets "rule" and "copy_files" stanzas. *)
-          match Dir_contents.gen_rules sctx ~dir with
-          | Group_part root -> Build_system.load_dir ~dir:(Path.build root)
-          | Standalone_or_root (dir_contents, subs) ->
-            let cctxs = gen_rules sctx dir_contents [] ~dir in
-            List.iter subs ~f:(fun dc ->
-                ignore
-                  ( gen_rules sctx dir_contents cctxs ~dir:(Dir_contents.dir dc)
-                    : _ list )) ) ) );
-      These (String.Set.of_list subdirs)
+      let open Fiber.O in
+      let+ () =
+        match List.last comps with
+        | Some ".formatted" ->
+          let expander = Super_context.expander sctx ~dir in
+          Fiber.return (gen_format_rules sctx ~expander ~output_dir:dir)
+        | Some ".bin" ->
+          let src_dir = Path.Build.parent_exn dir in
+          Super_context.local_binaries sctx ~dir:src_dir
+          |> List.iter ~f:(fun t ->
+                 let loc = File_binding.Expanded.src_loc t in
+                 let src = Path.build (File_binding.Expanded.src t) in
+                 let dst = File_binding.Expanded.dst_path t ~dir in
+                 Super_context.add_rule sctx ~loc ~dir (Build.symlink ~src ~dst))
+          |> Fiber.return
+        | _ -> (
+          match File_tree.find_dir (Path.Build.drop_build_context_exn dir) with
+          | None ->
+            (* We get here when [dir] is a generated directory, such as [.utop]
+               or [.foo.objs]. *)
+            if Utop.is_utop_dir dir then
+              Fiber.return (Utop.setup sctx ~dir:(Path.Build.parent_exn dir))
+            else if components <> [] then
+              Build_system.load_dir ~dir:(Path.parent_exn (Path.build dir))
+            else
+              Fiber.return ()
+          | Some _ -> (
+            (* This interprets "rule" and "copy_files" stanzas. *)
+            let* contents = Dir_contents.gen_rules sctx ~dir in
+            match contents with
+            | Group_part root -> Build_system.load_dir ~dir:(Path.build root)
+            | Standalone_or_root (dir_contents, subs) ->
+              let cctxs = gen_rules sctx dir_contents [] ~dir in
+              List.iter subs ~f:(fun dc ->
+                  ignore
+                    ( gen_rules sctx dir_contents cctxs
+                        ~dir:(Dir_contents.dir dc)
+                      : _ list ))
+              |> Fiber.return ) )
+      in
+      Build_system.Subdir_set.These (String.Set.of_list subdirs)
   in
   let subdirs_to_keep3 =
     match components with
@@ -345,6 +357,8 @@ let gen_rules ~sctx ~dir components : Build_system.extra_sub_directories_to_keep
         (String.Set.of_list [ ".js"; "_doc"; ".ppx" ])
     | _ -> These String.Set.empty
   in
+  let open Fiber.O in
+  let+ subdirs_to_keep2 = subdirs_to_keep2 in
   Build_system.Subdir_set.union_all
     [ subdirs_to_keep1; subdirs_to_keep2; subdirs_to_keep3 ]
 
@@ -421,11 +435,14 @@ let gen ~contexts ?(external_lib_deps_mode = false) ?only_packages conf =
            Path.Build.Map.find (Install_rules.packages sctx) path))
   in
   Build_system.set_rule_generators
-    ~init:(fun () -> Context_name.Map.iter sctxs ~f:Odoc.init)
+    ~init:(fun () ->
+      Context_name.Map.to_list sctxs
+      |> Fiber.parallel_iter ~f:(fun (_, sctx) ->
+             Odoc.init sctx |> Fiber.return))
     ~gen_rules:(function
       | Install ctx ->
         Option.map (Context_name.Map.find sctxs ctx) ~f:(fun sctx ~dir _ ->
-            Install_rules.gen_rules sctx ~dir)
+            Fiber.return (Install_rules.gen_rules sctx ~dir))
       | Context ctx ->
         Context_name.Map.find sctxs ctx
         |> Option.map ~f:(fun sctx -> gen_rules ~sctx));

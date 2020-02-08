@@ -349,9 +349,14 @@ let libs_of_pkg sctx ~pkg =
 let load_all_odoc_rules_pkg sctx ~pkg =
   let pkg_libs = libs_of_pkg sctx ~pkg in
   let ctx = Super_context.context sctx in
-  Build_system.load_dir ~dir:(Path.build (Paths.odocs ctx (Pkg pkg)));
-  List.iter pkg_libs ~f:(fun lib ->
-      Build_system.load_dir ~dir:(Path.build (Paths.odocs ctx (Lib lib))));
+  let open Fiber.O in
+  let* () =
+    Build_system.load_dir ~dir:(Path.build (Paths.odocs ctx (Pkg pkg)))
+  in
+  let+ () =
+    Fiber.parallel_iter pkg_libs ~f:(fun lib ->
+        Build_system.load_dir ~dir:(Path.build (Paths.odocs ctx (Lib lib))))
+  in
   pkg_libs
 
 let create_odoc ctx ~target odoc_input =
@@ -645,32 +650,37 @@ let init sctx =
            Lib lib |> Dep.html_alias ctx |> Alias.stamp_file |> Path.build)
     |> Path.Set.of_list )
 
-let gen_rules sctx ~dir:_ rest =
+let gen_rules sctx ~dir:_ rest : unit Fiber.t =
   match rest with
   | [ "_html" ] ->
     setup_css_rule sctx;
-    setup_toplevel_index_rule sctx
+    Fiber.return (setup_toplevel_index_rule sctx)
   | "_mlds" :: pkg :: _
   | "_odoc" :: "pkg" :: pkg :: _ ->
     let pkg = Package.Name.of_string pkg in
     let packages = Super_context.packages sctx in
     Package.Name.Map.find packages pkg
     |> Option.iter ~f:(fun _ -> setup_package_odoc_rules sctx ~pkg)
-  | "_odoc" :: "lib" :: lib :: _ ->
+    |> Fiber.return
+  | "_odoc" :: "lib" :: lib :: _ -> (
     let lib, lib_db = Scope_key.of_string sctx lib in
     (* diml: why isn't [None] some kind of error here? *)
-    Option.iter (Lib.DB.find lib_db lib) ~f:(fun lib ->
-        (* TODO instead of this hack, call memoized function that generates the
-           rules for this library *)
-        let info = Lib.info lib in
-        let dir = Lib_info.src_dir info in
-        Build_system.load_dir ~dir)
-  | "_html" :: lib_unique_name_or_pkg :: _ ->
+    match Lib.DB.find lib_db lib with
+    | None -> Fiber.return ()
+    | Some lib ->
+      (* TODO instead of this hack, call memoized function that generates the
+         rules for this library *)
+      let info = Lib.info lib in
+      let dir = Lib_info.src_dir info in
+      Build_system.load_dir ~dir )
+  | "_html" :: lib_unique_name_or_pkg :: _ -> (
     (* TODO we can be a better with the error handling in the case where
        lib_unique_name_or_pkg is neither a valid pkg or lnu *)
     let lib, lib_db = Scope_key.of_string sctx lib_unique_name_or_pkg in
     let setup_pkg_html_rules pkg =
-      setup_pkg_html_rules sctx ~pkg ~libs:(load_all_odoc_rules_pkg sctx ~pkg)
+      let open Fiber.O in
+      let+ libs = load_all_odoc_rules_pkg sctx ~pkg in
+      setup_pkg_html_rules sctx ~pkg ~libs
     in
     (* diml: why isn't [None] some kind of error here? *)
     let lib =
@@ -678,14 +688,23 @@ let gen_rules sctx ~dir:_ rest =
       let* lib = Lib.DB.find lib_db lib in
       Lib.Local.of_lib lib
     in
-    Option.iter lib ~f:(fun lib ->
+    let open Fiber.O in
+    let* () =
+      match lib with
+      | None -> Fiber.return ()
+      | Some lib -> (
         match Lib.package (Lib.Local.to_lib lib) with
+        | Some pkg -> setup_pkg_html_rules pkg
         | None ->
-          setup_lib_html_rules sctx lib
-            ~requires:(Lib.closure ~linking:false [ Lib.Local.to_lib lib ])
-        | Some pkg -> setup_pkg_html_rules pkg);
-    Option.iter
-      (Package.Name.Map.find (SC.packages sctx)
-         (Package.Name.of_string lib_unique_name_or_pkg))
-      ~f:(fun pkg -> setup_pkg_html_rules pkg.name)
-  | _ -> ()
+          Fiber.return
+            (setup_lib_html_rules sctx lib
+               ~requires:(Lib.closure ~linking:false [ Lib.Local.to_lib lib ]))
+        )
+    in
+    match
+      Package.Name.Map.find (SC.packages sctx)
+        (Package.Name.of_string lib_unique_name_or_pkg)
+    with
+    | None -> Fiber.return ()
+    | Some pkg -> setup_pkg_html_rules pkg.name )
+  | _ -> Fiber.return ()

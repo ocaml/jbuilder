@@ -56,17 +56,21 @@ module T = struct
 
   let trace_file fn = (Path.to_string fn, Cached_digest.file fn)
 
-  let trace t ~sandbox_mode ~env ~eval_pred : Trace.Fact.t Option.t =
+  let trace (t : t) ~sandbox_mode ~env ~eval_pred :
+      Trace.Fact.t Fiber.t Option.t =
+    let fiber_some (x : Trace.Fact.t) = Some (Fiber.return x) in
     match t with
-    | Env var -> Some (Env (var, Env.get env var))
-    | File fn -> Some (File (trace_file fn))
-    | Alias a -> Some (File (trace_file (Path.build (Alias.stamp_file a))))
+    | Env var -> fiber_some (Env (var, Env.get env var) : Trace.Fact.t)
+    | File fn -> fiber_some (File (trace_file fn) : Trace.Fact.t)
+    | Alias a ->
+      fiber_some (File (trace_file (Path.build (Alias.stamp_file a))))
     | File_selector dir_glob ->
-      let id = File_selector.to_dyn dir_glob
-      and files =
-        eval_pred dir_glob |> Path.Set.to_list |> List.map ~f:trace_file
-      in
-      Some (File_selector (id, files))
+      let id = File_selector.to_dyn dir_glob in
+      let open Fiber.O in
+      Some
+        (let+ files = eval_pred dir_glob in
+         let files = files |> Path.Set.to_list |> List.map ~f:trace_file in
+         Trace.Fact.File_selector (id, files))
     | Universe -> None
     | Sandbox_config config ->
       assert (Sandbox_config.mem config sandbox_mode);
@@ -129,8 +133,11 @@ module Set = struct
     Path.Set.fold ~init:empty ~f:(fun f acc -> add acc (file f))
 
   let trace t ~sandbox_mode ~env ~eval_pred =
-    let facts =
-      List.filter_map (to_list t) ~f:(trace ~sandbox_mode ~env ~eval_pred)
+    let open Fiber.O in
+    let+ facts =
+      to_list t
+      |> List.filter_map ~f:(trace ~sandbox_mode ~env ~eval_pred)
+      |> Fiber.parallel_map ~f:Fn.id
     in
     { Trace.facts; sandbox_mode }
 
@@ -139,21 +146,25 @@ module Set = struct
 
   let encode t = Dune_lang.Encoder.list encode (to_list t)
 
-  let paths t ~eval_pred =
-    fold t ~init:Path.Set.empty ~f:(fun d acc ->
-        match d with
-        | Alias a -> Path.Set.add acc (Path.build (Alias.stamp_file a))
-        | File f -> Path.Set.add acc f
-        | File_selector g -> Path.Set.union acc (eval_pred g)
-        | Universe
-        | Env _ ->
-          acc
-        | Sandbox_config _ -> acc)
+  let paths t ~eval_pred : Path.Set.t Fiber.t =
+    t |> to_list
+    |> Fiber.parallel_map ~f:(function
+         | Alias a ->
+           Fiber.return (Path.Set.singleton (Path.build (Alias.stamp_file a)))
+         | File f -> Fiber.return (Path.Set.singleton f)
+         | File_selector g -> eval_pred g
+         | Universe
+         | Env _
+         | Sandbox_config _ ->
+           Fiber.return Path.Set.empty)
+    |> Fiber.map ~f:Path.Set.union_all
 
   let parallel_iter t ~f = Fiber.parallel_iter ~f (to_list t)
 
   let parallel_iter_files t ~f ~eval_pred =
-    paths t ~eval_pred |> Path.Set.to_list |> Fiber.parallel_iter ~f
+    let open Fiber.O in
+    let* paths = paths t ~eval_pred in
+    Path.Set.to_list paths |> Fiber.parallel_iter ~f
 
   let dirs t =
     fold t ~init:Path.Set.empty ~f:(fun f acc ->
@@ -167,4 +178,4 @@ module Set = struct
         | Sandbox_config _ -> acc)
 end
 
-type eval_pred = File_selector.t -> Path.Set.t
+type eval_pred = File_selector.t -> Path.Set.t Fiber.t

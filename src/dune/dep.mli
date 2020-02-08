@@ -22,7 +22,7 @@ val sandbox_config : Sandbox_config.t -> t
 
 val compare : t -> t -> Ordering.t
 
-type eval_pred = File_selector.t -> Path.Set.t
+type eval_pred = File_selector.t -> Path.Set.t Fiber.t
 
 module Trace : sig
   type t
@@ -39,7 +39,7 @@ module Set : sig
 
   val of_files_set : Path.Set.t -> t
 
-  val paths : t -> eval_pred:eval_pred -> Path.Set.t
+  val paths : t -> eval_pred:eval_pred -> Path.Set.t Fiber.t
 
   val encode : t -> Dune_lang.t
 
@@ -48,7 +48,7 @@ module Set : sig
     -> sandbox_mode:Sandbox_mode.t
     -> env:Env.t
     -> eval_pred:eval_pred
-    -> Trace.t
+    -> Trace.t Fiber.t
 
   val add_paths : t -> Path.Set.t -> t
 

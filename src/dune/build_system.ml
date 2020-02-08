@@ -319,7 +319,9 @@ type t =
   ; init_rules : Rules.t Fdecl.t
   ; gen_rules :
       (   Context_or_install.t
-       -> (dir:Path.Build.t -> string list -> extra_sub_directories_to_keep)
+       -> (   dir:Path.Build.t
+           -> string list
+           -> extra_sub_directories_to_keep Fiber.t)
           option)
       Fdecl.t
   ; (* Package files are part of *)
@@ -353,7 +355,7 @@ let pp_paths set =
 
 let set_rule_generators ~init ~gen_rules =
   let t = t () in
-  let (), init_rules = Rules.collect (fun () -> init ()) in
+  let+ (), init_rules = Rules.collect_async (fun () -> init ()) in
   Fdecl.set t.init_rules init_rules;
   Fdecl.set t.gen_rules gen_rules
 
@@ -549,11 +551,11 @@ let no_rule_found t ~loc fn =
 (* +-------------------- Adding rules to the system --------------------+ *)
 
 module rec Load_rules : sig
-  val load_dir : dir:Path.t -> Loaded.t
+  val load_dir : dir:Path.t -> Loaded.t Fiber.t
 
-  val file_exists : Path.t -> bool
+  val file_exists : Path.t -> bool Fiber.t
 
-  val targets_of : dir:Path.t -> Path.Set.t
+  val targets_of : dir:Path.t -> Path.Set.t Fiber.t
 end = struct
   open Load_rules
 
@@ -584,10 +586,12 @@ end = struct
      [Build.static_deps] and [Build.exec] are cached. *)
   let file_exists fn =
     let dir = Path.parent_exn fn in
-    Path.Set.mem (targets_of ~dir) fn
+    let+ targets = targets_of ~dir in
+    Path.Set.mem targets fn
 
   let targets_of ~dir =
-    match load_dir ~dir with
+    let+ dir = load_dir ~dir in
+    match dir with
     | Non_build targets -> targets
     | Build { rules_here; _ } ->
       Path.Build.Map.keys rules_here
@@ -754,7 +758,7 @@ end = struct
   module Generated_directory_restrictions : sig
     type restriction =
       | Unrestricted
-      | Restricted of Path.Unspecified.w Dir_set.t Memo.Lazy.t
+      | Restricted of Path.Unspecified.w Dir_set.t Memo.Lazy.Async.t
 
     (** Used by the child to ask about the restrictions placed by the parent. *)
     val allowed_by_parent : dir:Path.Build.t -> restriction
@@ -766,7 +770,7 @@ end = struct
   end = struct
     type restriction =
       | Unrestricted
-      | Restricted of Path.Unspecified.w Dir_set.t Memo.Lazy.t
+      | Restricted of Path.Unspecified.w Dir_set.t Memo.Lazy.Async.t
 
     let corresponding_source_dir ~dir =
       match Dpath.analyse_target dir with
@@ -807,8 +811,10 @@ end = struct
         Unrestricted
       else
         Restricted
-          (Memo.Lazy.create (fun () ->
-               match load_dir ~dir:(Path.build dir) with
+          (Memo.Lazy.Async.create (fun () ->
+               let open Fiber.O in
+               let+ loaded_dir = load_dir ~dir:(Path.build dir) in
+               match loaded_dir with
                | Non_build _ -> Dir_set.just_the_root
                | Build { allowed_subdirs; _ } ->
                  Dir_set.descend allowed_subdirs subdir))
@@ -819,7 +825,7 @@ end = struct
         ~subdir:(Path.Build.basename dir)
   end
 
-  let load_dir_step2_exn t ~dir =
+  let load_dir_step2_exn t ~dir : Loaded.t Fiber.t =
     let context_name, sub_dir =
       match Dpath.analyse_path dir with
       | Build (Install (ctx, path)) -> (Context_or_install.Install ctx, path)
@@ -834,15 +840,16 @@ end = struct
     (* the above check makes this safe *)
     let dir = Path.as_in_build_dir_exn dir in
     (* Load all the rules *)
-    let extra_subdirs_to_keep, rules_produced =
+    let* extra_subdirs_to_keep, rules_produced =
       let gen_rules =
         match (Fdecl.get t.gen_rules) context_name with
+        | Some rules -> rules
         | None ->
           Code_error.raise "[gen_rules] did not specify rules for the context"
             [ ("context_name", Context_or_install.to_dyn context_name) ]
-        | Some rules -> rules
       in
-      Rules.collect (fun () -> gen_rules ~dir (Path.Source.explode sub_dir))
+      Rules.collect_async (fun () ->
+          gen_rules ~dir (Path.Source.explode sub_dir))
     in
     let rules =
       let dir = Path.build dir in
@@ -934,33 +941,36 @@ end = struct
     let allowed_by_parent =
       Generated_directory_restrictions.allowed_by_parent ~dir
     in
-    ( match allowed_by_parent with
-    | Unrestricted -> ()
-    | Restricted restriction -> (
-      match Path.Build.Map.find (Rules.to_map rules_produced) dir with
-      | None -> ()
-      | Some rules ->
-        if Dir_set.here (Memo.Lazy.force restriction) then
-          ()
-        else
-          Code_error.raise
-            "Generated rules in a directory not allowed by the parent"
-            [ ("dir", Path.Build.to_dyn dir)
-            ; ("rules", Rules.Dir_rules.to_dyn rules)
-            ] ) );
+    let* () =
+      match allowed_by_parent with
+      | Unrestricted -> Fiber.return ()
+      | Restricted restriction -> (
+        match Path.Build.Map.find (Rules.to_map rules_produced) dir with
+        | None -> Fiber.return ()
+        | Some rules ->
+          let+ restriction = Memo.Lazy.Async.force restriction in
+          if Dir_set.here restriction then
+            ()
+          else
+            Code_error.raise
+              "Generated rules in a directory not allowed by the parent"
+              [ ("dir", Path.Build.to_dyn dir)
+              ; ("rules", Rules.Dir_rules.to_dyn rules)
+              ] )
+    in
     let rules_generated_in =
       Dir_set.of_list
         ( Path.Build.Map.keys (Rules.to_map rules_produced)
         |> List.filter_map ~f:(fun subdir ->
                Path.Local_gen.descendant ~of_:dir subdir) )
     in
-    let allowed_granddescendants_of_parent =
+    let+ allowed_granddescendants_of_parent =
       match allowed_by_parent with
       | Unrestricted ->
         (* in this case the parent isn't allowed to create any generated
            granddescendant directories *)
-        Dir_set.empty
-      | Restricted restriction -> Memo.Lazy.force restriction
+        Fiber.return Dir_set.empty
+      | Restricted restriction -> Memo.Lazy.Async.force restriction
     in
     let descendants_to_keep =
       Dir_set.union_all
@@ -1002,11 +1012,12 @@ end = struct
       ; rules_of_alias_dir
       }
 
-  let load_dir_impl t ~dir : Loaded.t =
+  let load_dir_impl t ~dir : Loaded.t Fiber.t =
     match get_dir_triage t ~dir with
-    | Known l -> l
+    | Known l -> Fiber.return l
     | Alias_dir_of dir' -> (
-      match load_dir ~dir:(Path.build dir') with
+      let+ loaded_dir = load_dir ~dir:(Path.build dir') in
+      match loaded_dir with
       | Non_build _ -> Code_error.raise "Can only forward to a build dir" []
       | Build
           { rules_here = _
@@ -1027,7 +1038,7 @@ end = struct
     let memo =
       Memo.create_hidden "load-dir" ~doc:"load dir"
         ~input:(module Path)
-        Sync load_dir_impl
+        Async load_dir_impl
     in
     fun ~dir -> Memo.exec memo dir
 end
@@ -1035,17 +1046,22 @@ end
 open Load_rules
 
 let load_dir_and_get_buildable_targets ~dir =
-  let loaded = load_dir ~dir in
+  let+ loaded = load_dir ~dir in
   match loaded with
   | Non_build _ -> Path.Build.Map.empty
   | Build { rules_here; _ } -> rules_here
 
-let get_rule fn =
-  Option.bind (Path.as_in_build_dir fn) ~f:(fun fn ->
-      let dir = Path.Build.parent_exn fn in
-      match load_dir ~dir:(Path.build dir) with
-      | Non_build _ -> assert false
-      | Build { rules_here; _ } -> Path.Build.Map.find rules_here fn)
+let get_rule fn : _ Option.t Fiber.t =
+  let fn = Path.as_in_build_dir fn in
+  match fn with
+  | None -> Fiber.return None
+  | Some fn -> (
+    let dir = Path.Build.parent_exn fn in
+    let open Fiber.O in
+    let+ loaded = load_dir ~dir:(Path.build dir) in
+    match loaded with
+    | Non_build _ -> assert false
+    | Build { rules_here; _ } -> Path.Build.Map.find rules_here fn )
 
 type rule_or_source =
   | Source
@@ -1054,10 +1070,10 @@ type rule_or_source =
 let get_rule_or_source t path =
   let dir = Path.parent_exn path in
   if Path.is_strict_descendant_of_build_dir dir then
-    let rules = load_dir_and_get_buildable_targets ~dir in
+    let+ rules = load_dir_and_get_buildable_targets ~dir in
     let path = Path.as_in_build_dir_exn path in
     match Path.Build.Map.find rules path with
-    | Some rule -> Fiber.return (Rule rule)
+    | Some rule -> Rule rule
     | None ->
       let loc = Rule_fn.loc () in
       no_rule_found t ~loc path
@@ -1074,14 +1090,16 @@ let all_targets t =
   |> List.fold_left ~init:Path.Build.Set.empty ~f:(fun acc (_, ctx) ->
          File_tree.Dir.fold root ~traverse:Sub_dirs.Status.Set.all ~init:acc
            ~f:(fun dir acc ->
-             match
+             let open Fiber.O in
+             let+ loaded_dir =
                load_dir
                  ~dir:
                    (Path.build
                       (Path.Build.append_source ctx.Context.build_dir
                          (File_tree.Dir.path dir)))
-             with
-             | Non_build _ -> acc
+             in
+             match loaded_dir with
+             | Loaded.Non_build _ -> acc
              | Build { rules_here; rules_of_alias_dir; _ } ->
                List.fold_left ~init:acc ~f:Path.Build.Set.add
                  ( Path.Build.Map.keys rules_of_alias_dir

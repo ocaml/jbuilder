@@ -20,4 +20,4 @@ val empty : t
 val union : t -> t -> t
 
 (** The paths to both rule and action dependencies. *)
-val paths : t -> eval_pred:Dep.eval_pred -> Path.Set.t
+val paths : t -> eval_pred:Dep.eval_pred -> Path.Set.t Fiber.t
