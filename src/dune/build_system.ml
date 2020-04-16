@@ -890,7 +890,8 @@ end = struct
         match (Fdecl.get t.gen_rules) context_name with
         | None ->
           Code_error.raise "[gen_rules] did not specify rules for the context"
-            [ ("context_name", Context_or_install.to_dyn context_name) ]
+            [ ("context_name", Context_or_install.to_dyn context_name)
+            ; ("dir", Path.Build.to_dyn dir)]
         | Some rules -> rules
       in
       Rules.collect (fun () -> gen_rules ~dir (Path.Source.explode sub_dir))
