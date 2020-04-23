@@ -218,12 +218,9 @@ let expand_str t sw =
 
 module Or_exn = struct
   let expand t ~mode ~template =
-    match
-      String_with_vars.expand ~dir:(Path.build t.dir) ~mode template
-        ~f:(expand_var_exn t)
-    with
-    | x -> Ok x
-    | exception (User_error.E _ as e) -> Error e
+    User_error.catch (fun () ->
+        String_with_vars.expand ~dir:(Path.build t.dir) ~mode template
+          ~f:(expand_var_exn t))
 
   let expand_path t sw =
     expand t ~mode:Single ~template:sw

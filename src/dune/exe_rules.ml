@@ -14,6 +14,7 @@ let executables_rules ~sctx ~dir ~expander ~dir_contents ~scope ~compile_info
   let modules =
     let ml_sources = Dir_contents.ocaml dir_contents in
     Ml_sources.modules_of_executables ml_sources ~first_exe ~obj_dir
+    |> Result.ok_exn
   in
   let pp =
     Preprocessing.make sctx ~dir ~dep_kind:Required ~scope ~expander

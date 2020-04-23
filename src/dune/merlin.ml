@@ -209,6 +209,7 @@ let lib_src_dirs ~sctx lib =
     let modules =
       Dir_contents.get sctx ~dir |> Dir_contents.ocaml
       |> Ml_sources.modules_of_library ~name
+      |> Result.ok_exn
     in
     Path.Set.map ~f:Path.drop_optional_build_context
       (Modules.source_dirs modules)

@@ -105,9 +105,15 @@ let expand_path common ~(setup : Dune.Main.build_system) ctx sv =
   in
   let expander = Dune.Super_context.expander sctx ~dir in
   let lookup ~f ~dir name =
-    f (Dune.Dir_contents.artifacts (Dune.Dir_contents.get sctx ~dir)) name
+    f
+      (Result.ok_exn
+         (Dune.Dir_contents.artifacts (Dune.Dir_contents.get sctx ~dir)))
+      name
   in
-  let lookup_module = lookup ~f:Dune.Ml_sources.Artifacts.lookup_module in
+  let lookup_module =
+    lookup ~f:(fun a m ->
+        Result.ok_exn (Dune.Ml_sources.Artifacts.lookup_module a m))
+  in
   let lookup_library = lookup ~f:Dune.Ml_sources.Artifacts.lookup_library in
   let expander = Dune.Expander.set_lookup_module expander ~lookup_module in
   let expander = Dune.Expander.set_lookup_library expander ~lookup_library in

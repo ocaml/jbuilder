@@ -69,6 +69,7 @@ end = struct
     let installable_modules =
       Dir_contents.ocaml dir_contents
       |> Ml_sources.modules_of_library ~name:(Library.best_name lib)
+      |> Result.ok_exn
       |> Modules.fold_no_vlib ~init:[] ~f:(fun m acc -> m :: acc)
     in
     let sources =
@@ -366,6 +367,7 @@ let gen_dune_package sctx pkg =
                 let modules =
                   Dir_contents.ocaml dir_contents
                   |> Ml_sources.modules_of_library ~name
+                  |> Result.ok_exn
                 in
                 Lib_name.Map.add_exn acc name
                   (Library

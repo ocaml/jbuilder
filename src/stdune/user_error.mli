@@ -22,3 +22,5 @@ val make :
 
 (** The "Error:" prefix *)
 val prefix : User_message.Style.t Pp.t
+
+val catch : (unit -> 'a) -> 'a Or_exn.t

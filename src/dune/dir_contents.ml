@@ -119,8 +119,13 @@ end = struct
       } =
     (* Interpret a few stanzas in order to determine the list of files generated
        by the user. *)
-    let lookup ~f ~dir name = f (artifacts (Load.get sctx ~dir)) name in
-    let lookup_module = lookup ~f:Ml_sources.Artifacts.lookup_module in
+    let lookup ~f ~dir name =
+      f (Result.ok_exn (artifacts (Load.get sctx ~dir))) name
+    in
+    let lookup_module =
+      lookup ~f:(fun a m ->
+          Result.ok_exn (Ml_sources.Artifacts.lookup_module a m))
+    in
     let lookup_library = lookup ~f:Ml_sources.Artifacts.lookup_library in
     let expander = Super_context.expander sctx ~dir in
     let expander = Expander.set_lookup_module expander ~lookup_module in

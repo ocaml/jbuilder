@@ -202,12 +202,13 @@ let gen_rules sctx dir_contents cctxs
   let expander =
     let lookup_module ~dir name =
       Ml_sources.Artifacts.lookup_module
-        (Dir_contents.artifacts (Dir_contents.get sctx ~dir))
+        (Result.ok_exn (Dir_contents.artifacts (Dir_contents.get sctx ~dir)))
         name
+      |> Result.ok_exn
     in
     let lookup_library ~dir name =
       Ml_sources.Artifacts.lookup_library
-        (Dir_contents.artifacts (Dir_contents.get sctx ~dir))
+        (Result.ok_exn (Dir_contents.artifacts (Dir_contents.get sctx ~dir)))
         name
     in
     Expander.set_lookup_library
@@ -255,8 +256,10 @@ let gen_rules sctx dir_contents cctxs
         let ml_sources = Dir_contents.ocaml dir_contents in
         match
           List.find_map (Menhir_rules.module_names m) ~f:(fun name ->
-              Option.bind (Ml_sources.lookup_module ml_sources name)
-                ~f:(fun buildable ->
+              let module_ =
+                Result.ok_exn (Ml_sources.lookup_module ml_sources name)
+              in
+              Option.bind module_ ~f:(fun buildable ->
                   List.find_map cctxs ~f:(fun (loc, cctx) ->
                       Option.some_if (Loc.equal loc buildable.loc) cctx)))
         with

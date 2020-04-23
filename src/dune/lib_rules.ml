@@ -421,6 +421,7 @@ let rules (lib : Library.t) ~sctx ~dir_contents ~dir ~expander ~scope :
     let source_modules =
       Dir_contents.ocaml dir_contents
       |> Ml_sources.modules_of_library ~name:(Library.best_name lib)
+      |> Result.ok_exn
     in
     let cctx =
       cctx lib ~sctx ~source_modules ~dir ~scope ~expander ~compile_info

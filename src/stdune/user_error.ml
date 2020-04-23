@@ -8,6 +8,11 @@ let make ?loc ?hints paragraphs =
 
 let raise ?loc ?hints paragraphs = raise (E (make ?loc ?hints paragraphs))
 
+let catch f =
+  match f () with
+  | x -> Ok x
+  | exception (E _ as e) -> Error e
+
 let () =
   Printexc.register_printer (function
     | E t ->

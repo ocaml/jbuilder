@@ -25,7 +25,7 @@ val foreign_sources : t -> Foreign_sources.t
 val ocaml : t -> Ml_sources.t
 
 (** Artifacts defined in this directory *)
-val artifacts : t -> Ml_sources.Artifacts.t
+val artifacts : t -> Ml_sources.Artifacts.t Or_exn.t
 
 (** All mld files attached to this documentation stanza *)
 val mlds : t -> Dune_file.Documentation.t -> Path.Build.t list

@@ -115,6 +115,7 @@ let impl sctx ~(lib : Dune_file.Library.t) ~scope =
               in
               Dir_contents.ocaml dir_contents
               |> Ml_sources.modules_of_library ~name
+              |> Result.ok_exn
               |> Modules.map_user_written ~f:(Pp_spec.pped_module pp_spec)
             in
             let foreign_objects =
