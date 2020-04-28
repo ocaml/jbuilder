@@ -8,16 +8,16 @@ Successes:
       ocamldep .foo.objs/intf.mli.d
         ocamlc .foo.objs/byte/foo__Intf.{cmi,cmti}
         ocamlc .foo.objs/byte/foo.{cmi,cmo,cmt}
-        ocamlc foo.cma
+        ocamlc .foo.objs/lib.cma
       ocamldep test/.bar.objs/bar.ml.d
         ocamlc test/.bar.objs/byte/bar.{cmi,cmo,cmt}
-        ocamlc test/bar.cma
+        ocamlc test/.bar.objs/lib.cma
       ocamlopt .foo.objs/native/foo.{cmx,o}
-      ocamlopt foo.{a,cmxa}
-      ocamlopt foo.cmxs
+      ocamlopt .foo.objs/lib.{a,cmxa}
+      ocamlopt .foo.objs/lib.cmxs
       ocamlopt test/.bar.objs/native/bar.{cmx,o}
-      ocamlopt test/bar.{a,cmxa}
-      ocamlopt test/bar.cmxs
+      ocamlopt test/.bar.objs/lib.{a,cmxa}
+      ocamlopt test/.bar.objs/lib.cmxs
 
 Errors:
 

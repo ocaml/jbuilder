@@ -4,9 +4,9 @@
         ocamlc bin/toto.bc
       ocamldep src/.foo.objs/foo.ml.d
         ocamlc src/.foo.objs/byte/foo.{cmi,cmo,cmt}
-        ocamlc src/foo.cma
+        ocamlc src/.foo.objs/lib.cma
         ocamlc build-info/.build_info.objs/byte/build_info.{cmi,cmo,cmt}
-        ocamlc build-info/build_info.cma
+        ocamlc build-info/.build_info.objs/lib.cma
       ocamldep build-info/.build_info.objs/build_info_data.mli.d
         ocamlc build-info/.build_info.objs/byte/build_info__Build_info_data.{cmi,cmti}
         ocamlc bin-with-build-info/.print_version.eobjs/byte/build_info__Build_info_data.{cmo,cmt}

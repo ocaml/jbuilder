@@ -10,7 +10,7 @@ known_implementations implementations when using -p
    (name vlibfoo)
    (kind normal)
    (virtual)
-   (native_archives vlibfoo$ext_lib)
+   (native_archives lib$ext_lib)
    (known_implementations (somevariant implfoo))
    (main_module_name Vlibfoo)
    (modes byte native)

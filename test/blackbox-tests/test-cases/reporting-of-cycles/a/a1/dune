@@ -1,4 +1,4 @@
 (library
  (name a1)
- (public_name a.1)
+ (public_name a.a1)
  (libraries b))

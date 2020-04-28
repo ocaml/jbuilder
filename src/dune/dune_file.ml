@@ -926,9 +926,6 @@ module Library = struct
     List.map (foreign_archives t) ~f:(fun archive ->
         Foreign.Archive.dll_file ~archive ~dir ~ext_dll)
 
-  let archive t ~dir ~ext =
-    Path.Build.relative dir (Lib_name.Local.to_string (snd t.name) ^ ext)
-
   let best_name t =
     match t.public with
     | None -> Lib_name.of_local t.name
@@ -943,6 +940,10 @@ module Library = struct
       ~has_private_modules:(t.private_modules <> None)
       (snd t.name)
 
+  let archive t ~dir ~ext =
+    let obj_dir = Obj_dir.obj_dir (obj_dir ~dir t) in
+    Path.Build.relative obj_dir ("lib" ^ ext)
+
   let main_module_name t : Lib_info.Main_module_name.t =
     match (t.implements, t.wrapped) with
     | Some x, From _ -> From x
@@ -956,12 +957,11 @@ module Library = struct
   let to_lib_info conf ~dir
       ~lib_config:({ Lib_config.has_native; ext_lib; ext_dll; _ } as lib_config)
       ~known_implementations =
-    let _loc, lib_name = conf.name in
     let obj_dir = obj_dir ~dir conf in
-    let gen_archive_file ~dir ext =
-      Path.Build.relative dir (Lib_name.Local.to_string lib_name ^ ext)
+    let archive_file ext =
+      let dir = Obj_dir.obj_dir obj_dir in
+      Path.Build.relative dir ("lib" ^ ext)
     in
-    let archive_file = gen_archive_file ~dir in
     let archive_files ~f_ext =
       Mode.Dict.of_func (fun ~mode -> [ archive_file (f_ext mode) ])
     in
@@ -977,12 +977,12 @@ module Library = struct
     let virtual_library = is_virtual conf in
     let foreign_archives = foreign_lib_files conf ~dir ~ext_lib in
     let native_archives =
-      [ Path.Build.relative dir (Lib_name.Local.to_string lib_name ^ ext_lib) ]
+      [ archive_file ext_lib ]
     in
     let foreign_dll_files = foreign_dll_files conf ~dir ~ext_dll in
     let exit_module = Option.bind conf.stdlib ~f:(fun x -> x.exit_module) in
     let jsoo_archive =
-      Some (gen_archive_file ~dir:(Obj_dir.obj_dir obj_dir) ".cma.js")
+      Some (archive_file ".cma.js")
     in
     let virtual_ =
       Option.map conf.virtual_modules ~f:(fun _ -> Lib_info.Source.Local)

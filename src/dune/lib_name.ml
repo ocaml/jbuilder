@@ -1,5 +1,27 @@
 open Stdune
 
+let is_valid_module_name ?(with_hyphen=false) name =
+  match name with
+  | "" -> false
+  | s -> (
+      try
+        ( match s.[0] with
+          | 'A' .. 'Z'
+          | 'a' .. 'z' ->
+            ()
+          | _ -> raise_notrace Exit );
+        String.iter s ~f:(function
+          | 'A' .. 'Z'
+          | 'a' .. 'z'
+          | '0' .. '9'
+          | '\''
+          | '_' ->
+            ()
+          | '-' when with_hyphen -> ()
+          | _ -> raise_notrace Exit);
+        true
+      with Exit -> false )
+
 module Local = struct
   type t = string
 
@@ -74,7 +96,11 @@ include Stringlike.Make (struct
 
   let description = "library name"
 
-  let of_string_opt s = Some s
+  let of_string_opt s =
+    let l = String.split s ~on:'.' in
+    Option.some_if
+      (List.for_all l ~f:(is_valid_module_name ~with_hyphen:true))
+      s
 end)
 
 let of_local (_loc, t) = t

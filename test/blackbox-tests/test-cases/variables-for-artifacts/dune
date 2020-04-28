@@ -75,5 +75,5 @@
 
 (rule
  (targets my.cmxs)
- (deps plugin%{ext_lib} .dummy.objs/native/dummy__X3%{ext_obj})
+ (deps .plugin.objs/lib%{ext_lib} .dummy.objs/native/dummy__X3%{ext_obj})
  (action (run %{ocamlopt} -shared -o %{targets} %{cmxa:plugin} %{cmx:x3})))

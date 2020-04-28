@@ -1,6 +1,6 @@
 No ppx driver found
 
-  $ dune build --root driver-tests foo1.cma
+  $ dune build --root driver-tests .foo1.objs/lib.cma
   Entering directory 'driver-tests'
   File "dune", line 6, characters 13-18:
   6 |  (preprocess (pps)))
@@ -10,7 +10,7 @@ No ppx driver found
 
 Too many drivers
 
-  $ dune build --root driver-tests foo2.cma
+  $ dune build --root driver-tests .foo2.objs/lib.cma
   Entering directory 'driver-tests'
   File "dune", line 13, characters 13-28:
   13 |  (preprocess (pps ppx1 ppx2)))
@@ -21,7 +21,7 @@ Too many drivers
 
 Not compatible with Dune
 
-  $ dune build --root driver-tests foo3.cma
+  $ dune build --root driver-tests .foo3.objs/lib.cma
   Entering directory 'driver-tests'
   File "dune", line 20, characters 13-28:
   20 |  (preprocess (pps ppx_other)))
@@ -33,7 +33,7 @@ Not compatible with Dune
 
 Incompatible Cookies
 
-  $ dune build --root driver-tests foo4.cma
+  $ dune build --root driver-tests .foo4.objs/lib.cma
   Entering directory 'driver-tests'
   File "dune", line 27, characters 13-28:
   27 |  (preprocess (pps ppx3 ppx4)))
@@ -56,7 +56,7 @@ Same, but with error pointing to .ppx
 
 Test the argument syntax
 
-  $ dune build --root driver-tests test_ppx_args.cma
+  $ dune build --root driver-tests .test_ppx_args.objs/lib.cma
   Entering directory 'driver-tests'
            ppx test_ppx_args.pp.ml
   .ppx/454728df5270ab91f8a5af6b5e860eb0/ppx.exe
@@ -86,7 +86,7 @@ Test the argument syntax
 
 Test that going throught the -ppx option of the compiler works
 
-  $ dune build --root driver-tests test_ppx_staged.cma
+  $ dune build --root driver-tests .test_ppx_staged.objs/lib.cma
   Entering directory 'driver-tests'
       ocamldep .test_ppx_staged.objs/test_ppx_staged.ml.d
   tool name: ocamldep
@@ -99,7 +99,7 @@ Test using installed drivers
 
   $ dune build --root driver @install
   Entering directory 'driver'
-  $ OCAMLPATH=driver/_build/install/default/lib dune build --root use-external-driver driveruser.cma
+  $ OCAMLPATH=driver/_build/install/default/lib dune build --root use-external-driver .driveruser.objs/lib.cma
   Entering directory 'use-external-driver'
            ppx driveruser.pp.ml
   .ppx/35d69311d5da258d073875db2b34f33b/ppx.exe
@@ -121,7 +121,7 @@ Test using installed drivers
   - driveruser.pp.ml
   [1]
 
-  $ OCAMLPATH=driver/_build/install/default/lib dune build --root replaces driveruser.cma
+  $ OCAMLPATH=driver/_build/install/default/lib dune build --root replaces .driveruser.objs/lib.cma
   Entering directory 'replaces'
            ppx driveruser.pp.ml
   replacesdriver
@@ -146,7 +146,7 @@ Test using installed drivers
 
   $ OCAMLPATH=driver/_build/install/default/lib dune build --root driver-replaces @install
   Entering directory 'driver-replaces'
-  $ OCAMLPATH=driver/_build/install/default/lib:driver-replaces/_build/install/default/lib dune build --root replaces-external driveruser.cma
+  $ OCAMLPATH=driver/_build/install/default/lib:driver-replaces/_build/install/default/lib dune build --root replaces-external .driveruser.objs/lib.cma
   Entering directory 'replaces-external'
            ppx driveruser.pp.ml
   replacesdriver

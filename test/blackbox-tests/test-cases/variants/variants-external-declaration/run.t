@@ -12,7 +12,7 @@ declared in the virtual library definition.
    (name vlibfoo-ext)
    (kind normal)
    (virtual)
-   (native_archives vlibfoo$ext_lib)
+   (native_archives lib$ext_lib)
    (known_implementations (somevariant impl) (somevariant-2 impl-2))
    (main_module_name Vlibfoo)
    (modes byte native)

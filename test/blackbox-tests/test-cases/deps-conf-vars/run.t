@@ -1,6 +1,6 @@
   $ dune build --root static
   Entering directory 'static'
-  deps: ../install/default/lib/foo/foo.cma
+  deps: ../install/default/lib/foo/lib.cma
   $ dune build --root dynamic
   Entering directory 'dynamic'
   File "dune", line 3, characters 9-18:

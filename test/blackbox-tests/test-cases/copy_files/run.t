@@ -3,7 +3,7 @@
       ocamldep .foo.objs/dummy.ml.d
         ocamlc .foo.objs/byte/dummy.{cmi,cmo,cmt}
       ocamlopt .foo.objs/native/dummy.{cmx,o}
-      ocamlopt foo.{a,cmxa}
+      ocamlopt .foo.objs/lib.{a,cmxa}
         ocamlc bar$ext_obj
     ocamlmklib dllfoo_stubs$ext_dll,libfoo_stubs$ext_lib
       ocamllex lexers/lexer1.ml

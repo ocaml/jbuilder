@@ -1,4 +1,4 @@
 (alias
  (name default)
- (deps %{lib:foo:foo.cma})
+ (deps %{lib:foo:lib.cma})
  (action (echo "deps: %{deps}\n")))

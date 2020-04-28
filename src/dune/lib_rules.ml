@@ -15,8 +15,9 @@ let msvc_hack_cclibs =
       Option.value ~default:lib (String.drop_prefix ~prefix:"-l" lib))
 
 (* Build an OCaml library. *)
-let build_lib (lib : Library.t) ~sctx ~dir_contents ~expander ~flags ~dir ~mode
-    ~cm_files =
+let build_lib (lib : Library.t) ~cctx ~dir_contents ~expander ~flags ~dir ~mode
+      ~cm_files =
+  let sctx = Compilation_context.super_context cctx in
   let ctx = Super_context.context sctx in
   let { Lib_config.ext_lib; _ } = ctx.lib_config in
   Result.iter (Context.compiler ctx mode) ~f:(fun compiler ->
@@ -49,6 +50,19 @@ let build_lib (lib : Library.t) ~sctx ~dir_contents ~expander ~flags ~dir ~mode
       let library_flags =
         Expander.expand_and_eval_set expander lib.library_flags
           ~standard:(Build.return [])
+      in
+      let requires_info =
+        if Ocaml_version.supports_library_linking ctx.version &&
+           Option.is_none (Compilation_context.vimpl cctx) then
+          let open Build.O in
+          let+ lib_names =
+            Build.of_result_map
+              (Compilation_context.requires_link cctx)
+              ~f:Build.return
+          in
+          List.concat_map lib_names
+            ~f:(fun lib_name -> ["-require";Lib_name.to_string (Lib.name lib_name)])
+        else Build.return []
       in
       Super_context.add_rule ~dir sctx ~loc:lib.buildable.loc
         (let open Build.With_targets.O in
@@ -83,6 +97,7 @@ let build_lib (lib : Library.t) ~sctx ~dir_contents ~expander ~flags ~dir ~mode
                       [ Library.archive lib ~dir ~ext:ext_lib ]
                     else
                       [] )
+              ; Command.Args.dyn requires_info
               ]))
 
 let gen_wrapped_compat_modules (lib : Library.t) cctx =
@@ -314,7 +329,7 @@ let setup_build_archives (lib : Dune_file.Library.t) ~dir_contents ~cctx
      Cm_files.make ~obj_dir ~ext_obj ~modules ~top_sorted_modules
    in
    Mode.Dict.Set.iter modes ~f:(fun mode ->
-       build_lib lib ~dir_contents ~sctx ~expander ~flags ~dir ~mode ~cm_files));
+       build_lib lib ~dir_contents ~cctx ~expander ~flags ~dir ~mode ~cm_files));
   (* Build *.cma.js *)
   if modes.byte then
     Super_context.add_rules sctx ~dir

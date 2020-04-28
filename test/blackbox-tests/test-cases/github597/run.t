@@ -1,1 +1,1 @@
-  $ dune build b/b.cma
+  $ dune build b/.b.objs/lib.cma

@@ -9,9 +9,9 @@ Reproduction case for #1549: too many parentheses in installed .dune files
   (library
    (name dune_inline_tests)
    (kind normal)
-   (archives (byte simple_tests.cma) (native simple_tests.cmxa))
-   (plugins (byte simple_tests.cma) (native simple_tests.cmxs))
-   (native_archives simple_tests$ext_lib)
+   (archives (byte lib.cma) (native lib.cmxa))
+   (plugins (byte lib.cma) (native lib.cmxs))
+   (native_archives lib$ext_lib)
    (main_module_name Simple_tests)
    (modes byte native)
    (modules

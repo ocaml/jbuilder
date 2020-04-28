@@ -11,29 +11,8 @@ include Stringlike.Make (struct
 
   let description_of_valid_string = None
 
-  let is_valid_module_name name =
-    match name with
-    | "" -> false
-    | s -> (
-      try
-        ( match s.[0] with
-        | 'A' .. 'Z'
-        | 'a' .. 'z' ->
-          ()
-        | _ -> raise_notrace Exit );
-        String.iter s ~f:(function
-          | 'A' .. 'Z'
-          | 'a' .. 'z'
-          | '0' .. '9'
-          | '\''
-          | '_' ->
-            ()
-          | _ -> raise_notrace Exit);
-        true
-      with Exit -> false )
-
   let of_string_opt s =
-    if is_valid_module_name s then
+    if Lib_name.is_valid_module_name s then
       Some (String.capitalize s)
     else
       None

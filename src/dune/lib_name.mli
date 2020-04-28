@@ -36,3 +36,5 @@ module Set : sig
 end
 
 val nest : t -> t -> t
+
+val is_valid_module_name: ?with_hyphen:bool -> string -> bool

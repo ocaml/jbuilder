@@ -155,6 +155,7 @@ let link_exe ~loc ~name ~(linkage : Linkage.t) ~cm_files ~link_time_code_gen
      >>> Command.run ~dir:(Path.build ctx.build_dir)
            (Context.compiler ctx mode)
            [ Command.Args.dyn ocaml_flags
+           ; A "-noautoliblink"
            ; A "-o"
            ; Target exe
            ; As linkage.flags

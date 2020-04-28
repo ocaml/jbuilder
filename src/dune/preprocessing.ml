@@ -337,7 +337,8 @@ let build_ppx_driver sctx ~dep_kind ~target ~pps ~pp_names =
         (Build.record_lib_deps
            (Lib_deps.info ~kind:dep_kind (Lib_deps.of_pps pp_names)))
     >>> Command.run compiler ~dir:(Path.build ctx.build_dir)
-          [ A "-o"
+          [ A "-noautoliblink"
+          ; A "-o"
           ; Target target
           ; A "-w"
           ; A "-24"

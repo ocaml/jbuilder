@@ -45,9 +45,9 @@ The expected behavior for the following three tests is to output nothing: the te
   (library
    (name foo)
    (kind normal)
-   (archives (byte foo.cma) (native foo.cmxa))
-   (plugins (byte foo.cma) (native foo.cmxs))
-   (native_archives foo$ext_lib)
+   (archives (byte lib.cma) (native lib.cmxa))
+   (plugins (byte lib.cma) (native lib.cmxs))
+   (native_archives lib$ext_lib)
    (main_module_name Foo)
    (modes byte native)
    (modules
@@ -80,14 +80,14 @@ The expected behavior for the following three tests is to output nothing: the te
   $ dune build dune-file/foo.install && dune install foo --prefix install
   Installing install/lib/foo/META
   Installing install/lib/foo/dune-package
-  Installing install/lib/foo/foo$ext_lib
-  Installing install/lib/foo/foo.cma
   Installing install/lib/foo/foo.cmi
   Installing install/lib/foo/foo.cmt
   Installing install/lib/foo/foo.cmx
-  Installing install/lib/foo/foo.cmxa
-  Installing install/lib/foo/foo.cmxs
   Installing install/lib/foo/foo.ml
+  Installing install/lib/foo/lib$ext_lib
+  Installing install/lib/foo/lib.cma
+  Installing install/lib/foo/lib.cmxa
+  Installing install/lib/foo/lib.cmxs
   Installing install/lib/foo/opam
 
 Make sure we can read generated dune-package files:

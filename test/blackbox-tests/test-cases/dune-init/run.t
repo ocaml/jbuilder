@@ -347,10 +347,10 @@ Can init and build a new library project
   | (lang dune <version>)
   | (name test_lib_proj)
         ocamlc lib/.test_lib_proj.objs/byte/test_lib_proj.{cmi,cmo,cmt}
-        ocamlc lib/test_lib_proj.cma
+        ocamlc lib/.test_lib_proj.objs/lib.cma
       ocamlopt lib/.test_lib_proj.objs/native/test_lib_proj.{cmx,o}
-      ocamlopt lib/test_lib_proj.{a,cmxa}
-      ocamlopt lib/test_lib_proj.cmxs
+      ocamlopt lib/.test_lib_proj.objs/lib.{a,cmxa}
+      ocamlopt lib/.test_lib_proj.objs/lib.cmxs
 
   $ dune runtest --root test_lib_proj --display short
   Entering directory 'test_lib_proj'

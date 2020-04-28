@@ -58,5 +58,8 @@ val supports_split_at_emit : t -> bool
 (** Whether the compiler supports -function-sections *)
 val supports_function_sections : t -> bool
 
+(** Wheter the compiler supports -require *)
+val supports_library_linking : t -> bool
+
 (** [-custom] or [-output-complete-exe] depending on the version of OCaml *)
 val custom_or_output_complete_exe : t -> string

@@ -1,28 +1,28 @@
 ; No driver found
 (library
  (name foo1)
- (public_name foo.1)
+ (public_name foo.a1)
  (modules foo1)
  (preprocess (pps)))
 
 ; Too many drivers
 (library
  (name foo2)
- (public_name foo.2)
+ (public_name foo.a2)
  (modules foo2)
  (preprocess (pps ppx1 ppx2)))
 
 ; Incompatible with Dune
 (library
  (name foo3)
- (public_name foo.3)
+ (public_name foo.a3)
  (modules foo3)
  (preprocess (pps ppx_other)))
 
 ; Incompatible cookies
 (library
  (name foo4)
- (public_name foo.4)
+ (public_name foo.a4)
  (modules foo4)
  (preprocess (pps ppx3 ppx4)))
 

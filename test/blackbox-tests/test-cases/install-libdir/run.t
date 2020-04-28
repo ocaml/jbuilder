@@ -7,14 +7,14 @@
   $ dune install --prefix install --libdir lib
   Installing install/lib/foo/META
   Installing install/lib/foo/dune-package
-  Installing install/lib/foo/foo$ext_lib
-  Installing install/lib/foo/foo.cma
   Installing install/lib/foo/foo.cmi
   Installing install/lib/foo/foo.cmt
   Installing install/lib/foo/foo.cmx
-  Installing install/lib/foo/foo.cmxa
-  Installing install/lib/foo/foo.cmxs
   Installing install/lib/foo/foo.ml
+  Installing install/lib/foo/lib$ext_lib
+  Installing install/lib/foo/lib.cma
+  Installing install/lib/foo/lib.cmxa
+  Installing install/lib/foo/lib.cmxs
   Installing install/lib/foo/opam
   Installing install/bin/exec
   Installing install/man/a-man-page-with-no-ext
@@ -26,14 +26,14 @@ If prefix is passed, the default for libdir is `$prefix/lib`:
   $ dune install --prefix install --dry-run
   Installing install/lib/foo/META
   Installing install/lib/foo/dune-package
-  Installing install/lib/foo/foo$ext_lib
-  Installing install/lib/foo/foo.cma
   Installing install/lib/foo/foo.cmi
   Installing install/lib/foo/foo.cmt
   Installing install/lib/foo/foo.cmx
-  Installing install/lib/foo/foo.cmxa
-  Installing install/lib/foo/foo.cmxs
   Installing install/lib/foo/foo.ml
+  Installing install/lib/foo/lib$ext_lib
+  Installing install/lib/foo/lib.cma
+  Installing install/lib/foo/lib.cmxa
+  Installing install/lib/foo/lib.cmxs
   Installing install/lib/foo/opam
   Installing install/bin/exec
   Installing install/man/a-man-page-with-no-ext
@@ -45,12 +45,6 @@ If prefix is passed, the default for libdir is `$prefix/lib`:
   Removing (if it exists) install/lib/foo/dune-package
   Creating directory install/lib/foo
   Copying _build/install/default/lib/foo/dune-package to install/lib/foo/dune-package (executable: false)
-  Removing (if it exists) install/lib/foo/foo$ext_lib
-  Creating directory install/lib/foo
-  Copying _build/install/default/lib/foo/foo$ext_lib to install/lib/foo/foo$ext_lib (executable: false)
-  Removing (if it exists) install/lib/foo/foo.cma
-  Creating directory install/lib/foo
-  Copying _build/install/default/lib/foo/foo.cma to install/lib/foo/foo.cma (executable: false)
   Removing (if it exists) install/lib/foo/foo.cmi
   Creating directory install/lib/foo
   Copying _build/install/default/lib/foo/foo.cmi to install/lib/foo/foo.cmi (executable: false)
@@ -60,15 +54,21 @@ If prefix is passed, the default for libdir is `$prefix/lib`:
   Removing (if it exists) install/lib/foo/foo.cmx
   Creating directory install/lib/foo
   Copying _build/install/default/lib/foo/foo.cmx to install/lib/foo/foo.cmx (executable: false)
-  Removing (if it exists) install/lib/foo/foo.cmxa
-  Creating directory install/lib/foo
-  Copying _build/install/default/lib/foo/foo.cmxa to install/lib/foo/foo.cmxa (executable: false)
-  Removing (if it exists) install/lib/foo/foo.cmxs
-  Creating directory install/lib/foo
-  Copying _build/install/default/lib/foo/foo.cmxs to install/lib/foo/foo.cmxs (executable: false)
   Removing (if it exists) install/lib/foo/foo.ml
   Creating directory install/lib/foo
   Copying _build/install/default/lib/foo/foo.ml to install/lib/foo/foo.ml (executable: false)
+  Removing (if it exists) install/lib/foo/lib$ext_lib
+  Creating directory install/lib/foo
+  Copying _build/install/default/lib/foo/lib$ext_lib to install/lib/foo/lib$ext_lib (executable: false)
+  Removing (if it exists) install/lib/foo/lib.cma
+  Creating directory install/lib/foo
+  Copying _build/install/default/lib/foo/lib.cma to install/lib/foo/lib.cma (executable: false)
+  Removing (if it exists) install/lib/foo/lib.cmxa
+  Creating directory install/lib/foo
+  Copying _build/install/default/lib/foo/lib.cmxa to install/lib/foo/lib.cmxa (executable: false)
+  Removing (if it exists) install/lib/foo/lib.cmxs
+  Creating directory install/lib/foo
+  Copying _build/install/default/lib/foo/lib.cmxs to install/lib/foo/lib.cmxs (executable: false)
   Removing (if it exists) install/lib/foo/opam
   Creating directory install/lib/foo
   Copying _build/install/default/lib/foo/opam to install/lib/foo/opam (executable: false)
@@ -93,14 +93,14 @@ destdir`:
   >  dune uninstall --dry-run)
   Installing /OCAMLFIND_DESTDIR/foo/META
   Installing /OCAMLFIND_DESTDIR/foo/dune-package
-  Installing /OCAMLFIND_DESTDIR/foo/foo$ext_lib
-  Installing /OCAMLFIND_DESTDIR/foo/foo.cma
   Installing /OCAMLFIND_DESTDIR/foo/foo.cmi
   Installing /OCAMLFIND_DESTDIR/foo/foo.cmt
   Installing /OCAMLFIND_DESTDIR/foo/foo.cmx
-  Installing /OCAMLFIND_DESTDIR/foo/foo.cmxa
-  Installing /OCAMLFIND_DESTDIR/foo/foo.cmxs
   Installing /OCAMLFIND_DESTDIR/foo/foo.ml
+  Installing /OCAMLFIND_DESTDIR/foo/lib$ext_lib
+  Installing /OCAMLFIND_DESTDIR/foo/lib.cma
+  Installing /OCAMLFIND_DESTDIR/foo/lib.cmxa
+  Installing /OCAMLFIND_DESTDIR/foo/lib.cmxs
   Installing /OCAMLFIND_DESTDIR/foo/opam
   Installing /OPAM_PREFIX/bin/exec
   Installing /OPAM_PREFIX/man/a-man-page-with-no-ext
@@ -112,12 +112,6 @@ destdir`:
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/dune-package
   Creating directory /OCAMLFIND_DESTDIR/foo
   Copying _build/install/default/lib/foo/dune-package to /OCAMLFIND_DESTDIR/foo/dune-package (executable: false)
-  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo$ext_lib
-  Creating directory /OCAMLFIND_DESTDIR/foo
-  Copying _build/install/default/lib/foo/foo$ext_lib to /OCAMLFIND_DESTDIR/foo/foo$ext_lib (executable: false)
-  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.cma
-  Creating directory /OCAMLFIND_DESTDIR/foo
-  Copying _build/install/default/lib/foo/foo.cma to /OCAMLFIND_DESTDIR/foo/foo.cma (executable: false)
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.cmi
   Creating directory /OCAMLFIND_DESTDIR/foo
   Copying _build/install/default/lib/foo/foo.cmi to /OCAMLFIND_DESTDIR/foo/foo.cmi (executable: false)
@@ -127,15 +121,21 @@ destdir`:
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.cmx
   Creating directory /OCAMLFIND_DESTDIR/foo
   Copying _build/install/default/lib/foo/foo.cmx to /OCAMLFIND_DESTDIR/foo/foo.cmx (executable: false)
-  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.cmxa
-  Creating directory /OCAMLFIND_DESTDIR/foo
-  Copying _build/install/default/lib/foo/foo.cmxa to /OCAMLFIND_DESTDIR/foo/foo.cmxa (executable: false)
-  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.cmxs
-  Creating directory /OCAMLFIND_DESTDIR/foo
-  Copying _build/install/default/lib/foo/foo.cmxs to /OCAMLFIND_DESTDIR/foo/foo.cmxs (executable: false)
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.ml
   Creating directory /OCAMLFIND_DESTDIR/foo
   Copying _build/install/default/lib/foo/foo.ml to /OCAMLFIND_DESTDIR/foo/foo.ml (executable: false)
+  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/lib$ext_lib
+  Creating directory /OCAMLFIND_DESTDIR/foo
+  Copying _build/install/default/lib/foo/lib$ext_lib to /OCAMLFIND_DESTDIR/foo/lib$ext_lib (executable: false)
+  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/lib.cma
+  Creating directory /OCAMLFIND_DESTDIR/foo
+  Copying _build/install/default/lib/foo/lib.cma to /OCAMLFIND_DESTDIR/foo/lib.cma (executable: false)
+  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/lib.cmxa
+  Creating directory /OCAMLFIND_DESTDIR/foo
+  Copying _build/install/default/lib/foo/lib.cmxa to /OCAMLFIND_DESTDIR/foo/lib.cmxa (executable: false)
+  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/lib.cmxs
+  Creating directory /OCAMLFIND_DESTDIR/foo
+  Copying _build/install/default/lib/foo/lib.cmxs to /OCAMLFIND_DESTDIR/foo/lib.cmxs (executable: false)
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/opam
   Creating directory /OCAMLFIND_DESTDIR/foo
   Copying _build/install/default/lib/foo/opam to /OCAMLFIND_DESTDIR/foo/opam (executable: false)
@@ -153,14 +153,14 @@ destdir`:
   Copying _build/install/default/man/man3/another-man-page.3 to /OPAM_PREFIX/man/man3/another-man-page.3 (executable: false)
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/META
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/dune-package
-  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo$ext_lib
-  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.cma
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.cmi
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.cmt
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.cmx
-  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.cmxa
-  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.cmxs
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/foo.ml
+  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/lib$ext_lib
+  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/lib.cma
+  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/lib.cmxa
+  Removing (if it exists) /OCAMLFIND_DESTDIR/foo/lib.cmxs
   Removing (if it exists) /OCAMLFIND_DESTDIR/foo/opam
   Removing (if it exists) /OPAM_PREFIX/bin/exec
   Removing (if it exists) /OPAM_PREFIX/man/a-man-page-with-no-ext
@@ -179,14 +179,14 @@ in libdir:
   > dune uninstall --libdir /LIBDIR --dry-run
   Installing /LIBDIR/foo/META
   Installing /LIBDIR/foo/dune-package
-  Installing /LIBDIR/foo/foo$ext_lib
-  Installing /LIBDIR/foo/foo.cma
   Installing /LIBDIR/foo/foo.cmi
   Installing /LIBDIR/foo/foo.cmt
   Installing /LIBDIR/foo/foo.cmx
-  Installing /LIBDIR/foo/foo.cmxa
-  Installing /LIBDIR/foo/foo.cmxs
   Installing /LIBDIR/foo/foo.ml
+  Installing /LIBDIR/foo/lib$ext_lib
+  Installing /LIBDIR/foo/lib.cma
+  Installing /LIBDIR/foo/lib.cmxa
+  Installing /LIBDIR/foo/lib.cmxs
   Installing /LIBDIR/foo/opam
   Installing /OPAM_PREFIX/bin/exec
   Installing /OPAM_PREFIX/man/a-man-page-with-no-ext
@@ -198,12 +198,6 @@ in libdir:
   Removing (if it exists) /LIBDIR/foo/dune-package
   Creating directory /LIBDIR/foo
   Copying _build/install/default/lib/foo/dune-package to /LIBDIR/foo/dune-package (executable: false)
-  Removing (if it exists) /LIBDIR/foo/foo$ext_lib
-  Creating directory /LIBDIR/foo
-  Copying _build/install/default/lib/foo/foo$ext_lib to /LIBDIR/foo/foo$ext_lib (executable: false)
-  Removing (if it exists) /LIBDIR/foo/foo.cma
-  Creating directory /LIBDIR/foo
-  Copying _build/install/default/lib/foo/foo.cma to /LIBDIR/foo/foo.cma (executable: false)
   Removing (if it exists) /LIBDIR/foo/foo.cmi
   Creating directory /LIBDIR/foo
   Copying _build/install/default/lib/foo/foo.cmi to /LIBDIR/foo/foo.cmi (executable: false)
@@ -213,15 +207,21 @@ in libdir:
   Removing (if it exists) /LIBDIR/foo/foo.cmx
   Creating directory /LIBDIR/foo
   Copying _build/install/default/lib/foo/foo.cmx to /LIBDIR/foo/foo.cmx (executable: false)
-  Removing (if it exists) /LIBDIR/foo/foo.cmxa
-  Creating directory /LIBDIR/foo
-  Copying _build/install/default/lib/foo/foo.cmxa to /LIBDIR/foo/foo.cmxa (executable: false)
-  Removing (if it exists) /LIBDIR/foo/foo.cmxs
-  Creating directory /LIBDIR/foo
-  Copying _build/install/default/lib/foo/foo.cmxs to /LIBDIR/foo/foo.cmxs (executable: false)
   Removing (if it exists) /LIBDIR/foo/foo.ml
   Creating directory /LIBDIR/foo
   Copying _build/install/default/lib/foo/foo.ml to /LIBDIR/foo/foo.ml (executable: false)
+  Removing (if it exists) /LIBDIR/foo/lib$ext_lib
+  Creating directory /LIBDIR/foo
+  Copying _build/install/default/lib/foo/lib$ext_lib to /LIBDIR/foo/lib$ext_lib (executable: false)
+  Removing (if it exists) /LIBDIR/foo/lib.cma
+  Creating directory /LIBDIR/foo
+  Copying _build/install/default/lib/foo/lib.cma to /LIBDIR/foo/lib.cma (executable: false)
+  Removing (if it exists) /LIBDIR/foo/lib.cmxa
+  Creating directory /LIBDIR/foo
+  Copying _build/install/default/lib/foo/lib.cmxa to /LIBDIR/foo/lib.cmxa (executable: false)
+  Removing (if it exists) /LIBDIR/foo/lib.cmxs
+  Creating directory /LIBDIR/foo
+  Copying _build/install/default/lib/foo/lib.cmxs to /LIBDIR/foo/lib.cmxs (executable: false)
   Removing (if it exists) /LIBDIR/foo/opam
   Creating directory /LIBDIR/foo
   Copying _build/install/default/lib/foo/opam to /LIBDIR/foo/opam (executable: false)
@@ -239,14 +239,14 @@ in libdir:
   Copying _build/install/default/man/man3/another-man-page.3 to /OPAM_PREFIX/man/man3/another-man-page.3 (executable: false)
   Removing (if it exists) /LIBDIR/foo/META
   Removing (if it exists) /LIBDIR/foo/dune-package
-  Removing (if it exists) /LIBDIR/foo/foo$ext_lib
-  Removing (if it exists) /LIBDIR/foo/foo.cma
   Removing (if it exists) /LIBDIR/foo/foo.cmi
   Removing (if it exists) /LIBDIR/foo/foo.cmt
   Removing (if it exists) /LIBDIR/foo/foo.cmx
-  Removing (if it exists) /LIBDIR/foo/foo.cmxa
-  Removing (if it exists) /LIBDIR/foo/foo.cmxs
   Removing (if it exists) /LIBDIR/foo/foo.ml
+  Removing (if it exists) /LIBDIR/foo/lib$ext_lib
+  Removing (if it exists) /LIBDIR/foo/lib.cma
+  Removing (if it exists) /LIBDIR/foo/lib.cmxa
+  Removing (if it exists) /LIBDIR/foo/lib.cmxs
   Removing (if it exists) /LIBDIR/foo/opam
   Removing (if it exists) /OPAM_PREFIX/bin/exec
   Removing (if it exists) /OPAM_PREFIX/man/a-man-page-with-no-ext
@@ -264,14 +264,14 @@ This is the case when the prefix is implicit:
   $ DESTDIR=DESTDIR dune install --dry-run
   Installing DESTDIR/OPAM_PREFIX/lib/foo/META
   Installing DESTDIR/OPAM_PREFIX/lib/foo/dune-package
-  Installing DESTDIR/OPAM_PREFIX/lib/foo/foo$ext_lib
-  Installing DESTDIR/OPAM_PREFIX/lib/foo/foo.cma
   Installing DESTDIR/OPAM_PREFIX/lib/foo/foo.cmi
   Installing DESTDIR/OPAM_PREFIX/lib/foo/foo.cmt
   Installing DESTDIR/OPAM_PREFIX/lib/foo/foo.cmx
-  Installing DESTDIR/OPAM_PREFIX/lib/foo/foo.cmxa
-  Installing DESTDIR/OPAM_PREFIX/lib/foo/foo.cmxs
   Installing DESTDIR/OPAM_PREFIX/lib/foo/foo.ml
+  Installing DESTDIR/OPAM_PREFIX/lib/foo/lib$ext_lib
+  Installing DESTDIR/OPAM_PREFIX/lib/foo/lib.cma
+  Installing DESTDIR/OPAM_PREFIX/lib/foo/lib.cmxa
+  Installing DESTDIR/OPAM_PREFIX/lib/foo/lib.cmxs
   Installing DESTDIR/OPAM_PREFIX/lib/foo/opam
   Installing DESTDIR/OPAM_PREFIX/bin/exec
   Installing DESTDIR/OPAM_PREFIX/man/a-man-page-with-no-ext
@@ -283,12 +283,6 @@ This is the case when the prefix is implicit:
   Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/dune-package
   Creating directory DESTDIR/OPAM_PREFIX/lib/foo
   Copying _build/install/default/lib/foo/dune-package to DESTDIR/OPAM_PREFIX/lib/foo/dune-package (executable: false)
-  Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/foo$ext_lib
-  Creating directory DESTDIR/OPAM_PREFIX/lib/foo
-  Copying _build/install/default/lib/foo/foo$ext_lib to DESTDIR/OPAM_PREFIX/lib/foo/foo$ext_lib (executable: false)
-  Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/foo.cma
-  Creating directory DESTDIR/OPAM_PREFIX/lib/foo
-  Copying _build/install/default/lib/foo/foo.cma to DESTDIR/OPAM_PREFIX/lib/foo/foo.cma (executable: false)
   Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/foo.cmi
   Creating directory DESTDIR/OPAM_PREFIX/lib/foo
   Copying _build/install/default/lib/foo/foo.cmi to DESTDIR/OPAM_PREFIX/lib/foo/foo.cmi (executable: false)
@@ -298,15 +292,21 @@ This is the case when the prefix is implicit:
   Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/foo.cmx
   Creating directory DESTDIR/OPAM_PREFIX/lib/foo
   Copying _build/install/default/lib/foo/foo.cmx to DESTDIR/OPAM_PREFIX/lib/foo/foo.cmx (executable: false)
-  Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/foo.cmxa
-  Creating directory DESTDIR/OPAM_PREFIX/lib/foo
-  Copying _build/install/default/lib/foo/foo.cmxa to DESTDIR/OPAM_PREFIX/lib/foo/foo.cmxa (executable: false)
-  Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/foo.cmxs
-  Creating directory DESTDIR/OPAM_PREFIX/lib/foo
-  Copying _build/install/default/lib/foo/foo.cmxs to DESTDIR/OPAM_PREFIX/lib/foo/foo.cmxs (executable: false)
   Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/foo.ml
   Creating directory DESTDIR/OPAM_PREFIX/lib/foo
   Copying _build/install/default/lib/foo/foo.ml to DESTDIR/OPAM_PREFIX/lib/foo/foo.ml (executable: false)
+  Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/lib$ext_lib
+  Creating directory DESTDIR/OPAM_PREFIX/lib/foo
+  Copying _build/install/default/lib/foo/lib$ext_lib to DESTDIR/OPAM_PREFIX/lib/foo/lib$ext_lib (executable: false)
+  Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/lib.cma
+  Creating directory DESTDIR/OPAM_PREFIX/lib/foo
+  Copying _build/install/default/lib/foo/lib.cma to DESTDIR/OPAM_PREFIX/lib/foo/lib.cma (executable: false)
+  Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/lib.cmxa
+  Creating directory DESTDIR/OPAM_PREFIX/lib/foo
+  Copying _build/install/default/lib/foo/lib.cmxa to DESTDIR/OPAM_PREFIX/lib/foo/lib.cmxa (executable: false)
+  Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/lib.cmxs
+  Creating directory DESTDIR/OPAM_PREFIX/lib/foo
+  Copying _build/install/default/lib/foo/lib.cmxs to DESTDIR/OPAM_PREFIX/lib/foo/lib.cmxs (executable: false)
   Removing (if it exists) DESTDIR/OPAM_PREFIX/lib/foo/opam
   Creating directory DESTDIR/OPAM_PREFIX/lib/foo
   Copying _build/install/default/lib/foo/opam to DESTDIR/OPAM_PREFIX/lib/foo/opam (executable: false)
@@ -328,14 +328,14 @@ But also when the prefix is explicit:
   $ DESTDIR=DESTDIR dune install --prefix prefix --dry-run
   Installing DESTDIR/prefix/lib/foo/META
   Installing DESTDIR/prefix/lib/foo/dune-package
-  Installing DESTDIR/prefix/lib/foo/foo$ext_lib
-  Installing DESTDIR/prefix/lib/foo/foo.cma
   Installing DESTDIR/prefix/lib/foo/foo.cmi
   Installing DESTDIR/prefix/lib/foo/foo.cmt
   Installing DESTDIR/prefix/lib/foo/foo.cmx
-  Installing DESTDIR/prefix/lib/foo/foo.cmxa
-  Installing DESTDIR/prefix/lib/foo/foo.cmxs
   Installing DESTDIR/prefix/lib/foo/foo.ml
+  Installing DESTDIR/prefix/lib/foo/lib$ext_lib
+  Installing DESTDIR/prefix/lib/foo/lib.cma
+  Installing DESTDIR/prefix/lib/foo/lib.cmxa
+  Installing DESTDIR/prefix/lib/foo/lib.cmxs
   Installing DESTDIR/prefix/lib/foo/opam
   Installing DESTDIR/prefix/bin/exec
   Installing DESTDIR/prefix/man/a-man-page-with-no-ext
@@ -347,12 +347,6 @@ But also when the prefix is explicit:
   Removing (if it exists) DESTDIR/prefix/lib/foo/dune-package
   Creating directory DESTDIR/prefix/lib/foo
   Copying _build/install/default/lib/foo/dune-package to DESTDIR/prefix/lib/foo/dune-package (executable: false)
-  Removing (if it exists) DESTDIR/prefix/lib/foo/foo$ext_lib
-  Creating directory DESTDIR/prefix/lib/foo
-  Copying _build/install/default/lib/foo/foo$ext_lib to DESTDIR/prefix/lib/foo/foo$ext_lib (executable: false)
-  Removing (if it exists) DESTDIR/prefix/lib/foo/foo.cma
-  Creating directory DESTDIR/prefix/lib/foo
-  Copying _build/install/default/lib/foo/foo.cma to DESTDIR/prefix/lib/foo/foo.cma (executable: false)
   Removing (if it exists) DESTDIR/prefix/lib/foo/foo.cmi
   Creating directory DESTDIR/prefix/lib/foo
   Copying _build/install/default/lib/foo/foo.cmi to DESTDIR/prefix/lib/foo/foo.cmi (executable: false)
@@ -362,15 +356,21 @@ But also when the prefix is explicit:
   Removing (if it exists) DESTDIR/prefix/lib/foo/foo.cmx
   Creating directory DESTDIR/prefix/lib/foo
   Copying _build/install/default/lib/foo/foo.cmx to DESTDIR/prefix/lib/foo/foo.cmx (executable: false)
-  Removing (if it exists) DESTDIR/prefix/lib/foo/foo.cmxa
-  Creating directory DESTDIR/prefix/lib/foo
-  Copying _build/install/default/lib/foo/foo.cmxa to DESTDIR/prefix/lib/foo/foo.cmxa (executable: false)
-  Removing (if it exists) DESTDIR/prefix/lib/foo/foo.cmxs
-  Creating directory DESTDIR/prefix/lib/foo
-  Copying _build/install/default/lib/foo/foo.cmxs to DESTDIR/prefix/lib/foo/foo.cmxs (executable: false)
   Removing (if it exists) DESTDIR/prefix/lib/foo/foo.ml
   Creating directory DESTDIR/prefix/lib/foo
   Copying _build/install/default/lib/foo/foo.ml to DESTDIR/prefix/lib/foo/foo.ml (executable: false)
+  Removing (if it exists) DESTDIR/prefix/lib/foo/lib$ext_lib
+  Creating directory DESTDIR/prefix/lib/foo
+  Copying _build/install/default/lib/foo/lib$ext_lib to DESTDIR/prefix/lib/foo/lib$ext_lib (executable: false)
+  Removing (if it exists) DESTDIR/prefix/lib/foo/lib.cma
+  Creating directory DESTDIR/prefix/lib/foo
+  Copying _build/install/default/lib/foo/lib.cma to DESTDIR/prefix/lib/foo/lib.cma (executable: false)
+  Removing (if it exists) DESTDIR/prefix/lib/foo/lib.cmxa
+  Creating directory DESTDIR/prefix/lib/foo
+  Copying _build/install/default/lib/foo/lib.cmxa to DESTDIR/prefix/lib/foo/lib.cmxa (executable: false)
+  Removing (if it exists) DESTDIR/prefix/lib/foo/lib.cmxs
+  Creating directory DESTDIR/prefix/lib/foo
+  Copying _build/install/default/lib/foo/lib.cmxs to DESTDIR/prefix/lib/foo/lib.cmxs (executable: false)
   Removing (if it exists) DESTDIR/prefix/lib/foo/opam
   Creating directory DESTDIR/prefix/lib/foo
   Copying _build/install/default/lib/foo/opam to DESTDIR/prefix/lib/foo/opam (executable: false)
@@ -392,14 +392,14 @@ DESTDIR can also be passed as a command line flag.
   $ dune install --destdir DESTDIR --prefix prefix --dry-run
   Installing DESTDIR/prefix/lib/foo/META
   Installing DESTDIR/prefix/lib/foo/dune-package
-  Installing DESTDIR/prefix/lib/foo/foo$ext_lib
-  Installing DESTDIR/prefix/lib/foo/foo.cma
   Installing DESTDIR/prefix/lib/foo/foo.cmi
   Installing DESTDIR/prefix/lib/foo/foo.cmt
   Installing DESTDIR/prefix/lib/foo/foo.cmx
-  Installing DESTDIR/prefix/lib/foo/foo.cmxa
-  Installing DESTDIR/prefix/lib/foo/foo.cmxs
   Installing DESTDIR/prefix/lib/foo/foo.ml
+  Installing DESTDIR/prefix/lib/foo/lib$ext_lib
+  Installing DESTDIR/prefix/lib/foo/lib.cma
+  Installing DESTDIR/prefix/lib/foo/lib.cmxa
+  Installing DESTDIR/prefix/lib/foo/lib.cmxs
   Installing DESTDIR/prefix/lib/foo/opam
   Installing DESTDIR/prefix/bin/exec
   Installing DESTDIR/prefix/man/a-man-page-with-no-ext
@@ -411,12 +411,6 @@ DESTDIR can also be passed as a command line flag.
   Removing (if it exists) DESTDIR/prefix/lib/foo/dune-package
   Creating directory DESTDIR/prefix/lib/foo
   Copying _build/install/default/lib/foo/dune-package to DESTDIR/prefix/lib/foo/dune-package (executable: false)
-  Removing (if it exists) DESTDIR/prefix/lib/foo/foo$ext_lib
-  Creating directory DESTDIR/prefix/lib/foo
-  Copying _build/install/default/lib/foo/foo$ext_lib to DESTDIR/prefix/lib/foo/foo$ext_lib (executable: false)
-  Removing (if it exists) DESTDIR/prefix/lib/foo/foo.cma
-  Creating directory DESTDIR/prefix/lib/foo
-  Copying _build/install/default/lib/foo/foo.cma to DESTDIR/prefix/lib/foo/foo.cma (executable: false)
   Removing (if it exists) DESTDIR/prefix/lib/foo/foo.cmi
   Creating directory DESTDIR/prefix/lib/foo
   Copying _build/install/default/lib/foo/foo.cmi to DESTDIR/prefix/lib/foo/foo.cmi (executable: false)
@@ -426,15 +420,21 @@ DESTDIR can also be passed as a command line flag.
   Removing (if it exists) DESTDIR/prefix/lib/foo/foo.cmx
   Creating directory DESTDIR/prefix/lib/foo
   Copying _build/install/default/lib/foo/foo.cmx to DESTDIR/prefix/lib/foo/foo.cmx (executable: false)
-  Removing (if it exists) DESTDIR/prefix/lib/foo/foo.cmxa
-  Creating directory DESTDIR/prefix/lib/foo
-  Copying _build/install/default/lib/foo/foo.cmxa to DESTDIR/prefix/lib/foo/foo.cmxa (executable: false)
-  Removing (if it exists) DESTDIR/prefix/lib/foo/foo.cmxs
-  Creating directory DESTDIR/prefix/lib/foo
-  Copying _build/install/default/lib/foo/foo.cmxs to DESTDIR/prefix/lib/foo/foo.cmxs (executable: false)
   Removing (if it exists) DESTDIR/prefix/lib/foo/foo.ml
   Creating directory DESTDIR/prefix/lib/foo
   Copying _build/install/default/lib/foo/foo.ml to DESTDIR/prefix/lib/foo/foo.ml (executable: false)
+  Removing (if it exists) DESTDIR/prefix/lib/foo/lib$ext_lib
+  Creating directory DESTDIR/prefix/lib/foo
+  Copying _build/install/default/lib/foo/lib$ext_lib to DESTDIR/prefix/lib/foo/lib$ext_lib (executable: false)
+  Removing (if it exists) DESTDIR/prefix/lib/foo/lib.cma
+  Creating directory DESTDIR/prefix/lib/foo
+  Copying _build/install/default/lib/foo/lib.cma to DESTDIR/prefix/lib/foo/lib.cma (executable: false)
+  Removing (if it exists) DESTDIR/prefix/lib/foo/lib.cmxa
+  Creating directory DESTDIR/prefix/lib/foo
+  Copying _build/install/default/lib/foo/lib.cmxa to DESTDIR/prefix/lib/foo/lib.cmxa (executable: false)
+  Removing (if it exists) DESTDIR/prefix/lib/foo/lib.cmxs
+  Creating directory DESTDIR/prefix/lib/foo
+  Copying _build/install/default/lib/foo/lib.cmxs to DESTDIR/prefix/lib/foo/lib.cmxs (executable: false)
   Removing (if it exists) DESTDIR/prefix/lib/foo/opam
   Creating directory DESTDIR/prefix/lib/foo
   Copying _build/install/default/lib/foo/opam to DESTDIR/prefix/lib/foo/opam (executable: false)

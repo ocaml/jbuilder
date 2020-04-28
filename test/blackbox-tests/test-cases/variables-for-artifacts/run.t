@@ -84,13 +84,13 @@ The next test builds a native .cmxa.
       ocamldep .a1.objs/a.ml.d
         ocamlc .a1.objs/byte/a1__A.{cmi,cmo,cmt}
       ocamlopt .a1.objs/native/a1__A.{cmx,o}
-      ocamlopt a1.{a,cmxa}
+      ocamlopt .a1.objs/lib.{a,cmxa}
 
 Command line version.
 
   $ ./sdune build --verbose %{cmxa:a1} 2>&1 | grep -A100 'Actual targets'
   Actual targets:
-  - _build/default/a1.cmxa
+  - _build/default/.a1.objs/lib.cmxa
 
 This test tries to build a non-existant .cma.
 
@@ -124,13 +124,13 @@ defined. The library is public in this case, but we use the local name.
         ocamlc sub2/.bar2.objs/byte/bar2.{cmi,cmo,cmt}
       ocamldep sub2/.bar2.objs/y2.ml.d
         ocamlc sub2/.bar2.objs/byte/bar2__Y2.{cmi,cmo,cmt}
-        ocamlc sub2/bar2.cma
+        ocamlc sub2/.bar2.objs/lib.cma
 
 Command line version.
 
   $ ./sdune build --verbose %{cma:sub2/bar2} 2>&1 | grep -A100 'Actual targets'
   Actual targets:
-  - _build/default/sub2/bar2.cma
+  - _build/default/sub2/.bar2.objs/lib.cma
 
 This test builds a .cmo in a subdirectory (same project).
 
@@ -169,13 +169,13 @@ project.
         ocamlc sub3/.c1.objs/byte/c1.{cmi,cmo,cmt}
       ocamldep sub3/.c1.objs/x.ml.d
         ocamlc sub3/.c1.objs/byte/c1__X.{cmi,cmo,cmt}
-        ocamlc sub3/c1.cma
+        ocamlc sub3/.c1.objs/lib.cma
 
 Command line version.
 
   $ ./sdune build --verbose %{cma:sub3/c1} 2>&1 | grep -A100 'Actual targets'
   Actual targets:
-  - _build/default/sub3/c1.cma
+  - _build/default/sub3/.c1.objs/lib.cma
 
 This test builds a library in the current directory that has the same name as a
 public library defined in a subdirectory.
@@ -184,13 +184,13 @@ public library defined in a subdirectory.
   $ ./sdune build --display short @t10
       ocamldep .c1.objs/c.ml.d
         ocamlc .c1.objs/byte/c.{cmi,cmo,cmt}
-        ocamlc c1.cma
+        ocamlc .c1.objs/lib.cma
 
 Command line version.
 
   $ ./sdune build --verbose %{cma:c1} 2>&1 | grep -A100 'Actual targets'
   Actual targets:
-  - _build/default/c1.cma
+  - _build/default/.c1.objs/lib.cma
 
 This test checks error handling.
 
@@ -211,7 +211,7 @@ subdirectory.
 The following test checks that the variables can be used in the (action) field
 of a (rule).
 
-  $ ./sdune build --display short _build/default/my.cmxs
+  $ ./sdune build --display short my.cmxs
       ocamldep .dummy.objs/x3.ml.d
         ocamlc .dummy.objs/byte/dummy.{cmi,cmo,cmt}
         ocamlc .dummy.objs/byte/dummy__X3.{cmi,cmo,cmt}
@@ -224,7 +224,7 @@ of a (rule).
       ocamldep .plugin.objs/x2.ml.d
         ocamlc .plugin.objs/byte/plugin__X2.{cmi,cmo,cmt}
       ocamlopt .plugin.objs/native/plugin__X2.{cmx,o}
-      ocamlopt plugin.{a,cmxa}
+      ocamlopt .plugin.objs/lib.{a,cmxa}
       ocamlopt my.cmxs
 
 The following (failing) test shows that the variables cannot yet be used in the (deps)

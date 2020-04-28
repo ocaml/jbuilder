@@ -13,7 +13,7 @@
 
   $ mkdir -p _build/default/.lib.objs/native
   $ touch _build/default/.lib.objs/native/list.cmi
-  $ dune build _build/default/lib.cmxa
+  $ dune build _build/default/.lib.objs/lib.cmxa
 
 Dune deletes the [list.cmi] we created.
 If it didn't do so, the compiler would have tried to use

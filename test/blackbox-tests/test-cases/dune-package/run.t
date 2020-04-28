@@ -5,9 +5,9 @@
   (library
    (name a)
    (kind normal)
-   (archives (byte a.cma) (native a.cmxa))
-   (plugins (byte a.cma) (native a.cmxs))
-   (native_archives a$ext_lib)
+   (archives (byte lib.cma) (native lib.cmxa))
+   (plugins (byte lib.cma) (native lib.cmxs))
+   (native_archives lib$ext_lib)
    (main_module_name A)
    (modes byte native)
    (modules
@@ -24,9 +24,9 @@
   (library
    (name a.b.c)
    (kind normal)
-   (archives (byte b/c/c.cma) (native b/c/c.cmxa))
-   (plugins (byte b/c/c.cma) (native b/c/c.cmxs))
-   (native_archives b/c/c$ext_lib)
+   (archives (byte b/c/lib.cma) (native b/c/lib.cmxa))
+   (plugins (byte b/c/lib.cma) (native b/c/lib.cmxs))
+   (native_archives b/c/lib$ext_lib)
    (main_module_name C)
    (modes byte native)
    (obj_dir (private_dir .private))

@@ -12,12 +12,6 @@
 
   $ dune build --display short --root private-lib @all
   Entering directory 'private-lib'
-      ocamldep .bar.objs/bar.ml.d
-        ocamlc .bar.objs/byte/bar.{cmi,cmo,cmt}
-        ocamlc bar.cma
-      ocamlopt .bar.objs/native/bar.{cmx,o}
-      ocamlopt bar.{a,cmxa}
-      ocamlopt bar.cmxs
 
 @all builds custom install stanzas
 

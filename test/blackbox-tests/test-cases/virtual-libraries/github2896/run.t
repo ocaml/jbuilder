@@ -27,5 +27,5 @@ The implementation impl was built, but it's not usable:
   $ dune exec ./foo.exe
   File "_none_", line 1:
   Error: No implementations provided for the following modules:
-           Vlib referenced from lib/lib.cmxa(Lib)
+           Vlib referenced from lib/.lib.objs/lib.cmxa(Lib)
   [1]
