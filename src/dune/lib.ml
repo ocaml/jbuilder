@@ -241,6 +241,10 @@ module T = struct
     ; unique_id : Id.t
     ; re_exports : t list Or_exn.t
     ; requires : t list Or_exn.t
+    ; (* Same as [requires] unless this is an implementation of a virtual
+         library. If it's an implementation, it contain the list of dependencies
+         but with the virtual library filtered out *)
+      requires_no_vlib : t list Or_exn.t
     ; ppx_runtime_deps : t list Or_exn.t
     ; pps : t list Or_exn.t
     ; resolved_selects : Resolved_select.t list
@@ -660,6 +664,13 @@ module Dep_stack = struct
     ; seen : Id.Set.t
     }
 
+  let pp (t : t) =
+    List.rev t.stack
+    |> Pp.chain ~f:(fun (id : Id.t) ->
+           Pp.textf "%s at %s"
+             (Lib_name.to_string id.name)
+             (Path.to_string_maybe_quoted id.path))
+
   let empty = { stack = []; seen = Id.Set.empty; implements_via = Id.Map.empty }
 
   let to_required_by t ~stop_at =
@@ -746,6 +757,9 @@ module Vlib : sig
     -> orig_stack:Dep_stack.t
     -> linking:bool
     -> t list Or_exn.t
+
+  val validate_impl_closure :
+    lib list -> impl:lib -> vlib:lib -> (unit, exn) result
 
   module Unimplemented : sig
     (** set of unimplemented libraries*)
@@ -834,6 +848,12 @@ end = struct
 
     type t = lib Map.t
 
+    let filled_impls_only (impls : Partial.t) =
+      Map.filter_map impls ~f:(fun status ->
+          match status with
+          | Partial.No_impl _ -> None
+          | Impl (impl, _stack) -> Some impl)
+
     let make impls ~orig_stack : t Or_exn.t =
       let rec loop acc = function
         | [] -> Ok acc
@@ -846,11 +866,59 @@ end = struct
       loop Map.empty (Map.to_list impls)
   end
 
+  (* For a proper linking closure, we must make sure that an implementation
+     cannot depend on a library that has the virtual library as a dependency *)
+  let validate_closure ~vlib ~impl impls =
+    let rec lib (l : lib) ~stack =
+      if l = vlib then
+        Error.make
+          [ Pp.textf
+              "Implementation %s has a dependency that uses the virtual \
+               library %s"
+              (Lib_name.to_string impl.name)
+              (Lib_name.to_string vlib.name)
+          ; Dep_stack.pp stack
+          ]
+      else
+        match Lib_info.virtual_ l.info with
+        | None ->
+          let* stack = Dep_stack.push stack ~implements_via:None l.unique_id in
+          requires l.requires ~stack
+        | Some _ -> (
+          let* () =
+            let* stack =
+              Dep_stack.push stack ~implements_via:None l.unique_id
+            in
+            requires l.requires ~stack
+          in
+          match Map.find impls l with
+          | None -> Ok ()
+          | Some l ->
+            let* stack =
+              Dep_stack.push stack ~implements_via:None l.unique_id
+            in
+            requires l.requires_no_vlib ~stack )
+    and requires deps ~stack = deps >>= Result.List.iter ~f:(lib ~stack) in
+    let* stack =
+      Dep_stack.push Dep_stack.empty ~implements_via:None impl.unique_id
+    in
+    requires impl.requires_no_vlib ~stack
+
   let second_step_closure ts impls =
     let visited = ref Id.Set.empty in
+    let find_impl (lib : lib) =
+      match Lib_info.virtual_ lib.info with
+      | None -> Ok lib
+      | Some _ ->
+        (* find_exn cannot raise because it's a pre-requesite that we've found
+           implementations for all virtual libraries at this stage *)
+        let impl = Map.find_exn impls lib in
+        let+ () = validate_closure ~vlib:lib ~impl impls in
+        impl
+    in
     let res = ref [] in
     let rec loop t =
-      let t = Option.value ~default:t (Map.find impls t) in
+      let* t = find_impl t in
       if Id.Set.mem !visited t.unique_id then
         Ok ()
       else (
@@ -862,6 +930,15 @@ end = struct
     in
     let+ () = Result.List.iter ts ~f:loop in
     List.rev !res
+
+  let validate_impl_closure (closure : lib list) ~impl ~vlib =
+    let closure = List.map closure ~f:(fun x -> (x, Dep_stack.empty)) in
+    let* impls = Table.Partial.make closure ~orig_stack:Dep_stack.empty in
+    if Table.Partial.is_empty impls then
+      Ok ()
+    else
+      let impls = Table.filled_impls_only impls in
+      validate_closure ~vlib ~impl impls
 
   let associate closure ~orig_stack ~linking =
     let* impls = Table.Partial.make closure ~orig_stack in
@@ -1025,7 +1102,11 @@ end = struct
                             (Package.Name.to_string p')
                         ] )))
     in
-    let { requires; pps; selects = resolved_selects; re_exports } =
+    let { requires = requires_no_vlib
+        ; pps
+        ; selects = resolved_selects
+        ; re_exports
+        } =
       let pps = Lib_info.pps info in
       let dune_version = Lib_info.dune_version info in
       Lib_info.requires info
@@ -1034,10 +1115,10 @@ end = struct
     in
     let requires =
       match implements with
-      | None -> requires
+      | None -> requires_no_vlib
       | Some impl ->
         let* impl = impl in
-        let+ requires = requires in
+        let+ requires = requires_no_vlib in
         impl :: requires
     in
     let ppx_runtime_deps =
@@ -1057,6 +1138,7 @@ end = struct
       ; name
       ; unique_id
       ; requires
+      ; requires_no_vlib
       ; ppx_runtime_deps
       ; pps
       ; resolved_selects
@@ -1558,7 +1640,26 @@ module Compile = struct
         >>= Resolve.compile_closure_with_overlap_checks db
               ~stack:Dep_stack.empty ~forbidden_libraries:Map.empty )
     in
-    { direct_requires = requires
+    let valid_impl =
+      match t.implements with
+      | None
+      | Some (Error _) ->
+        Ok () (* we'll see the error later *)
+      | Some (Ok vlib) ->
+        (* we need this check to make sure *)
+        let* requires_link = Lazy.force requires_link in
+        Vlib.validate_impl_closure requires_link ~impl:t ~vlib
+    in
+    let direct_requires =
+      let* () = valid_impl in
+      t.requires
+    in
+    let requires_link =
+      match valid_impl with
+      | Ok _ -> requires_link
+      | Error e -> lazy (Error e)
+    in
+    { direct_requires
     ; requires_link
     ; resolved_selects = t.resolved_selects
     ; pps = t.pps
@@ -1876,7 +1977,7 @@ let to_dune_lib ({ info; _ } as lib) ~modules ~foreign_objects ~dir =
       ~lib_field:(Option.map ~f:Lazy.force lib.default_implementation)
   and+ ppx_runtime_deps = lib.ppx_runtime_deps
   and+ main_module_name = main_module_name lib
-  and+ requires = lib.requires
+  and+ requires = lib.requires_no_vlib
   and+ re_exports = lib.re_exports in
   let ppx_runtime_deps = add_loc ppx_runtime_deps in
   let sub_systems = Sub_system.public_info lib in

@@ -50,7 +50,6 @@ Check that default implementation data is installed in the dune package file.
     (byte default-impl/a_default.cma)
     (native default-impl/a_default.cmxs))
    (native_archives default-impl/a_default$ext_lib)
-   (requires a)
    (implements a)
    (main_module_name A)
    (modes byte native)
