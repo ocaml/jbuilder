@@ -15,13 +15,13 @@ type build_system =
   ; scontexts : Super_context.t Context_name.Map.t
   }
 
-let package_install_file w pkg =
+let package_install_file ~findlib_toolchain w pkg =
   match Package.Name.Map.find w.conf.packages pkg with
   | None -> Error ()
   | Some p ->
     Ok
       (Path.Source.relative p.path
-         (Utils.install_file ~package:p.name ~findlib_toolchain:None))
+         (Utils.install_file ~package:p.name ~findlib_toolchain))
 
 let setup_env ~capture_outputs =
   let env =

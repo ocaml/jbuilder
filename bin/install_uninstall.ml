@@ -24,8 +24,8 @@ let get_dirs context ~prefix_from_command_line ~libdir_from_command_line =
     let+ libdir = libdir in
     (prefix, libdir)
 
-let resolve_package_install setup pkg =
-  match Import.Main.package_install_file setup pkg with
+let resolve_package_install ~findlib_toolchain setup pkg =
+  match Import.Main.package_install_file ~findlib_toolchain setup pkg with
   | Ok path -> path
   | Error () ->
     let pkg = Package.Name.to_string pkg in
@@ -342,6 +342,11 @@ let install_uninstall ~what =
           | None -> workspace.contexts
           | Some name -> [ Import.Main.find_context_exn workspace ~name ]
         in
+        let findlib_toolchain = Common.x common in
+        let contexts =
+          List.filter contexts
+            ~f:(fun ctx -> ctx.Context.findlib_toolchain = findlib_toolchain)
+        in
         let pkgs =
           match pkgs with
           | [] ->
@@ -356,7 +361,7 @@ let install_uninstall ~what =
         in
         let install_files, missing_install_files =
           List.concat_map pkgs ~f:(fun pkg ->
-              let fn = resolve_package_install workspace pkg in
+              let fn = resolve_package_install ~findlib_toolchain workspace pkg in
               List.map contexts ~f:(fun ctx ->
                   let fn =
                     Path.append_source (Path.build ctx.Context.build_dir) fn
