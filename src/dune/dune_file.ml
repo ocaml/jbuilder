@@ -1758,6 +1758,12 @@ module Copy_files = struct
       }
 end
 
+module Copy_dir = struct
+  type t = { path : String_with_vars.t }
+
+  let decode = String_with_vars.decode
+end
+
 module Documentation = struct
   type t =
     { loc : Loc.t
@@ -1847,6 +1853,7 @@ type Stanza.t +=
   | Install of Install_conf.t
   | Alias of Alias_conf.t
   | Copy_files of Copy_files.t
+  | Copy_dir of Copy_dir.t
   | Documentation of Documentation.t
   | Tests of Tests.t
   | Include_subdirs of Loc.t * Include_subdirs.t
@@ -1902,6 +1909,10 @@ module Stanzas = struct
     ; ( "copy_files#"
       , let+ x = Copy_files.decode in
         [ Copy_files { x with add_line_directive = true } ] )
+    ; ( "copy_dir"
+      , let+ () = Dune_lang.Syntax.since Stanza.syntax (2, 7)
+        and+ path = Copy_dir.decode in
+        [ Copy_dir { path } ] )
     ; ( "include"
       , let+ loc = loc
         and+ fn = relative_file in

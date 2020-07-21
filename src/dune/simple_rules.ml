@@ -184,6 +184,48 @@ let copy_files sctx ~dir ~expander ~src_dir (def : Copy_files.t) =
       Rules.Produce.Alias.add_deps alias targets);
   targets
 
+let copy_dir sctx ~dir ~expander ~src_dir (def : Copy_dir.t) =
+  let context = Context.DB.get dir in
+  let loc = String_with_vars.loc def.path in
+  let path_in_src =
+    let src_path = Expander.expand_str expander def.path in
+    Path.Source.relative src_dir src_path ~error_loc:loc
+  in
+  let src_in_src = Path.Source.parent_exn path_in_src in
+  if not (File_tree.dir_exists path_in_src) then
+    User_error.raise ~loc
+      [ Pp.textf "Cannot find directory: %s" (Path.Source.to_string path_in_src)
+      ];
+  if Path.Source.equal src_in_src src_dir then
+    User_error.raise ~loc
+      [ Pp.textf
+          "Cannot copy files onto themselves. The format is <dir>/<path> where \
+           <dir> is not the current directory."
+      ];
+  (* add copy rules for each file *)
+  let path_parent_in_build =
+    Path.Build.(append_source context.build_dir path_in_src |> parent_exn)
+  in
+  let root = Option.value_exn (File_tree.find_dir path_in_src) in
+  let files =
+    File_tree.Dir.fold root ~traverse:Sub_dirs.Status.Set.all
+      ~init:Path.Set.empty ~f:(fun dir acc ->
+        let dir =
+          File_tree.Dir.path dir
+          |> Path.Build.append_source context.build_dir
+          |> Path.build
+        in
+        Build_system.eval_pred (File_selector.create ~dir Predicate.true_)
+        |> Path.Set.union acc)
+  in
+  Path.Set.map files ~f:(fun file_src ->
+      let file_dst =
+        Path.reach file_src ~from:(Path.build path_parent_in_build)
+        |> Path.Build.relative dir
+      in
+      SC.add_rule sctx ~loc ~dir (Build.copy ~src:file_src ~dst:file_dst);
+      Path.build file_dst)
+
 let alias sctx ?extra_bindings ~dir ~expander (alias_conf : Alias_conf.t) =
   let alias = Alias.make ~dir alias_conf.name in
   let stamp =

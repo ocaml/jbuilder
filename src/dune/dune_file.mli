@@ -265,6 +265,10 @@ module Copy_files : sig
     }
 end
 
+module Copy_dir : sig
+  type t = { path : String_with_vars.t }
+end
+
 module Rule : sig
   type t =
     { targets : String_with_vars.t Targets.t
@@ -357,6 +361,7 @@ type Stanza.t +=
   | Install of Install_conf.t
   | Alias of Alias_conf.t
   | Copy_files of Copy_files.t
+  | Copy_dir of Copy_dir.t
   | Documentation of Documentation.t
   | Tests of Tests.t
   | Include_subdirs of Loc.t * Include_subdirs.t

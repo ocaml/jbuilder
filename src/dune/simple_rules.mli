@@ -22,6 +22,15 @@ val copy_files :
   -> Copy_files.t
   -> Path.Set.t
 
+(** Interpret a [(copy_dir ...)] stanza and return the targets it produces. *)
+val copy_dir :
+     Super_context.t
+  -> dir:Path.Build.t
+  -> expander:Expander.t
+  -> src_dir:Path.Source.t
+  -> Copy_dir.t
+  -> Path.Set.t
+
 (** Interpret an [(alias ...)] stanza. *)
 val alias :
      Super_context.t

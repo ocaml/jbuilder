@@ -1,0 +1,20 @@
+(copy_dir to_copy/foo)
+(copy_dir to_copy/foo/fooer)
+
+; Files generated during the build should be copied too
+(subdir
+ to_copy/foo/dir_gen
+ (rule
+  (alias gen-md)
+  (action
+   (write-file "gen.md" "foobar" )))
+)
+
+(rule
+ (alias print-bars)
+ (action
+  (progn
+   (echo "%{read:foo/bar.md}")
+   (echo "%{read:foo/fooer/barer.md}")
+   (echo "%{read:fooer/barer.md}")
+   (echo "%{read:foo/dir_gen/gen.md}"))))

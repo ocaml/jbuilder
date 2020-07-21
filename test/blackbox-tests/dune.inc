@@ -188,6 +188,14 @@
    (progn (run dune-cram run run.t) (diff? run.t run.t.corrected)))))
 
 (rule
+ (alias copy_dir)
+ (deps (package dune) (source_tree test-cases/copy_dir.t) (alias test-deps))
+ (action
+  (chdir
+   test-cases/copy_dir.t
+   (progn (run dune-cram run run.t) (diff? run.t run.t.corrected)))))
+
+(rule
  (alias copy_files)
  (deps (package dune) (source_tree test-cases/copy_files.t) (alias test-deps))
  (action
@@ -3196,6 +3204,7 @@
   (alias cmdliner-dep-conf)
   (alias contents-depends-on-glob)
   (alias copy-files-non-sub-dir-error)
+  (alias copy_dir)
   (alias copy_files)
   (alias corrections)
   (alias cross-compilation)
@@ -3503,6 +3512,7 @@
   (alias cmdliner-dep-conf)
   (alias contents-depends-on-glob)
   (alias copy-files-non-sub-dir-error)
+  (alias copy_dir)
   (alias copy_files)
   (alias corrections)
   (alias custom-build-dir)
