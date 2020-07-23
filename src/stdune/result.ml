@@ -18,6 +18,11 @@ let ok_exn = function
   | Ok x -> x
   | Error e -> raise e
 
+let value r ~default =
+  match r with
+  | Ok v -> v
+  | Error _ -> default
+
 let try_with f =
   match f () with
   | s -> Ok s

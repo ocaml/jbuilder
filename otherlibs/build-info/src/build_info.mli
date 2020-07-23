@@ -30,3 +30,17 @@ module V1 : sig
     val find : name:string -> Statically_linked_library.t option
   end
 end
+
+module V2 : sig
+  include module type of V1
+
+  module Custom : sig
+    type t
+
+    val to_string : t -> string
+  end
+
+  val custom : unit -> Custom.t option
+
+  val custom_lib : string -> Custom.t option
+end

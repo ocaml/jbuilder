@@ -1,0 +1,14 @@
+(library
+ (name lib2)
+ (modules lib2)
+ (libraries dune-build-info)
+ (custom_build_info
+  (max_size 66)
+  (action (echo "Custom info from lib2"))))
+
+(executable
+ (name foo)
+ (modules foo)
+ (public_name foo)
+ (promote (until-clean))
+ (libraries lib1 lib2))

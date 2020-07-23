@@ -16,6 +16,8 @@ val iter : ('a, _) t -> f:('a -> unit) -> unit
 
 val ok_exn : ('a, exn) t -> 'a
 
+val value : ('a, exn) t -> default:'a -> 'a
+
 val try_with : (unit -> 'a) -> ('a, exn) t
 
 val equal :

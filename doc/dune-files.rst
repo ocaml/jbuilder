@@ -483,6 +483,11 @@ to use the :ref:`include_subdirs` stanza.
   configured through options using ``(inline_tests <options>)``. See
   :ref:`inline_tests` for a reference of corresponding options.
 
+- ``(custom_build_info <custom-build-info-spec>)`` is used to specify a script
+  that will run at link-time to generate a user-custom :ref:`build-info`. See
+  the section :ref:`custom-build-info` for more details. This field
+  requires ``dune-build-info`` to be declared as a dependency of the library.
+
 Note that when binding C libraries, dune doesn't provide special support for
 tools such as ``pkg-config``, however it integrates easily with configurator_ by
 using ``(c_flags (:include ...))`` and ``(c_library_flags (:include ...))``.
@@ -673,6 +678,11 @@ Executables can also be linked as object or shared object files. See
   libraries are linked in. Note that you may need to also use the ``-linkall``
   flag if some of the libraries listed here are not referenced from any of the
   plugin modules.
+
+- ``(custom_build_info <custom-build-info-spec>)`` is used to specify a script
+  that will run at link-time to generate a user-custom :ref:`build-info`. See
+  the section :ref:`custom-build-info` for more details. This field
+  requires ``dune-build-info`` to be declared as a dependency of the executable.
 
 Linking modes
 ~~~~~~~~~~~~~

@@ -122,9 +122,24 @@ end
 let exe_path_from_name cctx ~name ~(linkage : Linkage.t) =
   Path.Build.relative (CC.dir cctx) (name ^ linkage.ext)
 
+let expand_custom_build_info ~cctx name (loc, action) =
+  let dir = CC.dir cctx in
+  let raw_filename = Custom_build_info.output_file name in
+  let filename = String_with_vars.make_text Loc.none raw_filename in
+  let action = Action_unexpanded.with_stdout_to filename action in
+  let path = Path.Build.relative dir raw_filename in
+  let targets =
+    Targets.Static
+      { targets = [ path ]; multiplicity = Targets.Multiplicity.One }
+  in
+  Action_unexpanded.expand action ~loc ~dep_kind:Required ~targets_dir:dir
+    ~targets:Targets.(Or_forbidden.Targets targets)
+    ~expander:(CC.expander cctx)
+    (Build.return Bindings.empty)
+
 let link_exe ~loc ~name ~(linkage : Linkage.t) ~cm_files ~link_time_code_gen
-    ~promote ?(link_args = Build.return Command.Args.empty) ?(o_files = []) cctx
-    =
+    ~custom_build_info ~promote ?(link_args = Build.return Command.Args.empty)
+    ?(o_files = []) cctx =
   let sctx = CC.super_context cctx in
   let ctx = SC.context sctx in
   let dir = CC.dir cctx in
@@ -132,6 +147,7 @@ let link_exe ~loc ~name ~(linkage : Linkage.t) ~cm_files ~link_time_code_gen
   let exe = exe_path_from_name cctx ~name ~linkage in
   let top_sorted_cms = Cm_files.top_sorted_cms cm_files ~mode in
   let fdo_linker_script = Fdo.Linker_script.create cctx (Path.build exe) in
+
   SC.add_rule sctx ~loc ~dir
     ~mode:
       ( match promote with
@@ -152,28 +168,46 @@ let link_exe ~loc ~name ~(linkage : Linkage.t) ~cm_files ~link_time_code_gen
      in
      let open Build.With_targets.O in
      Build.with_no_targets prefix
-     >>> Command.run ~dir:(Path.build ctx.build_dir)
-           (Context.compiler ctx mode)
-           [ Command.Args.dyn ocaml_flags
-           ; A "-o"
-           ; Target exe
-           ; As linkage.flags
-           ; Dyn link_args
-           ; Command.of_result_map link_time_code_gen
-               ~f:(fun { Link_time_code_gen.to_link; force_linkall } ->
-                 S
-                   [ As
-                       ( if force_linkall then
-                         [ "-linkall" ]
-                       else
-                         [] )
-                   ; Lib.Lib_and_module.L.link_flags to_link
-                       ~lib_config:ctx.lib_config ~mode:linkage.mode
-                   ])
-           ; Deps o_files
-           ; Dyn (Build.map top_sorted_cms ~f:(fun x -> Command.Args.Deps x))
-           ; Fdo.Linker_script.flags fdo_linker_script
-           ])
+     >>> let+ cmd_run =
+           Command.run ~dir:(Path.build ctx.build_dir)
+             (Context.compiler ctx mode)
+             [ Command.Args.dyn ocaml_flags
+             ; A "-o"
+             ; Target exe
+             ; As linkage.flags
+             ; Dyn link_args
+             ; Command.of_result_map link_time_code_gen
+                 ~f:(fun { Link_time_code_gen.to_link; force_linkall } ->
+                   S
+                     [ As
+                         ( if force_linkall then
+                           [ "-linkall" ]
+                         else
+                           [] )
+                     ; Lib.Lib_and_module.L.link_flags to_link
+                         ~lib_config:ctx.lib_config ~mode:linkage.mode
+                     ])
+             ; Deps o_files
+             ; Dyn (Build.map top_sorted_cms ~f:(fun x -> Command.Args.Deps x))
+             ; Fdo.Linker_script.flags fdo_linker_script
+             ]
+         and+ cbi_libs =
+           let all_libs = Result.value ~default:[] (CC.requires_link cctx) in
+           let lib_infos = List.map ~f:Lib.info all_libs in
+           let from_libs = Lib_info.gather_custom_build_info lib_infos in
+           List.map
+             ~f:(fun (name, { Custom_build_info.action; _ }) ->
+               expand_custom_build_info ~cctx (Lib_name.to_string name) action)
+             from_libs
+           |> Build.With_targets.all
+         and+ cbi_exe =
+           match custom_build_info with
+           | None -> Build.With_targets.return Action.empty
+           | Some { Custom_build_info.action; _ } ->
+             expand_custom_build_info ~cctx "exe" action
+         in
+
+         Action.progn (List.concat [ cbi_exe :: cbi_libs; [ cmd_run ] ]))
 
 let link_js ~name ~cm_files ~promote cctx =
   let sctx = CC.super_context cctx in
@@ -191,11 +225,13 @@ let link_js ~name ~cm_files ~promote cctx =
     ~flags:(Command.Args.dyn flags) ~promote
 
 let build_and_link_many ~programs ~linkages ~promote ?link_args ?o_files
-    ?(embed_in_plugin_libraries = []) cctx =
+    ~custom_build_info ?(embed_in_plugin_libraries = []) cctx =
   let modules = Compilation_context.modules cctx in
   let dep_graphs = Dep_rules.rules cctx ~modules in
   Module_compilation.build_all cctx ~dep_graphs;
-  let link_time_code_gen = Link_time_code_gen.handle_special_libs cctx in
+  let link_time_code_gen =
+    Link_time_code_gen.handle_special_libs ~custom_build_info cctx
+  in
   List.iter programs ~f:(fun { Program.name; main_module_name; loc } ->
       let cm_files =
         let sctx = CC.super_context cctx in
@@ -214,13 +250,13 @@ let build_and_link_many ~programs ~linkages ~promote ?link_args ?o_files
           else
             let link_time_code_gen =
               if Linkage.is_plugin linkage then
-                Link_time_code_gen.handle_special_libs
+                Link_time_code_gen.handle_special_libs ~custom_build_info
                   (CC.for_plugin_executable cctx ~embed_in_plugin_libraries)
               else
                 link_time_code_gen
             in
             link_exe cctx ~loc ~name ~linkage ~cm_files ~link_time_code_gen
-              ~promote ?link_args ?o_files))
+              ~custom_build_info ~promote ?link_args ?o_files))
 
 let build_and_link ~program = build_and_link_many ~programs:[ program ]
 

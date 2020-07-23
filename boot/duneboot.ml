@@ -714,6 +714,8 @@ module Build_info = struct
         pr "  ]\n"
     in
     get_version () >>| fun version ->
+    pr "let custom = None\n";
+    pr "let custom_lib _ = None\n";
     pr "let version = %s\n"
       ( match version with
       | None -> "None"

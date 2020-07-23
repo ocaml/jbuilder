@@ -48,6 +48,7 @@ module Lib = struct
     let ppx_runtime_deps = Lib_info.ppx_runtime_deps info in
     let default_implementation = Lib_info.default_implementation info in
     let special_builtin_support = Lib_info.special_builtin_support info in
+    let custom_build_info = Lib_info.custom_build_info info in
     let archives = Lib_info.archives info in
     let sub_systems = Lib_info.sub_systems info in
     let plugins = Lib_info.plugins info in
@@ -82,6 +83,8 @@ module Lib = struct
        ; field_o "modules" Modules.encode modules
        ; field_o "special_builtin_support"
            Lib_info.Special_builtin_support.encode special_builtin_support
+       ; field_o "custom_build_info" Lib_info.Custom_build_info.encode
+           custom_build_info
        ]
     @ ( Sub_system_name.Map.to_list sub_systems
       |> List.map ~f:(fun (name, info) ->
@@ -145,7 +148,7 @@ module Lib = struct
          field_o "special_builtin_support"
            ( Dune_lang.Syntax.since Stanza.syntax (1, 10)
            >>> Lib_info.Special_builtin_support.decode )
-       in
+       and+ custom_build_info = Lib_info.Custom_build_info.decode () in
        let modes = Mode.Dict.Set.of_list modes in
        let info : Path.t Lib_info.t =
          let src_dir = Obj_dir.dir obj_dir in
@@ -176,7 +179,7 @@ module Lib = struct
            ~jsoo_runtime ~jsoo_archive ~preprocess ~enabled ~virtual_deps
            ~dune_version ~virtual_ ~implements ~default_implementation ~modes
            ~wrapped ~special_builtin_support ~exit_module:None
-           ~instrumentation_backend:None
+           ~instrumentation_backend:None ~custom_build_info
        in
        { info; main_module_name; modules })
 

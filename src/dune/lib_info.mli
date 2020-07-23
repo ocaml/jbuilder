@@ -36,7 +36,9 @@ end
 
 module Special_builtin_support : sig
   module Build_info : sig
-    type api_version = V1
+    type api_version =
+      | V1
+      | V2
 
     type t =
       { data_module : string
@@ -57,6 +59,8 @@ module Special_builtin_support : sig
 
   include Dune_lang.Conv.S with type t := t
 end
+
+module Custom_build_info = Custom_build_info
 
 module Inherited : sig
   type 'a t =
@@ -126,6 +130,11 @@ val main_module_name : _ t -> Main_module_name.t
 val wrapped : _ t -> Wrapped.t Inherited.t option
 
 val special_builtin_support : _ t -> Special_builtin_support.t option
+
+val custom_build_info : _ t -> Custom_build_info.t option
+
+val gather_custom_build_info :
+  _ t list -> (Lib_name.t * Custom_build_info.t) list
 
 val modes : _ t -> Mode.Dict.Set.t
 
@@ -211,6 +220,7 @@ val create :
   -> special_builtin_support:Special_builtin_support.t option
   -> exit_module:Module_name.t option
   -> instrumentation_backend:(Loc.t * Lib_name.t) option
+  -> custom_build_info:Custom_build_info.t option
   -> 'a t
 
 val package : _ t -> Package.Name.t option

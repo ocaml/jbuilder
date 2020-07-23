@@ -5,6 +5,7 @@ open Stdune
 (** A symbolic representation of the value to substitute to *)
 type t =
   | Vcs_describe of Path.Source.t
+  | Custom of string * Path.Build.t
   | Repeat of int * string
       (** [Repeat (n, s)] evaluates to [s] repeated [n] times. This substitution
           is used for unit tests. *)

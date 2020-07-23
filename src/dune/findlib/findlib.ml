@@ -313,6 +313,7 @@ end = struct
           | "findlib.dynload" -> Some Findlib_dynload
           | _ -> None
         in
+        let custom_build_info = None in
         let foreign_objects = Lib_info.Source.External [] in
         let plugins = plugins t in
         let jsoo_runtime = jsoo_runtime t in
@@ -366,7 +367,7 @@ end = struct
           ~jsoo_archive ~preprocess ~enabled ~virtual_deps ~dune_version
           ~virtual_ ~implements ~default_implementation ~modes ~wrapped
           ~special_builtin_support ~exit_module:None
-          ~instrumentation_backend:None
+          ~instrumentation_backend:None ~custom_build_info
       in
       Dune_package.Lib.make ~info ~modules:None ~main_module_name:None
   end

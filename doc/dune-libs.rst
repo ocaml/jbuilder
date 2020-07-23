@@ -167,6 +167,70 @@ need to rebuild all the binaries and everything that depend on them,
 such as tests. Instead Dune leaves a placeholder inside the binary and
 fills it during installation or promotion.
 
+.. _custom-build-info:
+
+custom-build-info
+-----------------
+
+Since dune 2.7 it is possible to extend Dune's default build information using
+the ``(custom-build-info)`` field in the libraries and executables stanzas:
+
+.. code-block:: lisp
+
+  (custom_build_info
+   (max_size <int>)
+   (action <action>))
+
+``<action>`` is the action used to produce the desired information during
+link. This action should print this information on it's standard output. See the
+:ref:`user-actions` section for more details. (Paths are resolved relatively to
+the directory of the executable being linked.)
+
+``<int>`` is the maximum size of the action's output. Bigger outputs will be
+truncated. This is necessary because the placeholder mechanism described in
+:ref:`build-info` is used to write the information in the binary only when it
+is installed or promoted to the source tree.
+
+It is possible to retrieve the information using ``Build_info.V2.custom :
+unit -> string option`` for executables and ``Build_info.V2.custom_lib : string
+-> string option`` for libraries, where the argument is the name of the library.
+
+For example, given the following configuration:
+
+.. code-block:: shell
+
+  $ cat dune
+  (executable
+   (public_name foo)
+   (custom_build_info
+    (max_size 46)
+    (action (echo "Custom build info generated during link (exe).")))
+
+  $ cat lib/dune
+  (library
+   (public_name mylib)
+   (custom_build_info
+    (max_size 48)
+    (action (echo "Custom build info generated during link (mylib).")))
+
+The custom built informations can be access from whether `Foo` or `Mylib` as follows:
+
+.. code-block:: ocaml
+
+  let info_mylib = Build_info.V2.custom_lib "mylib" in
+  match info_mylib with
+  | Some info -> Printf.printf "From mylib: %s\n" info
+  | None      -> Printf.printf "From mylib: n/a\n"
+
+  let info_foo = Build_info.V2.custom in
+  match info_foo with
+  | Some info -> Printf.printf "From foo: %s\n" info
+  | None      -> Printf.printf "From foo: n/a\n"
+
+
+Note that even if this system is restricted to a single string,
+structured data can also be transmitted using an appropriate
+marshalling system.
 
 (Experimental) Dune action plugin
 =================================

@@ -82,21 +82,27 @@ let findlib_init_code ~preds ~libs =
   pr buf "Findlib.record_package_predicates preds;;";
   Buffer.contents buf
 
-let build_info_code cctx ~libs ~api_version =
-  ( match api_version with
-  | Lib_info.Special_builtin_support.Build_info.V1 -> () );
+let gen_placeholder_var =
+  let n = ref 0 in
+  fun () ->
+    let s = sprintf "p%d" !n in
+    incr n;
+    s
+
+let fmt_eval ~cctx code =
+  let context = CC.context cctx in
+  let ocaml_version = Ocaml_version.of_ocaml_config context.ocaml_config in
+  if Ocaml_version.has_sys_opaque_identity ocaml_version then
+    Printf.sprintf "eval (Sys.opaque_identity %S)" code
+  else
+    Printf.sprintf "eval %S" code
+
+let build_info_code_v1 ~cctx ~libs buf =
   (* [placeholders] is a mapping from source path to variable names. For each
      binding [(p, v)], we will generate the following code:
 
      {[ let v = Placeholder "%%DUNE_PLACEHOLDER:...:vcs-describe:...:p%%" ]} *)
   let placeholders = ref Path.Source.Map.empty in
-  let gen_placeholder_var =
-    let n = ref 0 in
-    fun () ->
-      let s = sprintf "p%d" !n in
-      incr n;
-      s
-  in
   let placeholder p =
     match File_tree.nearest_vcs p with
     | None -> "None"
@@ -144,9 +150,48 @@ let build_info_code cctx ~libs ~api_version =
               in
               placeholder p ) ))
   in
-  let context = CC.context cctx in
-  let ocaml_version = Ocaml_version.of_ocaml_config context.ocaml_config in
+  Path.Source.Map.iteri !placeholders ~f:(fun path var ->
+      pr buf "let %s = %s" var
+        (fmt_eval ~cctx
+           (Artifact_substitution.encode ~min_len:64 (Vcs_describe path))));
+  if not (Path.Source.Map.is_empty !placeholders) then pr buf "";
+  pr buf "let version = %s" version;
+  pr buf "";
+  prlist buf "statically_linked_libraries" libs ~f:(fun (name, v) ->
+      pr buf "%S, %s" (Lib_name.to_string name) v);
+  pr buf ""
+
+let build_info_code_v2 ~cctx ~custom_build_info:(exe_cbi, lib_cbis) buf =
+  let dir = CC.dir cctx in
+  let encode min_len name =
+    Artifact_substitution.(encode ~min_len (Custom (name, dir)))
+  in
+  let lib_cbi (name, { Custom_build_info.max_size; _ }) =
+    let name = Lib_name.to_string name in
+    pr buf "%S, %s" name (fmt_eval ~cctx (encode max_size name))
+  in
+  let exe_cbi =
+    match exe_cbi with
+    | Some { Custom_build_info.max_size; _ } ->
+      fmt_eval ~cctx (encode max_size "exe")
+    | None -> "None"
+  in
+  pr buf "let custom = %s" exe_cbi;
+  pr buf "";
+  prlist buf "lib_customs" lib_cbis ~f:lib_cbi;
+  pr buf "";
+  pr buf "let custom_lib name = List.assoc name lib_customs"
+
+let build_info_code cctx ~libs ~api_version ~custom_build_info =
+  let open Lib_info.Special_builtin_support in
   let buf = Buffer.create 1024 in
+  let version_specific () =
+    match api_version with
+    | Build_info.V1 -> build_info_code_v1 ~cctx ~libs buf
+    | Build_info.V2 ->
+      build_info_code_v1 ~cctx ~libs buf;
+      build_info_code_v2 ~cctx ~custom_build_info buf
+  in
   (* Parse the replacement format described in [artifact_substitution.ml]. *)
   pr buf "let eval s =";
   pr buf "  let len = String.length s in";
@@ -161,28 +206,20 @@ let build_info_code cctx ~libs ~api_version =
   pr buf "    None";
   pr buf "[@@inline never]";
   pr buf "";
-  let fmt_eval : _ format6 =
-    if Ocaml_version.has_sys_opaque_identity ocaml_version then
-      "let %s = eval (Sys.opaque_identity %S)"
-    else
-      "let %s = eval %S"
-  in
-  Path.Source.Map.iteri !placeholders ~f:(fun path var ->
-      pr buf fmt_eval var
-        (Artifact_substitution.encode ~min_len:64 (Vcs_describe path)));
-  if not (Path.Source.Map.is_empty !placeholders) then pr buf "";
-  pr buf "let version = %s" version;
+  version_specific ();
   pr buf "";
-  prlist buf "statically_linked_libraries" libs ~f:(fun (name, v) ->
-      pr buf "%S, %s" (Lib_name.to_string name) v);
   Buffer.contents buf
 
-let handle_special_libs cctx =
+let handle_special_libs ~custom_build_info cctx =
   let open Result.O in
   let+ all_libs = CC.requires_link cctx in
   let obj_dir = Compilation_context.obj_dir cctx |> Obj_dir.of_local in
   let sctx = CC.super_context cctx in
   let module LM = Lib.Lib_and_module in
+  let cbis =
+    Lib_info.gather_custom_build_info (List.map ~f:Lib.info all_libs)
+  in
+  let custom_build_info = (custom_build_info, cbis) in
   let rec process_libs ~to_link_rev ~force_linkall libs =
     match libs with
     | [] -> { to_link = List.rev to_link_rev; force_linkall }
@@ -196,10 +233,12 @@ let handle_special_libs cctx =
         match special with
         | Build_info { data_module; api_version } ->
           let module_ =
-            generate_and_compile_module cctx ~name:data_module ~lib
-              ~code:
-                (Build.return
-                   (build_info_code cctx ~libs:all_libs ~api_version))
+            let code =
+              Build.return
+                (build_info_code cctx ~libs:all_libs ~api_version
+                   ~custom_build_info)
+            in
+            generate_and_compile_module cctx ~name:data_module ~lib ~code
               ~requires:(Ok [ lib ])
               ~precompiled_cmi:true
           in

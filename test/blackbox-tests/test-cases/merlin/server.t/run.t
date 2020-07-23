@@ -4,9 +4,7 @@
   > EOF
   ()
 
-  $ dune build @check 2>&1 | sed "s/(lang dune .*)/(lang dune <version>)/"
-  Info: Creating file dune-project with this contents:
-  | (lang dune <version>)
+  $ dune build @check
   $ dune ocaml-merlin  <<EOF
   > (4:File${#FILE}:$FILE)
   > EOF

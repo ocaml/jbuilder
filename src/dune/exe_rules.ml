@@ -170,7 +170,8 @@ let executables_rules ~sctx ~dir ~expander ~dir_contents ~scope ~compile_info
         (Lib.DB.instrumentation_backend (Scope.libs scope))
   in
   Exe.build_and_link_many cctx ~programs ~linkages ~link_args ~o_files
-    ~promote:exes.promote ~embed_in_plugin_libraries;
+    ~custom_build_info:exes.custom_build_info ~promote:exes.promote
+    ~embed_in_plugin_libraries;
   ( cctx
   , Merlin.make () ~requires:requires_compile ~flags ~modules
       ~preprocess:(Preprocess.Per_module.single_preprocess preprocess)

@@ -5,4 +5,4 @@
  (special_builtin_support
   (build_info
    (data_module build_info_data)
-   (api_version 1))))
+   (api_version 2))))

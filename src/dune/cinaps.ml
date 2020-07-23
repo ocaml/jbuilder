@@ -105,7 +105,7 @@ let gen_rules sctx t ~dir ~scope =
   Exe.build_and_link cctx
     ~program:{ name; main_module_name; loc }
     ~linkages:[ Exe.Linkage.native_or_custom (Super_context.context sctx) ]
-    ~promote:None;
+    ~custom_build_info:None ~promote:None;
   let action =
     let module A = Action in
     let cinaps_exe = Path.build cinaps_exe in

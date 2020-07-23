@@ -1,0 +1,8 @@
+(executable
+ (name foo)
+ (public_name foo)
+ (promote (until-clean))
+ (libraries dune-build-info)
+ (custom_build_info
+  (max_size 66)
+  (action (run ocaml %{dep:gen_version.ml}))))

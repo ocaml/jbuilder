@@ -37,12 +37,15 @@ module Special_builtin_support = struct
            ])
 
   module Build_info = struct
-    type api_version = V1
+    type api_version =
+      | V1
+      | V2
 
     let api_version_to_dyn = function
       | V1 -> Dyn.Encoder.constr "V1" []
+      | V2 -> Dyn.Encoder.constr "V2" []
 
-    let supported_api_versions = [ (1, V1) ]
+    let supported_api_versions = [ (1, V1); (2, V2) ]
 
     type t =
       { data_module : string
@@ -69,7 +72,8 @@ module Special_builtin_support = struct
         [ field "data_module" string data_module
         ; field "api_version" int
             ( match api_version with
-            | V1 -> 1 )
+            | V1 -> 1
+            | V2 -> 2 )
         ]
   end
 
@@ -136,6 +140,8 @@ module Special_builtin_support = struct
     | Configurator x ->
       Dune_lang.List (Dune_lang.atom "configurator" :: Configurator.encode x)
 end
+
+module Custom_build_info = Custom_build_info
 
 module Status = struct
   type t =
@@ -234,6 +240,7 @@ type 'path t =
   ; main_module_name : Main_module_name.t
   ; modes : Mode.Dict.Set.t
   ; special_builtin_support : Special_builtin_support.t option
+  ; custom_build_info : Custom_build_info.t option
   ; exit_module : Module_name.t option
   ; instrumentation_backend : (Loc.t * Lib_name.t) option
   }
@@ -294,6 +301,12 @@ let wrapped t = t.wrapped
 
 let special_builtin_support t = t.special_builtin_support
 
+let custom_build_info t = t.custom_build_info
+
+let gather_custom_build_info =
+  List.filter_map ~f:(fun info ->
+      custom_build_info info |> Option.map ~f:(fun cbi -> (name info, cbi)))
+
 let jsoo_runtime t = t.jsoo_runtime
 
 let jsoo_archive t = t.jsoo_archive
@@ -344,7 +357,7 @@ let create ~loc ~name ~kind ~status ~src_dir ~orig_src_dir ~obj_dir ~version
     ~foreign_dll_files ~jsoo_runtime ~jsoo_archive ~preprocess ~enabled
     ~virtual_deps ~dune_version ~virtual_ ~implements ~default_implementation
     ~modes ~wrapped ~special_builtin_support ~exit_module
-    ~instrumentation_backend =
+    ~instrumentation_backend ~custom_build_info =
   { loc
   ; name
   ; kind
@@ -378,6 +391,7 @@ let create ~loc ~name ~kind ~status ~src_dir ~orig_src_dir ~obj_dir ~version
   ; special_builtin_support
   ; exit_module
   ; instrumentation_backend
+  ; custom_build_info
   }
 
 type external_ = Path.t t
@@ -441,6 +455,7 @@ let to_dyn path
     ; modes
     ; wrapped
     ; special_builtin_support
+    ; custom_build_info
     ; exit_module
     ; instrumentation_backend
     } =
@@ -479,6 +494,7 @@ let to_dyn path
     ; ("modes", Mode.Dict.Set.to_dyn modes)
     ; ( "special_builtin_support"
       , option Special_builtin_support.to_dyn special_builtin_support )
+    ; ("custom_build_info", option Custom_build_info.to_dyn custom_build_info)
     ; ("exit_module", option Module_name.to_dyn exit_module)
     ; ( "instrumentation_backend"
       , option (snd Lib_name.to_dyn) instrumentation_backend )

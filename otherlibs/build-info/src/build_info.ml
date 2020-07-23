@@ -24,3 +24,17 @@ module V1 = struct
 
   let version () = Build_info_data.version
 end
+
+module V2 = struct
+  include V1
+
+  module Custom = struct
+    type t = string
+
+    let to_string x = x
+  end
+
+  let custom () = Build_info_data.custom
+
+  let custom_lib lib = Build_info_data.custom_lib lib
+end

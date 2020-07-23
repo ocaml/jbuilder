@@ -120,7 +120,7 @@ let setup_rules t =
   Exe.build_and_link t.cctx ~program ~linkages:[ linkage ]
     ~link_args:
       (Build.return (Command.Args.As [ "-linkall"; "-warn-error"; "-31" ]))
-    ~promote:None;
+    ~custom_build_info:None ~promote:None;
   let src = Exe.exe_path t.cctx ~program ~linkage in
   let dir = Source.stanza_dir t.source in
   let dst = Path.Build.relative dir (Path.Build.basename src) in

@@ -302,7 +302,7 @@ include Sub_system.Register_end_point (struct
       ~program:{ name; main_module_name = Module.name main_module; loc }
       ~linkages
       ~link_args:(Build.return (Command.Args.A "-linkall"))
-      ~promote:None;
+      ~custom_build_info:None ~promote:None;
     let flags =
       let flags =
         List.map backends ~f:(fun backend -> backend.Backend.info.flags)

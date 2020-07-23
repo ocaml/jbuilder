@@ -30,16 +30,23 @@ open Import
 
 type t =
   | Vcs_describe of Path.Source.t
+  | Custom of string * Path.Build.t
   | Repeat of int * string
 
 let to_dyn = function
   | Vcs_describe p -> Dyn.Variant ("Vcs_describe", [ Path.Source.to_dyn p ])
+  | Custom (name, dir) ->
+    Dyn.Variant ("Custom", [ String name; Path.Build.to_dyn dir ])
   | Repeat (n, s) -> Dyn.Variant ("Repeat", [ Int n; String s ])
 
 let eval t ~get_vcs =
   match t with
   | Repeat (n, s) ->
     Fiber.return (Array.make n s |> Array.to_list |> String.concat ~sep:"")
+  | Custom (name, dir) ->
+    let f = Path.Build.relative dir (Custom_build_info.output_file name) in
+    let s, _ = Build.(contents (Path.build f) |> exec) in
+    Fiber.return s
   | Vcs_describe p -> (
     match get_vcs p with
     | None -> Fiber.return ""
@@ -65,6 +72,9 @@ let encode ?(min_len = 0) t =
       | Vcs_describe p ->
         let s = Path.Source.to_string p in
         sprintf "vcs-describe:%d:%s" (String.length s) s
+      | Custom (name, dir) ->
+        let s = Path.Build.to_string dir in
+        sprintf "custom:%s:%d:%s" name (String.length s) s
       | Repeat (n, s) -> sprintf "repeat:%d:%d:%s" n (String.length s) s )
   in
   let len =
@@ -127,6 +137,13 @@ let decode s =
     | "vcs-describe" :: rest ->
       let path = Path.Source.of_string (read_string_payload rest) in
       Vcs_describe path
+    | "custom" :: name :: rest -> (
+      let s = read_string_payload rest in
+      match String.drop_prefix ~prefix:"_build/" s with
+      | None -> fail ()
+      | Some s ->
+        let path = Path.Build.of_string s in
+        Custom (name, path) )
     | "repeat" :: repeat :: rest ->
       Repeat (parse_int repeat, read_string_payload rest)
     | _ -> fail ()

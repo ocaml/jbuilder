@@ -110,6 +110,13 @@ Check what the generated build info module looks like:
     ; "b", p2
     ; "dune-build-info", Some "XXX"
     ]
+  
+  let custom = None
+  
+  let lib_customs = []
+  
+  let custom_lib name = List.assoc name lib_customs
+  
 
 Test --debug-artifact-substitution
 ----------------------------------
