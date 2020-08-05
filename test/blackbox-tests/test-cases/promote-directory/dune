@@ -1,0 +1,7 @@
+(rule
+ (mode (promote (until-clean)))
+ (targets x/)
+ (action
+  (progn
+   (bash "mkdir -p x")
+   (bash "echo z > x/y"))))
