@@ -1,0 +1,4 @@
+(subdir "x"
+ (rule
+ (mode (promote (until-clean)))
+ (action (with-stdout-to y (echo "z")))))
