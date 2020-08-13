@@ -630,31 +630,33 @@ let prepare ?(config = Config.default) () =
   Signal_watcher.init ();
   Process_watcher.init ();
   let cwd = Sys.getcwd () in
-  if cwd <> initial_cwd && not !Clflags.no_print_directory then
-    Printf.eprintf "Entering directory '%s'\n%!"
-      ( if Config.inside_dune then
-        let descendant_simple p ~of_ =
-          match String.drop_prefix p ~prefix:of_ with
-          | None
-          | Some "" ->
-            None
-          | Some s -> Some (String.drop s 1)
-        in
-        match descendant_simple cwd ~of_:initial_cwd with
-        | Some s -> s
-        | None -> (
-          match descendant_simple initial_cwd ~of_:cwd with
-          | None -> cwd
-          | Some s ->
-            let rec loop acc dir =
-              if dir = Filename.current_dir_name then
-                acc
-              else
-                loop (Filename.concat acc "..") (Filename.dirname dir)
-            in
-            loop ".." (Filename.dirname s) )
-      else
-        cwd );
+  (if cwd <> initial_cwd && not !Clflags.no_print_directory then
+     let directory =
+       if Config.inside_dune then
+         let descendant_simple p ~of_ =
+           match String.drop_prefix p ~prefix:of_ with
+           | None
+           | Some "" ->
+             None
+           | Some s -> Some (String.drop s 1)
+         in
+         match descendant_simple cwd ~of_:initial_cwd with
+         | Some s -> s
+         | None -> (
+           match descendant_simple initial_cwd ~of_:cwd with
+           | None -> cwd
+           | Some s ->
+              let rec loop acc dir =
+                if dir = Filename.current_dir_name then
+                  acc
+                else
+                  loop (Filename.concat acc "..") (Filename.dirname dir)
+              in
+              loop ".." (Filename.dirname s) )
+       else
+         cwd in
+     Printf.eprintf "Entering directory '%s'\n%!" directory;
+     at_exit (fun () -> Printf.eprintf "Leaving directory '%s'\n%!" directory));
   let t =
     { original_cwd = cwd
     ; job_throttle =
