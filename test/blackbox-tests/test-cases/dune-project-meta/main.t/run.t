@@ -517,3 +517,16 @@ the doc dependencies:
     "something"
     "odoc" {with-doc}
   ]
+
+wrong dune constraint
+
+  $ cat > dune-project <<EOF
+  > (lang dune 2.8)
+  > (name foo)
+  > (generate_opam_files true)
+  > (package (name foo) (depends (dune (>= 2.7)) ))
+  > EOF
+
+  $ dune build foo.opam
+  Warning: The supplied dune constraint 2.7 is not compatible with lang dune in dune-project 2.8
+  Set dune constraint to >= 2.8

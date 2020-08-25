@@ -114,6 +114,33 @@ let insert_dune_dep depends dune_version =
       dune_dep :: List.rev acc
     | (dep : Package.Dependency.t) :: rest ->
       if Package.Name.equal dep.name dune_name then
+        let get_version s =
+          match String.split_on_char ~sep:'.' s with
+          | major :: minor :: _ -> (int_of_string major, int_of_string minor)
+          | [ major ] -> (int_of_string major, 0)
+          | [] -> dune_version
+        in
+        let () =
+          if dune_version >= (2, 8) then
+            match dep.constraint_ with
+            | Some (Uop (_, QVar version))
+              when get_version version < dune_version ->
+              User_warning.emit
+                ~hints:
+                  [ Pp.textf "Set dune constraint to >= %s"
+                      (Dune_lang.Syntax.Version.to_string dune_version)
+                  ]
+                [ Pp.textf
+                    "The supplied dune constraint (%s) is not compatible with \
+                     lang dune in dune-project (%s)"
+                    version
+                    (Dune_lang.Syntax.Version.to_string dune_version)
+                ]
+            | Some _ -> ()
+            | None -> ()
+          else
+            ()
+        in
         let dep =
           if dune_version < (2, 6) then
             dep
