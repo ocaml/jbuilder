@@ -103,6 +103,8 @@ let refresh fn =
   let stats = Path.stat fn in
   refresh_ stats fn
 
+let chmod_error_reported = ref false
+
 let refresh_and_chmod fn =
   let stats = Path.stat fn in
   let () =
@@ -110,7 +112,14 @@ let refresh_and_chmod fn =
        the cache is activated. No need to be zealous in case the file is not
        cached anyway. See issue #3311. *)
     if Cache.cachable stats.st_kind then
-      Path.chmod ~stats:(Some stats) ~mode:0o222 ~op:`Remove fn
+      try
+        Path.chmod ~stats:(Some stats) ~mode:0o222 ~op:`Remove fn
+      with Unix.Unix_error _ ->
+        if not !chmod_error_reported then (
+          chmod_error_reported := true;
+          User_warning.emit ~loc:(Loc.in_file fn)
+            [ Pp.textf "unable to remove write permissions from target file" ]
+        )
   in
   refresh_ stats fn
 
