@@ -355,6 +355,14 @@ let rec exec t ~ectx ~eenv =
     Io.write_lines target (String.Set.to_list lines);
     Fiber.return Done
   | No_infer t -> exec t ~ectx ~eenv
+  | Using_terminal t ->
+    Console.with_terminal_lock (fun () ->
+        exec t ~ectx
+          ~eenv:
+            { eenv with
+              stdout_to = Process.Io.stdout
+            ; stderr_to = Process.Io.stderr
+            })
   | Pipe (outputs, l) -> exec_pipe ~ectx ~eenv outputs l
   | Format_dune_file (src, dst) ->
     Format_dune_lang.format_file ~input:(Some src)

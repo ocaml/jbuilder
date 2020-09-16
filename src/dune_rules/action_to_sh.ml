@@ -90,6 +90,7 @@ let simplify act =
            (String.quote_for_shell target))
       :: acc
     | No_infer act -> loop act acc
+    | Using_terminal act -> loop act acc
     | Pipe (outputs, l) -> Pipe (List.map ~f:block l, outputs) :: acc
     | Format_dune_file (src, dst) ->
       Redirect_out

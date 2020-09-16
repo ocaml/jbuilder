@@ -50,6 +50,7 @@ module Make (Src : Action_intf.Ast) (Dst : Action_intf.Ast) = struct
         , List.map extras ~f:(f_string ~dir)
         , f_target ~dir target )
     | No_infer t -> No_infer (f t ~dir)
+    | Using_terminal t -> Using_terminal (f t ~dir)
     | Pipe (outputs, l) -> Pipe (outputs, List.map l ~f:(fun t -> f t ~dir))
     | Format_dune_file (src, dst) ->
       Format_dune_file (f_path ~dir src, f_target ~dir dst)

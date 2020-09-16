@@ -5,6 +5,8 @@
     be something else. This module allow to set a global backend for the
     application as well as composing backends. *)
 
+open Stdune
+
 module Backend : sig
   module type S = sig
     (** Format and print a user message to the console *)
@@ -40,6 +42,11 @@ include Backend.S
 
     {[ print_user_message (User_message.make paragraphs) ]} *)
 val print : User_message.Style.t Pp.t list -> unit
+
+(** [with_terminal_lock f] will run [f ()] under a mutex, during which all
+    writes to the console (from [Backend]) will be buffered to be displayed upon
+    release of the lock. *)
+val with_terminal_lock : (unit -> 'a Fiber.t) -> 'a Fiber.t
 
 module Status_line : sig
   (** This module allows to buffer status updates so that they don't slow down

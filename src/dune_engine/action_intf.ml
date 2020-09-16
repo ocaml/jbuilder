@@ -47,6 +47,7 @@ module type Ast = sig
     | Diff of (path, target) Diff.t
     | Merge_files_into of path list * string list * target
     | No_infer of t
+    | Using_terminal of t
     | Pipe of Outputs.t * t list
     | Format_dune_file of path * target
     | Cram of path

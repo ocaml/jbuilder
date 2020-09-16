@@ -158,7 +158,8 @@ let fold_one_step t ~init:acc ~f =
   | Redirect_in (_, _, t)
   | Ignore (_, t)
   | With_accepted_exit_codes (_, t)
-  | No_infer t ->
+  | No_infer t
+  | Using_terminal t ->
     f acc t
   | Progn l
   | Pipe (_, l) ->
@@ -206,7 +207,8 @@ let rec is_dynamic = function
   | Redirect_in (_, _, t)
   | Ignore (_, t)
   | With_accepted_exit_codes (_, t)
-  | No_infer t ->
+  | No_infer t
+  | Using_terminal t ->
     is_dynamic t
   | Progn l
   | Pipe (_, l) ->
@@ -292,6 +294,7 @@ let is_useful_to distribute memoize =
     | With_accepted_exit_codes (_, t)
     | No_infer t ->
       loop t
+    | Using_terminal t -> loop t
     | Progn l
     | Pipe (_, l) ->
       List.exists l ~f:loop

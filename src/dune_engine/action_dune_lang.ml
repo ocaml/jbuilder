@@ -47,7 +47,8 @@ let ensure_at_most_one_dynamic_run ~loc action =
     | Redirect_in (_, _, t)
     | Ignore (_, t)
     | With_accepted_exit_codes (_, t)
-    | No_infer t ->
+    | No_infer t
+    | Using_terminal t ->
       loop t
     | Run _
     | Echo _

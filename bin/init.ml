@@ -65,7 +65,7 @@ let public_name_conv =
 
 let print_completion kind name =
   let open Pp.O in
-  Console.print_user_message
+  Dune_util.Console.print_user_message
     (User_message.make
        [ Pp.tag User_message.Style.Ok (Pp.verbatim "Success")
          ++ Pp.textf ": initialized %s component named " (Kind.to_string kind)

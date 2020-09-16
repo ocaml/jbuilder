@@ -272,6 +272,7 @@ struct
         ; target into
         ]
     | No_infer r -> List [ atom "no-infer"; encode r ]
+    | Using_terminal t -> List [ atom "using-terminal"; encode t ]
     | Pipe (outputs, l) ->
       List
         ( atom (sprintf "pipe-%s" (Outputs.to_string outputs))
