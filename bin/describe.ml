@@ -44,7 +44,13 @@ module Crawl = struct
     | Ok requires ->
       let name = Lib.name lib in
       let info = Lib.info lib in
+      let best_source src =
+        match Path.drop_build_context src with
+        | Some src -> Path.source src
+        | None -> src
+      in
       let src_dir = Lib_info.src_dir info in
+      let best_src_dir = best_source src_dir in
       let obj_dir = Lib_info.obj_dir info in
       let dyn_path p = Dyn.String (Path.to_string p) in
       let modules_ =
@@ -55,7 +61,9 @@ module Crawl = struct
           |> Modules.fold_no_vlib ~init:[] ~f:(fun m acc ->
                  let source ml_kind =
                    Dyn.Encoder.option dyn_path
-                     (Option.map (Module.source m ~ml_kind) ~f:Module.File.path)
+                     ( Module.source m ~ml_kind
+                     |> Option.map ~f:Module.File.path
+                     |> Option.map ~f:best_source )
                  in
                  let cmt ml_kind =
                    Dyn.Encoder.option dyn_path
@@ -75,19 +83,15 @@ module Crawl = struct
       let include_dirs = Obj_dir.all_cmis obj_dir in
       Some
         (let open Dyn.Encoder in
-        Dyn.Variant
-          ( "library"
-          , [ Dyn.Encoder.record
-                [ ("name", Lib_name.to_dyn name)
-                ; ("uid", String (uid_of_library lib))
-                ; ("local", Bool (Lib.is_local lib))
-                ; ( "requires"
-                  , (list string) (List.map requires ~f:uid_of_library) )
-                ; ("source_dir", dyn_path src_dir)
-                ; ("modules", List modules_)
-                ; ("include_dirs", (list dyn_path) include_dirs)
-                ]
-            ] ))
+        Dyn.Encoder.record
+          [ ("name", Lib_name.to_dyn name)
+          ; ("uid", String (uid_of_library lib))
+          ; ("local", Bool (Lib.is_local lib))
+          ; ("requires", (list string) (List.map requires ~f:uid_of_library))
+          ; ("source_dir", dyn_path best_src_dir)
+          ; ("modules", List modules_)
+          ; ("include_dirs", (list dyn_path) include_dirs)
+          ])
 
   let workspace { Dune_rules.Main.workspace; scontexts } (context : Context.t) =
     let sctx = Context_name.Map.find_exn scontexts context.name in
@@ -103,7 +107,9 @@ module Crawl = struct
           | Error _ -> libs
           | Ok requires -> Lib.Set.of_list requires |> Lib.Set.union libs)
     in
-    Dyn.List (Lib.Set.to_list libs |> List.filter_map ~f:(library sctx))
+    let libs = Lib.Set.to_list libs |> List.filter_map ~f:(library sctx) in
+    let root = Path.to_absolute_filename Path.root in
+    Dyn.Encoder.record [ ("root", String root); ("libraries", List libs) ]
 end
 
 module Opam_files = struct
