@@ -357,6 +357,6 @@ module Sexp = struct
       | List of t list
   end
 
-  include T
   include Csexp.Make (T)
+  include T
 end

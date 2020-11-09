@@ -1,0 +1,12 @@
+(executables
+ (names test_man
+        test_man_utf8
+        test_pos
+        test_pos_rev
+        test_pos_all
+        test_pos_left
+        test_pos_req
+        test_opt_req
+        test_term_dups
+        test_with_used_args)
+ (libraries cmdliner))

@@ -63,6 +63,9 @@ executable was built.
 (package
  (name dune-private-libs)
  (depends
+  pp
+  result
+  csexp
   (ocaml (>= 4.08)))
  (synopsis "Private libraries of Dune")
  (description "\
@@ -80,7 +83,8 @@ no stability guarantee.
  (depends
   (ocaml (>= 4.03.0))
   result
-  (csexp (>= 1.3.0)))
+  (csexp (>= 1.3.0))
+  (dune (>= 2.6.0)))
  (synopsis "Helper library for gathering system configuration")
  (description "\
 dune-configurator is a small library that helps writing OCaml scripts that
@@ -97,6 +101,7 @@ Among other things, dune-configurator allows one to:
  (name dune-action-plugin)
  (depends
   dune-glob
+  csexp
   (ppx_expect :with-test)
   (dune-private-libs (= :version)))
  (synopsis "[experimental] API for writing dynamic Dune actions")
@@ -124,3 +129,20 @@ understood by dune language."))
  (depends (dune-private-libs (= :version)))
  (synopsis "Embed locations informations inside executable and libraries")
  (description ""))
+
+(package
+ (name dune-tests)
+ (depends
+  ; List test dependencies here
+  lwt
+  ocamlfind
+  ppxlib
+  (ppx_expect (<= v0.14))
+  (odoc (>= 1.5.0))
+  menhir
+  ocaml-migrate-parsetree
+  result
+  utop
+  (mdx (>= 1.6.0))
+  bisect_ppx)
+ (synopsis "Dummy package so that we use the duniverse with dune"))

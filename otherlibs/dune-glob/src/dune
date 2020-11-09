@@ -1,7 +1,7 @@
 (library
  (name dune_glob)
  (public_name dune-glob)
- (libraries dune-private-libs.stdune dune-private-libs.dune_re)
+ (libraries dune-private-libs.stdune re)
  (flags
   (:standard -w -50))
  (synopsis "The glob language as understood by dune."))

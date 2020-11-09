@@ -1,0 +1,4 @@
+(library
+ (name result)
+ (public_name result)
+ (modules result))

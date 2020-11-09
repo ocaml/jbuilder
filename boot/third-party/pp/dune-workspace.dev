@@ -1,0 +1,4 @@
+(lang dune 1.0)
+
+;; This file is used by `make all-supported-ocaml-versions`
+(context (opam (switch 4.04.2)))

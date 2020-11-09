@@ -1,0 +1,9 @@
+(library
+ (name build_path_prefix_map)
+ (public_name build_path_prefix_map)
+ (modules build_path_prefix_map))
+
+(test
+ (name test)
+ (libraries build_path_prefix_map)
+ (modules test))

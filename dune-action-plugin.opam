@@ -2,7 +2,6 @@
 opam-version: "2.0"
 synopsis: "[experimental] API for writing dynamic Dune actions"
 description: """
-
 This library is experimental. No backwards compatibility is implied.
 
 dune-action-plugin provides an API for writing dynamic Dune actions.
@@ -19,6 +18,7 @@ bug-reports: "https://github.com/ocaml/dune/issues"
 depends: [
   "dune" {>= "2.8"}
   "dune-glob"
+  "csexp"
   "ppx_expect" {with-test}
   "dune-private-libs" {= version}
   "odoc" {with-doc}

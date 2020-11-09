@@ -197,12 +197,3 @@
  (package dune)
  (files   dune-utop.1))
 
-(rule
- (with-stdout-to dune-test.1
-  (run dune test --help=groff)))
-
-(install
- (section man)
- (package dune)
- (files   dune-test.1))
-

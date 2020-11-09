@@ -1,0 +1,6 @@
+(library
+ (name csexp_tests)
+ (libraries csexp)
+ (inline_tests)
+ (preprocess
+  (pps ppx_expect)))

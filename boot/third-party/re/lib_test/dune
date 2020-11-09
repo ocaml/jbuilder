@@ -1,0 +1,9 @@
+(tests
+ (libraries re fort_unit)
+ (modules :standard \ test_str)
+ (names test_easy test_re test_perl test_emacs test_glob test_pcre))
+
+(test
+ (libraries re fort_unit str)
+ (modules test_str)
+ (name test_str))

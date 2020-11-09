@@ -1,5 +1,4 @@
 open Stdune
-module Re = Dune_re
 
 type t =
   | Re of

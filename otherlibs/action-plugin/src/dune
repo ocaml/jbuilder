@@ -1,6 +1,6 @@
 (library
  (name dune_action_plugin)
  (public_name dune-action-plugin)
- (libraries dune-private-libs.stdune dune-glob dune-private-libs.dune_csexp)
+ (libraries dune-private-libs.stdune dune-glob csexp)
  (synopsis
    "[Internal] Monadic interface for defining scripts with dynamic or complex sets of depencencies."))

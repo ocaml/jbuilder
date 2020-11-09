@@ -3,7 +3,9 @@ let executables = [ "main" ]
 let external_libraries = [ "unix"; "threads.posix" ]
 
 let local_libraries =
-  [ ("vendor/csexp/src", Some "Dune_csexp", false, None)
+  [ ("boot/third-party/result", Some "Result", false, None)
+  ; ("boot/third-party/pp/src", Some "Pp", false, None)
+  ; ("boot/third-party/csexp/src", Some "Csexp", false, None)
   ; ("src/dune_filesystem_stubs", Some "Dune_filesystem_stubs", false, None)
   ; ("src/stdune", Some "Stdune", false, None)
   ; ("src/dune_lang", Some "Dune_lang", false, None)
@@ -15,8 +17,8 @@ let local_libraries =
   ; ("src/xdg", Some "Xdg", false, None)
   ; ("src/cache", Some "Cache", false, None)
   ; ("src/cache_daemon", Some "Cache_daemon", false, None)
-  ; ("vendor/re/src", Some "Dune_re", false, None)
-  ; ("vendor/opam-file-format/src", None, false, None)
+  ; ("boot/third-party/re/lib", Some "Re", false, None)
+  ; ("boot/third-party/opam-file-format/src", None, false, None)
   ; ("otherlibs/dune-glob/src", Some "Dune_glob", false, None)
   ; ("src/ocaml-config", Some "Ocaml_config", false, None)
   ; ("src/catapult", Some "Catapult", false, None)
@@ -24,11 +26,11 @@ let local_libraries =
   ; ("otherlibs/action-plugin/src", Some "Dune_action_plugin", false, None)
   ; ("src/meta_parser", Some "Dune_meta_parser", false, None)
   ; ("src/section", Some "Dune_section", false, None)
-  ; ("vendor/build_path_prefix_map/src", Some "Build_path_prefix_map", false,
-    None)
+  ; ("boot/third-party/build_path_prefix_map", Some "Build_path_prefix_map",
+    false, None)
   ; ("src/dune_engine", Some "Dune_engine", false, None)
   ; ("src/dune_rules", Some "Dune_rules", true, None)
-  ; ("vendor/cmdliner/src", None, false, None)
+  ; ("boot/third-party/cmdliner/src", None, false, None)
   ; ("otherlibs/build-info/src", Some "Build_info", false,
     Some "Build_info_data")
   ]

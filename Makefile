@@ -26,7 +26,11 @@ ocamlformat.0.15.0 \
 ppx_inline_test \
 "ppxlib.0.13.0" \
 result \
-"utop>=2.6.0"
+"utop>=2.6.0" \
+pp \
+cmdliner \
+opam-file-format \
+result
 
 # Dependencies recommended for developing dune locally,
 # but not wanted in CI

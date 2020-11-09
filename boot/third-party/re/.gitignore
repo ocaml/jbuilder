@@ -1,0 +1,11 @@
+.*.swp
+_build/
+*.bak
+setup.data
+setup.log
+setup.exe
+*.native
+*.byte
+*.docdir
+.merlin
+*.install

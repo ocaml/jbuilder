@@ -1,0 +1,8 @@
+(executable
+ (name fuzzer)
+ (libraries build_path_prefix_map crowbar)
+ (modules fuzzer))
+
+(alias
+ (name fuzz)
+ (action (run ./fuzzer.exe)))

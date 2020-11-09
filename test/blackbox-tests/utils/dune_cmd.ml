@@ -1,5 +1,4 @@
 open Stdune
-module Re = Dune_re
 
 let commands = Table.create (module String) 10
 

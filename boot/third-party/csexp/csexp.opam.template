@@ -1,0 +1,14 @@
+build: [
+  ["dune" "subst"] {pinned}
+  [
+    "dune"
+    "build"
+    "-p"
+    name
+    "-j"
+    jobs
+    "@install"
+#   "@runtest" {with-test & ocaml:version >= "4.04"}
+    "@doc" {with-doc}
+  ]
+]

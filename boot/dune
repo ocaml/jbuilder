@@ -1,3 +1,5 @@
+(vendored_dirs third-party)
+
 (rule
  (mode promote)
  (action

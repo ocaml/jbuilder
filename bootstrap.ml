@@ -25,7 +25,7 @@ let verbose, keep_generated_files, debug =
     anon "Usage: ocaml bootstrap.ml <options>\nOptions are:";
   (!verbose, !keep_generated_files, !debug)
 
-let modules = [ "boot/libs"; "boot/duneboot" ]
+let modules = [ "boot/third_party_libs"; "boot/libs"; "boot/duneboot" ]
 
 let duneboot = ".duneboot"
 

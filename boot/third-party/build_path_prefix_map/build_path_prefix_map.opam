@@ -1,0 +1,21 @@
+opam-version: "1.2"
+name: "build_path_prefix_map"
+version: "0.2"
+maintainer: "Gabriel Scherer <gabriel.scherer@gmail.com>"
+authors: [ "Gabriel Scherer <gabriel.scherer@gmail.com>" ]
+license: "MIT"
+homepage: "https://gitlab.com/gasche/build_path_prefix_map"
+doc: "https://gitlab.com/gasche/build_path_prefix_map/blob/master/README.md"
+bug-reports: "https://gitlab.com/gasche/build_path_prefix_map/issues"
+dev-repo: "https://gitlab.com/gasche/build_path_prefix_map.git"
+build: [ "dune" "build" "-p" name "-j" jobs ]
+build-test: [ "dune" "runtest" "-p" name "-j" jobs ]
+build-doc: [
+  make "doc"
+]
+depends: [
+  "dune" {build & >= "1.11"}
+# "crowbar"  {test} # not released yet...
+]
+available: [ opam-version >= "1.2"
+           & ocaml-version >= "4.02.1" ]

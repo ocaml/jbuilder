@@ -1,0 +1,3 @@
+(executable
+ (libraries re threads core_bench)
+ (name benchmark))

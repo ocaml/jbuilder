@@ -41,6 +41,37 @@ let ( concurrency
 
 let build_dir = "_boot"
 
+module Libs = struct
+  include Libs
+
+  (* Scan the list of exteranl libraries and for the ones that are in the
+     [third-party] list, use the local copy and remove them from the list of
+     external libraries *)
+  let third_party_libs, external_libraries =
+    let rec split acc_third_party acc_external = function
+      | [] -> (List.rev acc_third_party, List.rev acc_external)
+      | name :: rest -> (
+        match
+          List.find
+            (fun (libname, _, _, _) -> libname = name)
+            Third_party_libs.libs
+        with
+        | exception Not_found ->
+          split acc_third_party (name :: acc_external) rest
+        | lib -> split (lib :: acc_third_party) acc_external rest )
+    in
+    split [] [] external_libraries
+
+  let local_libraries =
+    let local_lib_of_third_party_lib (_libname, dir, namespace, scan_subdirs) =
+      ( Filename.concat "boot/third-party" dir
+      , namespace
+      , scan_subdirs
+      , None (* This is only used for the dune-build-info library *) )
+    in
+    List.map local_lib_of_third_party_lib third_party_libs @ local_libraries
+end
+
 type task =
   { target : string * string
   ; external_libraries : string list

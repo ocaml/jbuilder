@@ -1,3 +1,0 @@
-(library
- (name dune_csexp)
- (public_name dune-private-libs.dune_csexp))

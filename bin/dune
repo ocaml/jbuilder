@@ -1,7 +1,7 @@
 (executable
  (name main)
  (libraries memo dune_lang fiber stdune unix cache_daemon cache dune_rules
-   dune_engine dune_util cmdliner threads.posix build_info dune_csexp)
+   dune_engine dune_util cmdliner threads.posix build_info csexp)
  (bootstrap_info bootstrap-info))
 
 (rule

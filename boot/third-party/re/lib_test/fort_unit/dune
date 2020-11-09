@@ -1,0 +1,6 @@
+(rule (copy %{project_root}/lib/fmt.ml fmt.ml))
+
+(library
+ (name fort_unit)
+ (wrapped false)
+ (libraries re oUnit))

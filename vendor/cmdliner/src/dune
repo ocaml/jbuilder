@@ -1,4 +1,0 @@
-(library
- (name      cmdliner)
- (wrapped   false)
- (flags     (-w -3-6-27-32-33-35-50)))

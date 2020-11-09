@@ -1,0 +1,47 @@
+(library
+ (name re_str)
+ (public_name re.str)
+ (wrapped false)
+ (modules re_str)
+ (synopsis "Deprecated. Use Re.Str")
+ (libraries re))
+
+(library
+ (name re_pcre)
+ (public_name re.pcre)
+ (wrapped false)
+ (modules re_pcre)
+ (synopsis "Deprecated. Use Re.Pcre")
+ (libraries re))
+
+(library
+ (name re_perl)
+ (public_name re.perl)
+ (wrapped false)
+ (modules re_perl)
+ (synopsis "Deprecated. Use Re.Perl")
+ (libraries re))
+
+(library
+ (name re_posix)
+ (public_name re.posix)
+ (wrapped false)
+ (modules re_posix)
+ (synopsis "Deprecated. Use Re.Posix")
+ (libraries re))
+
+(library
+ (name re_emacs)
+ (public_name re.emacs)
+ (wrapped false)
+ (modules re_emacs)
+ (synopsis "Deprecated. Use Re.Emacs")
+ (libraries re))
+
+(library
+ (name re_glob)
+ (public_name re.glob)
+ (wrapped false)
+ (modules re_glob)
+ (synopsis "Deprecated. Use Re.Glob")
+ (libraries re))

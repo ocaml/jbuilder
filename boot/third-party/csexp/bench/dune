@@ -1,0 +1,11 @@
+(library
+ (name csexp_bench)
+ (libraries csexp)
+ (library_flags -linkall)
+ (preprocess (pps ppx_bench))
+ (modules csexp_bench))
+
+(executable
+ (name main)
+ (modules main)
+ (libraries core_bench.inline_benchmarks csexp_bench))

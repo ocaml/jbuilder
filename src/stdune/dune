@@ -2,7 +2,12 @@
  (name stdune)
  (public_name dune-private-libs.stdune)
  (synopsis "[Internal] Standard library of Dune")
- (libraries unix dune_csexp dune_filesystem_stubs)
+ (libraries
+  unix
+  csexp
+  dune_filesystem_stubs
+  (re_export result)
+  (re_export pp))
  (foreign_stubs
   (language c)
   (names fcntl_stubs)))
