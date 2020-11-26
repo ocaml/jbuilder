@@ -119,6 +119,22 @@ Testsuite for the (foreign_stubs ...) field.
   $ ./sdune build 2>&1 | dune_cmd sanitize
   File "dune", line 1, characters 0-0:
   Error: No rule found for libbar$ext_lib
+  May I interest you in one of the following targets instead?
+  - default/.merlin
+  - default/.merlin-exists
+  - default/dllfoo_stubs$ext_dll
+  - default/dune
+  - default/dune-project
+  - default/foo$ext_lib
+  - default/foo.c
+  - default/foo.cma
+  - default/foo.cmxa
+  - default/foo.cmxs
+  - default/foo.ml-gen
+  - default/foo$ext_obj
+  - default/libfoo_stubs$ext_lib
+  - default/run.t
+  - default/sdune
 
 ----------------------------------------------------------------------------------
 * Build succeeds when a self-built archive exists.
@@ -527,6 +543,36 @@ setting [disable_dynamically_linked_foreign_archives] is [true] in the workspace
   4 |  (modules clock)
   5 |  (self_build_stubs_archive (time)))
   Error: No rule found for dlltime_stubs.so
+  May I interest you in one of the following targets instead?
+  - default/.merlin
+  - default/.merlin-exists
+  - default/META.foo
+  - default/bar.c
+  - default/baz.cpp
+  - default/clock.a
+  - default/clock.cma
+  - default/clock.cmxa
+  - default/clock.cmxs
+  - default/clock.ml
+  - default/clock.mli
+  - default/dune
+  - default/dune-project
+  - default/dune-workspace
+  - default/eight.h
+  - default/foo.c
+  - default/foo.cpp
+  - default/foo.cxx
+  - default/foo.dune-package
+  - default/foo.install
+  - default/libtime_stubs.a
+  - default/main.ml
+  - default/quad.ml
+  - default/quad.mli
+  - default/qux.cpp
+  - default/run.t
+  - default/sdune
+  - default/time.c
+  - default/time.o
   [1]
 
 ----------------------------------------------------------------------------------

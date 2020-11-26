@@ -590,10 +590,20 @@ let remove_old_artifacts ~dir ~rules_here ~(subdirs_to_keep : Subdir_set.t) =
                 Path.rm_rf (Path.build path) )
           | _ -> Path.unlink (Path.build path))
 
-let no_rule_found t ~loc fn =
+let no_rule_found t ~rules ~loc fn =
   let fail fn ~loc =
+    let hint =
+      if Path.Build.Map.is_empty rules then
+        [ Pp.text "In fact, there are no rules defined in this directory" ]
+      else
+        [ Pp.text "May I interest you in one of the following targets instead?"
+        ; rules |> Path.Build.Map.keys
+          |> Pp.enumerate ~f:(fun t ->
+                 Pp.text (Path.Build.to_string_maybe_quoted t))
+        ]
+    in
     User_error.raise ?loc
-      [ Pp.textf "No rule found for %s" (Dpath.describe_target fn) ]
+      ([ Pp.textf "No rule found for %s" (Dpath.describe_target fn) ] @ hint)
   in
   let hints ctx =
     let candidates =
@@ -1094,7 +1104,7 @@ let get_rule_or_source t path =
     | Some rule -> Fiber.return (Rule rule)
     | None ->
       let loc = Rule_fn.loc () in
-      no_rule_found t ~loc path
+      no_rule_found t ~rules ~loc path
   else if Path.exists path then
     Fiber.return Source
   else

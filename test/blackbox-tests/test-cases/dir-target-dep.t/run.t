@@ -11,6 +11,9 @@
   3 |  (deps dir)
   4 |  (action (bash "cat %{deps}/*")))
   Error: No rule found for dir
+  May I interest you in one of the following targets instead?
+  - default/dune
+  - default/dune-project
   [1]
 
 We should not be able to produce a directory in a rule that already exists

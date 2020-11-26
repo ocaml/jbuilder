@@ -7,6 +7,9 @@ Exact path provided by the user:
   2 |  (name runtest)
   3 |  (action (run ./foo.exe)))
   Error: No rule found for foo.exe
+  May I interest you in one of the following targets instead?
+  - default/dune
+  - default/dune-project
   [1]
 
 Path that needs to be searched:
@@ -29,4 +32,7 @@ Path in deps field of alias stanza
   2 |  (name runtest)
   3 |  (deps foobar))
   Error: No rule found for foobar
+  May I interest you in one of the following targets instead?
+  - default/dune
+  - default/dune-project
   [1]

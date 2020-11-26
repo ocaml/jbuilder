@@ -17,4 +17,5 @@ If a generated directory is "overlaid" by a source dir, then things break.
   1 | (cinaps (files *.ml))
       ^^^^^^^^^^^^^^^^^^^^^
   Error: No rule found for .cinaps/cinaps.exe
+  In fact, there are no rules defined in this directory
   [1]

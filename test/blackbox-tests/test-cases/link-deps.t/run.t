@@ -11,4 +11,5 @@ file) and be created just before linking.
   4 |   (action (echo "link\n"))
   5 |   )
   Error: No rule found for .link_deps.eobjs/.byte_objs/link_deps.cmo
+  In fact, there are no rules defined in this directory
   [1]

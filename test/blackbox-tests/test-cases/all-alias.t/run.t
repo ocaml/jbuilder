@@ -24,6 +24,8 @@
   Entering directory 'install-stanza'
   File "default/subdir/_unknown_", line 1, characters 0-0:
   Error: No rule found for subdir/foobar
+  May I interest you in one of the following targets instead?
+  - default/subdir/dune
   [1]
 
 @all builds user defined rules

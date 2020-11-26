@@ -20,4 +20,9 @@ and requires dependency that can not be build fails.
   2 |  (alias runtest)
   3 |  (action (dynamic-run ./foo.exe)))
   Error: No rule found for some_absent_dependency
+  May I interest you in one of the following targets instead?
+  - default/dune
+  - default/dune-project
+  - default/foo.exe
+  - default/run.t
   [1]

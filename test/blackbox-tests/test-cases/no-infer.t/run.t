@@ -23,6 +23,11 @@ should work if wrapped in (no-infer ...) but not otherwise.
   5 |    (run touch source)
   6 |    (copy source target))))
   Error: No rule found for source
+  May I interest you in one of the following targets instead?
+  - default/dune
+  - default/dune-project
+  - default/run.t
+  - default/target
   [1]
 
   $ cat >dune <<EOF
