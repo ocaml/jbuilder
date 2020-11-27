@@ -104,9 +104,20 @@ module T = struct
   let hash t = Context_name.hash t.name
 
   let rec to_build_context
-      { name; build_dir; env; for_host; stdlib_dir; default_ocamlpath; _ } =
+      { name
+      ; build_dir
+      ; env
+      ; for_host
+      ; stdlib_dir
+      ; default_ocamlpath
+      ; ocamlc
+      ; ocamlopt
+      ; _
+      } =
     Build_context.create ~name ~build_dir ~env ~stdlib_dir ~default_ocamlpath
       ~host:(Option.map ~f:to_build_context for_host)
+      ~ocamlc
+      ~ocamlopt:(Result.to_option ocamlopt)
 
   let to_dyn t : Dyn.t =
     let open Dyn.Encoder in
@@ -454,6 +465,7 @@ let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~targets
       else
         env
     in
+    let ocamlopt = get_ocaml_tool "ocamlopt" in
     let env =
       let cwd = Sys.getcwd () in
       let extend_var var ?(path_sep = Bin.path_sep) v =
@@ -482,9 +494,16 @@ let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~targets
         ; ("INSIDE_DUNE", Path.to_absolute_filename (Path.build build_dir))
         ; ( "DUNE_SOURCEROOT"
           , Path.to_absolute_filename (Path.source Path.Source.root) )
+        ; ("DUNE_OCAMLC", Path.to_absolute_filename ocamlc)
         ]
       in
       Env.extend env ~vars:(Env.Map.of_list_exn vars)
+      |> (fun env ->
+           match ocamlopt with
+           | Error _ -> env
+           | Ok p ->
+             Env.add env ~var:"DUNE_OCAMLOPT"
+               ~value:(Path.to_absolute_filename p))
       |> Env.update ~var:"PATH" ~f:(fun _ ->
              match host with
              | None ->
@@ -501,7 +520,6 @@ let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~targets
     let stdlib_dir = Path.of_string (Ocaml_config.standard_library ocfg) in
     let natdynlink_supported = Ocaml_config.natdynlink_supported ocfg in
     let arch_sixtyfour = Ocaml_config.word_size ocfg = 64 in
-    let ocamlopt = get_ocaml_tool "ocamlopt" in
     let lib_config =
       { Lib_config.has_native = Result.is_ok ocamlopt
       ; ext_obj = Ocaml_config.ext_obj ocfg

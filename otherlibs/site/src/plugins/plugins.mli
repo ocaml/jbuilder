@@ -21,3 +21,11 @@ val load : string -> unit
 
 (** Indicates if a library exists in the search path *)
 val available : string -> bool
+
+(** Compile and load an ocaml module. All the currently loaded libraries are
+    made available to the script *)
+val load_script :
+     ?open_:string list
+  -> ?warnings:string
+  -> string
+  -> [> `Compilation_failed | `Ok ] * string list * string list

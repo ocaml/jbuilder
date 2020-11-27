@@ -485,6 +485,8 @@ let install_uninstall ~what =
                 Dune_engine.Artifact_substitution.conf_for_install ~relocatable
                   ~default_ocamlpath:context.default_ocamlpath
                   ~stdlib_dir:context.stdlib_dir ~prefix ~libdir ~mandir
+                  ~ocamlc:context.ocamlc
+                  ~ocamlopt:(Result.to_option context.ocamlopt)
               in
               Fiber.sequential_iter entries_per_package
                 ~f:(fun (package, entries) ->

@@ -13,6 +13,8 @@ type t = private
   ; host : t option
   ; stdlib_dir : Path.t
   ; default_ocamlpath : Path.t list
+  ; ocamlc : Path.t
+  ; ocamlopt : Path.t option
   }
 
 val create :
@@ -22,4 +24,6 @@ val create :
   -> host:t option
   -> stdlib_dir:Path.t
   -> default_ocamlpath:Path.t list
+  -> ocamlc:Path.t
+  -> ocamlopt:Path.t option
   -> t

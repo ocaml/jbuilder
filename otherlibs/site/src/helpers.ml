@@ -74,7 +74,7 @@ let relocatable =
     | Relocatable -> true
     | _ -> false )
 
-let prefix =
+let relocatable_prefix =
   lazy
     (let path = Sys.executable_name in
      let bin = Filename.dirname path in
@@ -83,7 +83,7 @@ let prefix =
 
 let relocate_if_needed path =
   if Lazy.force relocatable then
-    Filename.concat (Lazy.force prefix) path
+    Filename.concat (Lazy.force relocatable_prefix) path
   else
     path
 
@@ -118,7 +118,7 @@ let ocamlpath =
        | Hardcoded_ocaml_path.None ->
          String.split_on_char path_sep (Sys.getenv "DUNE_OCAML_HARDCODED")
        | Hardcoded_ocaml_path.Relocatable ->
-         [ Filename.concat (Lazy.force prefix) "lib" ]
+         [ Filename.concat (Lazy.force relocatable_prefix) "lib" ]
        | Hardcoded_ocaml_path.Hardcoded l -> l
        | Hardcoded_ocaml_path.Findlib_config _ -> assert false
      in

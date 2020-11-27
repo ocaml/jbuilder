@@ -13,6 +13,8 @@ val site :
 
 val relocatable : bool Lazy.t
 
+val relocatable_prefix : string Lazy.t
+
 val ocamlpath : string list Lazy.t
 
 val sourceroot : string -> string option

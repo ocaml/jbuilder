@@ -200,7 +200,10 @@ let load_gen ~load_requires dirs name =
 let rec load_requires name =
   load_gen ~load_requires (Lazy.force Helpers.ocamlpath) name
 
-let load_plugin plugin_paths name = load_gen ~load_requires plugin_paths name
+let load_plugin plugin_paths name =
+  let _, plugins, requires = lookup_and_summarize plugin_paths name in
+  assert (plugins = []);
+  List.iter load_requires requires
 
 module Make (X : sig
   val paths : string list
@@ -225,3 +228,142 @@ let available name =
     true
   with _ -> (* CR - What exceptions are being swallowed here? *)
             false
+
+let prng = lazy (Random.State.make_self_init ())
+
+let temp_file_name temp_dir prefix suffix =
+  let rnd = Random.State.bits (Lazy.force prng) land 0xFFFFFF in
+  Filename.concat temp_dir (Printf.sprintf "%s%06x%s" prefix rnd suffix)
+
+let mk_temp_dir ?(temp_dir = Filename.get_temp_dir_name ()) prefix suffix =
+  let rec try_name counter =
+    let name = temp_file_name temp_dir prefix suffix in
+    try
+      let cmd =
+        Filename_transitioning.quote_command "mkdir" [ name ]
+          ~stdin:Filename_transitioning.null ~stdout:Filename_transitioning.null
+          ~stderr:Filename_transitioning.null
+      in
+      let r = Sys.command cmd in
+      if r <> 0 then
+        if counter >= 1000 then
+          invalid_arg
+            (Printf.sprintf "Can't create temporary directory in %s" temp_dir)
+        else
+          try_name (counter + 1)
+      else
+        name
+    with Sys_error _ as e ->
+      if counter >= 1000 then
+        raise e
+      else
+        try_name (counter + 1)
+  in
+  try_name 0
+
+let rm_rf dir =
+  let cmd =
+    match Sys.os_type with
+    | "Win32" -> Filename_transitioning.quote_command "rd" [ "/s"; "/q"; dir ]
+    | _ -> Filename_transitioning.quote_command "rm" [ "-rf"; dir ]
+  in
+  ignore (Sys.command cmd)
+
+(* from Io *)
+let input_lines =
+  let rec loop ic acc =
+    match input_line ic with
+    | exception End_of_file -> List.rev acc
+    | line -> loop ic (line :: acc)
+  in
+  fun ic -> loop ic []
+
+let readfile file =
+  let cin = open_in file in
+  let l = input_lines cin in
+  close_in cin;
+  l
+
+let ocaml_compiler =
+  lazy
+    (let get_env name = function
+       | Some s -> s
+       | None -> (
+         try Sys.getenv name
+         with Not_found ->
+           invalid_arg "No ocaml compiler path provided by dune" )
+     in
+     match Sys.backend_type with
+     | Native -> get_env "DUNE_OCAMLOPT" Dune_site_plugins_data.ocamlopt
+     | Bytecode -> get_env "DUNE_OCAMLC" Dune_site_plugins_data.ocamlc
+     | Other _ -> invalid_arg "load_script: unknown backend_type")
+
+let load_script ?(open_ = []) ?warnings filename =
+  let directories =
+    Hashtbl.fold
+      (fun name () acc ->
+        let directory, _, _ =
+          lookup_and_summarize (Lazy.force Helpers.ocamlpath) name
+        in
+        directory :: acc)
+      (Lazy.force loaded_libraries)
+      []
+  in
+  let tempdir = mk_temp_dir "dune_load_script" "" in
+  try
+    let options_filename = Filename.concat tempdir "options.txt" in
+    let cout_options = open_out options_filename in
+    let shared_file =
+      Dynlink.adapt_filename (Filename.concat tempdir "script.cma")
+    in
+    List.iter (Printf.fprintf cout_options "-open\000%s\000") open_;
+    List.iter (Printf.fprintf cout_options "-I\000%s\000") directories;
+    ( match warnings with
+    | None -> ()
+    | Some warnings -> Printf.fprintf cout_options "-w\000%s\000" warnings );
+    Printf.fprintf cout_options "-shared\000-o\000%s\000%s" shared_file filename;
+    close_out cout_options;
+    let ocaml_compiler =
+      if Lazy.force Dune_site.Private_.Helpers.relocatable then
+        let compiler_name =
+          let exe =
+            match Sys.os_type with
+            | "Win32" -> ".exe"
+            | _ -> ""
+          in
+          match Sys.backend_type with
+          | Native -> "ocamlopt" ^ exe
+          | Bytecode -> "ocamlc" ^ exe
+          | Other _ -> invalid_arg "load_script: unknown backend_type"
+        in
+        let p = Lazy.force Dune_site.Private_.Helpers.relocatable_prefix in
+        let p = Filename.concat p "bin" in
+        let p = Filename.concat p compiler_name in
+        if Sys.file_exists p then
+          p
+        else
+          compiler_name
+      else
+        Lazy.force ocaml_compiler
+    in
+    let stdout = Filename.concat tempdir "stdout.log" in
+    let stderr = Filename.concat tempdir "stderr.log" in
+    let cmd =
+      Filename_transitioning.quote_command ~stdin:Filename_transitioning.null
+        ~stdout ~stderr ocaml_compiler
+        [ "-args0"; options_filename ]
+    in
+    let r = Sys.command cmd in
+    let stdout = readfile stdout in
+    let stderr = readfile stderr in
+    if r <> 0 then (
+      rm_rf tempdir;
+      (`Compilation_failed, stdout, stderr)
+    ) else (
+      Dynlink.loadfile shared_file;
+      rm_rf tempdir;
+      (`Ok, stdout, stderr)
+    )
+  with e ->
+    rm_rf tempdir;
+    raise e

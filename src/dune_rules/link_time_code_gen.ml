@@ -86,6 +86,22 @@ let findlib_init_code ~preds ~libs =
   pr buf "Findlib.record_package_predicates preds;;";
   Buffer.contents buf
 
+(* Parse the replacement format described in [artifact_substitution.ml]. *)
+let print_eval_substitution buf =
+  pr buf "let eval s =";
+  pr buf "  let len = String.length s in";
+  pr buf "  if s.[0] = '=' then";
+  pr buf "    let colon_pos = String.index_from s 1 ':' in";
+  pr buf "    let vlen = int_of_string (String.sub s 1 (colon_pos - 1)) in";
+  pr buf "    (* This [min] is because the value might have been truncated";
+  pr buf "       if it was too large *)";
+  pr buf "    let vlen = min vlen (len - colon_pos - 1) in";
+  pr buf "    Some (String.sub s (colon_pos + 1) vlen)";
+  pr buf "  else";
+  pr buf "    None";
+  pr buf "[@@inline never]";
+  pr buf ""
+
 let build_info_code cctx ~libs ~api_version =
   ( match api_version with
   | Lib_info.Special_builtin_support.Build_info.V1 -> () );
@@ -153,20 +169,7 @@ let build_info_code cctx ~libs ~api_version =
   let context = CC.context cctx in
   let ocaml_version = Ocaml_version.of_ocaml_config context.ocaml_config in
   let buf = Buffer.create 1024 in
-  (* Parse the replacement format described in [artifact_substitution.ml]. *)
-  pr buf "let eval s =";
-  pr buf "  let len = String.length s in";
-  pr buf "  if s.[0] = '=' then";
-  pr buf "    let colon_pos = String.index_from s 1 ':' in";
-  pr buf "    let vlen = int_of_string (String.sub s 1 (colon_pos - 1)) in";
-  pr buf "    (* This [min] is because the value might have been truncated";
-  pr buf "       if it was too large *)";
-  pr buf "    let vlen = min vlen (len - colon_pos - 1) in";
-  pr buf "    Some (String.sub s (colon_pos + 1) vlen)";
-  pr buf "  else";
-  pr buf "    None";
-  pr buf "[@@inline never]";
-  pr buf "";
+  print_eval_substitution buf;
   let fmt_eval : _ format6 =
     if Ocaml_version.has_sys_opaque_identity ocaml_version then
       "let %s = eval (Sys.opaque_identity %S)"
@@ -219,6 +222,13 @@ let dune_site_plugins_code ~libs ~builtins =
       pr buf "(%S,%s)"
         (Package.Name.to_string name)
         (Dyn.to_string (Meta.to_dyn meta)));
+  print_eval_substitution buf;
+  pr buf "let ocamlc = eval %S"
+    (Artifact_substitution.encode ~min_len:64
+       (Configpath (OCamlCompiler Byte)));
+  pr buf "let ocamlopt = eval %S"
+    (Artifact_substitution.encode ~min_len:64
+       (Configpath (OCamlCompiler Native)));
   Buffer.contents buf
 
 let handle_special_libs cctx =

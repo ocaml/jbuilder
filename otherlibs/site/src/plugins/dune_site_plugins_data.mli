@@ -13,3 +13,8 @@ val already_linked_libraries : string list
     compiler. The META file are not always present, so version reduced to the
     needed information are included here. *)
 val builtin_library : (string * Meta_parser.t) list
+
+(** The path of the ocaml compilers. None when not available in the binary *)
+val ocamlc : string option
+
+val ocamlopt : string option

@@ -2,9 +2,14 @@
 
 open Stdune
 
+type mode =
+  | Byte
+  | Native
+
 type configpath =
   | Sourceroot
   | Stdlib
+  | OCamlCompiler of mode
 
 (** A symbolic representation of the value to substitute to *)
 type t =
@@ -37,6 +42,8 @@ val conf_for_install :
   -> prefix:Path.t
   -> libdir:Path.t option
   -> mandir:Path.t option
+  -> ocamlc:Path.t
+  -> ocamlopt:Path.t option
   -> conf
 
 val conf_dummy : conf

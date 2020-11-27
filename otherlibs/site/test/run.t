@@ -99,8 +99,9 @@ Test embedding of sites locations information
   > (generate_sites_module (module sites) (sourceroot) (plugins (c plugins)))
   > (rule
   >  (targets out.log)
-  >  (deps (package c))
-  >  (action (with-stdout-to out.log (run %{bin:c}))))
+  >  (deps (package c) ../script.ml)
+  >  (action (with-stdout-to out.log (chdir ".." (run %{bin:c})))))
+  > (rule (alias print_ocamlopt) (action (echo %{ocamlopt})))
   > EOF
 
   $ cat >c/c_register.ml <<EOF
@@ -117,13 +118,23 @@ Test embedding of sites locations information
   > let () = Printf.printf "b is available: %b\n%!" (Dune_site_plugins.V1.available "b")
   > let () = Sites.Plugins.Plugins.load_all ()
   > let () = Printf.printf "run c: b_registered:%b\n%!" !C_register.b_registered
+  > let res,stdout,stderr = Dune_site_plugins.V1.load_script "script.ml"
+  > let () = match res with
+  >   | \`Compilation_failed -> Printf.printf "Compilation_failed\n%s\n%s%!"
+  > (String.concat "\n" stdout) (String.concat "\n" stderr)
+  >   | \`Ok -> ()
   > EOF
 
   $ cat > dune-project << EOF
   > (lang dune 2.2)
   > EOF
 
+  $ cat > script.ml <<EOF
+  > let () = Printf.printf "I'm loaded and I'm accessing B.v: %s\n%!" B.v
+  > EOF
+
   $ dune build
+
 
 Test with a normal installation
 --------------------------------
@@ -143,6 +154,7 @@ Once installed, we have the sites information:
   b: $TESTCASE_ROOT/_install/share/b/data
   info.txt is found: true
   run c: b_registered:true
+  I'm loaded and I'm accessing B.v: b
 
 Test with a relocatable installation
 --------------------------------
@@ -150,6 +162,8 @@ Test with a relocatable installation
   $ dune install --prefix _install_relocatable --relocatable 2> /dev/null
 
 Once installed, we have the sites information:
+
+  $ ln -s $(dune build @print_ocamlopt) _install_relocatable/bin/ocamlopt
 
   $ _install_relocatable/bin/c
   run a
@@ -162,6 +176,9 @@ Once installed, we have the sites information:
   b: $TESTCASE_ROOT/_install_relocatable/share/b/data
   info.txt is found: true
   run c: b_registered:true
+  I'm loaded and I'm accessing B.v: b
+
+  $ 
 
 Test after moving a relocatable installation
 --------------------------------
@@ -181,6 +198,7 @@ Once installed, we have the sites information:
   b: $TESTCASE_ROOT/_install_relocatable2/share/b/data
   info.txt is found: true
   run c: b_registered:true
+  I'm loaded and I'm accessing B.v: b
 
 Test substitution when promoting
 --------------------------------
@@ -198,6 +216,7 @@ development because b is not promoted
   run b
   info.txt is found: false
   run c: b_registered:true
+  I'm loaded and I'm accessing B.v: b
 
 Test within dune rules
 --------------------------------
@@ -214,6 +233,7 @@ Test within dune rules
   b: $TESTCASE_ROOT/_build/install/default/share/b/data
   info.txt is found: true
   run c: b_registered:true
+  I'm loaded and I'm accessing B.v: b
 
 
 Test with dune exec
@@ -229,3 +249,4 @@ Test with dune exec
   b: $TESTCASE_ROOT/_build/install/default/share/b/data
   info.txt is found: true
   run c: b_registered:true
+  I'm loaded and I'm accessing B.v: b

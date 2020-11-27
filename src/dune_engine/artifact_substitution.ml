@@ -28,9 +28,14 @@ open Import
 
    Replacements that are too long are truncated. *)
 
+type mode =
+  | Byte
+  | Native
+
 type configpath =
   | Sourceroot
   | Stdlib
+  | OCamlCompiler of mode
 
 type t =
   | Vcs_describe of Path.Source.t
@@ -64,6 +69,8 @@ let conf_of_context (context : Build_context.t option) =
     let get_config_path = function
       | Sourceroot -> Some (Path.source Path.Source.root)
       | Stdlib -> Some context.stdlib_dir
+      | OCamlCompiler Byte -> Some context.ocamlc
+      | OCamlCompiler Native -> context.ocamlopt
     in
     let hardcoded_ocaml_path =
       let install_dir = Config.local_install_dir ~context:context.name in
@@ -77,7 +84,7 @@ let conf_of_context (context : Build_context.t option) =
     }
 
 let conf_for_install ~relocatable ~default_ocamlpath ~stdlib_dir ~prefix ~libdir
-    ~mandir =
+    ~mandir ~ocamlc ~ocamlopt =
   let get_vcs = File_tree.nearest_vcs in
   let hardcoded_ocaml_path =
     if relocatable then
@@ -94,6 +101,8 @@ let conf_for_install ~relocatable ~default_ocamlpath ~stdlib_dir ~prefix ~libdir
   let get_config_path = function
     | Sourceroot -> None
     | Stdlib -> Some stdlib_dir
+    | OCamlCompiler Byte -> Some ocamlc
+    | OCamlCompiler Native -> ocamlopt
   in
   { get_location; get_vcs; get_config_path; hardcoded_ocaml_path }
 
@@ -114,6 +123,8 @@ let to_dyn = function
       match d with
       | Sourceroot -> "Sourceroot"
       | Stdlib -> "Stdlib"
+      | OCamlCompiler Byte -> "OCamlCompilerByte"
+      | OCamlCompiler Native -> "OCamlCompilerNative"
     in
     Dyn.Variant ("Configpath", [ Dyn.Variant (v, []) ])
   | Hardcoded_ocaml_path -> Dyn.Variant ("Hardcoded_ocaml_path", [])
@@ -176,6 +187,8 @@ let encode ?(min_len = 0) t =
           (String.length name) name
       | Configpath Sourceroot -> sprintf "configpath:sourceroot:"
       | Configpath Stdlib -> sprintf "configpath:stdlib:"
+      | Configpath (OCamlCompiler Byte) -> sprintf "configpath:ocamlc:"
+      | Configpath (OCamlCompiler Native) -> sprintf "configpath:ocamlopt:"
       | Hardcoded_ocaml_path -> sprintf "hardcoded_ocaml_path:"
       | Repeat (n, s) -> sprintf "repeat:%d:%d:%s" n (String.length s) s )
   in
@@ -245,6 +258,8 @@ let decode s =
       Location (kind, name)
     | "configpath" :: "sourceroot" :: _ -> Configpath Sourceroot
     | "configpath" :: "stdlib" :: _ -> Configpath Stdlib
+    | "configpath" :: "ocamlc" :: _ -> Configpath (OCamlCompiler Byte)
+    | "configpath" :: "ocamlopt" :: _ -> Configpath (OCamlCompiler Native)
     | "hardcoded_ocaml_path" :: _ -> Hardcoded_ocaml_path
     | "repeat" :: repeat :: rest ->
       Repeat (parse_int repeat, read_string_payload rest)
