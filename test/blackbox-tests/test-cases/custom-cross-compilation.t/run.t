@@ -4,8 +4,8 @@
       ocamldep .p.eobjs/p.ml.d
         ocamlc .p.eobjs/byte/p.{cmi,cmo,cmt} [cross]
         ocamlc .p.eobjs/byte/p.{cmi,cmo,cmt}
-      ocamlopt .p.eobjs/native/p.{cmx,o} [cross]
-      ocamlopt .p.eobjs/native/p.{cmx,o}
+      ocamlopt .p.eobjs/native/p.{cmt,cmx,o} [cross]
+      ocamlopt .p.eobjs/native/p.{cmt,cmx,o}
       ocamlopt p.exe [cross]
       ocamlopt p.exe
              p file [cross]

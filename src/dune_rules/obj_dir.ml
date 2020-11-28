@@ -376,10 +376,10 @@ module Module = struct
          is private"
         [ ("m", Module.to_dyn m); ("kind", Cm_kind.to_dyn kind) ]
 
-  let cmt_file t m ~(ml_kind : Ml_kind.t) =
+  let cmt_file ?(kind = Cm_kind.Cmi) t m ~(ml_kind : Ml_kind.t) =
     let file = Module.file m ~ml_kind in
     let ext = Ml_kind.cmt_ext ml_kind in
-    Option.map file ~f:(fun _ -> obj_file t m ~kind:Cmi ~ext)
+    Option.map file ~f:(fun _ -> obj_file t m ~kind ~ext)
 
   let cmti_file t m =
     let ext =

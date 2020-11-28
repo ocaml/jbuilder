@@ -17,7 +17,9 @@ library also has more than one src dir.
   $ cat lib2/.merlin
   EXCLUDE_QUERY_DIR
   B ../_build/default/lib1/.lib1.objs/byte
+  B ../_build/default/lib1/.lib1.objs/native
   B ../_build/default/lib2/.lib2.objs/byte
+  B ../_build/default/lib2/.lib2.objs/native
   S ../lib1
   S ../lib1/sub
   S .

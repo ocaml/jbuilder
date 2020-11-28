@@ -84,11 +84,11 @@ Testsuite for (mode plugin).
         ocamlc main2/.main.eobjs/byte/dune__exe__Main.{cmi,cmo,cmt}
         ocamlc $ext_lib.eobjs/byte/dune__exe__A.{cmi,cmo,cmt}
         ocamlc foo/.bar.objs/byte/bar.{cmi,cmo,cmt}
-      ocamlopt foo/.foo.objs/native/foo.{cmx,o}
+      ocamlopt foo/.foo.objs/native/foo.{cmt,cmx,o}
         ocamlc foo/foo.cma
-      ocamlopt main2/.main.eobjs/native/dune__exe__Main.{cmx,o}
-      ocamlopt $ext_lib.eobjs/native/dune__exe__A.{cmx,o}
-      ocamlopt foo/.bar.objs/native/bar.{cmx,o}
+      ocamlopt main2/.main.eobjs/native/dune__exe__Main.{cmt,cmx,o}
+      ocamlopt $ext_lib.eobjs/native/dune__exe__A.{cmt,cmx,o}
+      ocamlopt foo/.bar.objs/native/bar.{cmt,cmx,o}
         ocamlc foo/bar.cma
       ocamlopt foo/foo.{a,cmxa}
       ocamlopt main2/main.exe
@@ -99,8 +99,8 @@ Testsuite for (mode plugin).
       ocamlopt foo/foo.cmxs
         ocamlc main/.main.eobjs/byte/dune__exe__Main.{cmi,cmo,cmt}
       ocamlopt foo/bar.cmxs
-      ocamlopt .b.eobjs/native/dune__exe__B.{cmx,o}
-      ocamlopt main/.main.eobjs/native/dune__exe__Main.{cmx,o}
+      ocamlopt .b.eobjs/native/dune__exe__B.{cmt,cmx,o}
+      ocamlopt main/.main.eobjs/native/dune__exe__Main.{cmt,cmx,o}
       ocamlopt b.cmxs
       ocamlopt main/main.exe
 

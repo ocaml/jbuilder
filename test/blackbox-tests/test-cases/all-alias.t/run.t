@@ -5,7 +5,7 @@
       ocamldep .foo.eobjs/foo.ml.d
         ocamlc .foo.eobjs/byte/foo.{cmi,cmo,cmt}
         ocamlc foo.bc
-      ocamlopt .foo.eobjs/native/foo.{cmx,o}
+      ocamlopt .foo.eobjs/native/foo.{cmt,cmx,o}
       ocamlopt foo.exe
 
 @all builds private libs
@@ -13,7 +13,7 @@
   $ dune build --display short --root private-lib @all
   Entering directory 'private-lib'
         ocamlc .bar.objs/byte/bar.{cmi,cmo,cmt}
-      ocamlopt .bar.objs/native/bar.{cmx,o}
+      ocamlopt .bar.objs/native/bar.{cmt,cmx,o}
         ocamlc bar.cma
       ocamlopt bar.{a,cmxa}
       ocamlopt bar.cmxs

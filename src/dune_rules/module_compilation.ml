@@ -125,14 +125,15 @@ let build_cm cctx ~dep_graphs ~precompiled_cmi ~cm_kind (m : Module.t) ~phase =
   in
   let other_targets, cmt_args =
     match cm_kind with
-    | Cmx -> (other_targets, Command.Args.empty)
+    | Cmx
     | Cmi
     | Cmo ->
       if Compilation_context.bin_annot cctx then
         let fn =
-          Option.value_exn (Obj_dir.Module.cmt_file obj_dir m ~ml_kind)
+          Option.value_exn
+            (Obj_dir.Module.cmt_file obj_dir m ~kind:cm_kind ~ml_kind)
         in
-        (fn :: other_targets, A "-bin-annot")
+        (fn :: other_targets, Command.Args.A "-bin-annot")
       else
         (other_targets, Command.Args.empty)
   in

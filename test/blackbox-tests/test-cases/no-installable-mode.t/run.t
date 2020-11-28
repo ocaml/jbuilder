@@ -21,5 +21,5 @@ However, it is possible to build a private one explicitly.
   Entering directory 'private'
       ocamldep .myprivatelib.eobjs/myprivatelib.ml.d
         ocamlc .myprivatelib.eobjs/byte/myprivatelib.{cmi,cmo,cmt}
-      ocamlopt .myprivatelib.eobjs/native/myprivatelib.{cmx,o}
+      ocamlopt .myprivatelib.eobjs/native/myprivatelib.{cmt,cmx,o}
       ocamlopt myprivatelib$ext_dll

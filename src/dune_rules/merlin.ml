@@ -123,7 +123,9 @@ let make ?(requires = Ok []) ~flags ?(preprocess = Preprocess.No_preprocessing)
     | Error _ -> Lib.Set.empty
   in
   let objs_dirs =
-    Obj_dir.byte_dir obj_dir |> Path.build |> Path.Set.singleton
+    Path.Set.of_list
+    @@ List.map ~f:Path.build
+         [ Obj_dir.byte_dir obj_dir; Obj_dir.native_dir obj_dir ]
   in
   let flags =
     match Modules.alias_module modules with
@@ -276,10 +278,11 @@ let dot_merlin sctx ~dir ~more_src_dirs ~expander
                   ~f:(fun (lib : Lib.t) (src_dirs, obj_dirs) ->
                     let more_src_dirs = lib_src_dirs ~sctx lib in
                     ( Path.Set.union src_dirs more_src_dirs
-                    , let public_cmi_dir =
-                        Obj_dir.public_cmi_dir (Lib.obj_dir lib)
+                    , let lib_obj_dirs =
+                        Obj_dir.all_obj_dirs ~mode:Native (Lib.obj_dir lib)
+                        |> Path.Set.of_list
                       in
-                      Path.Set.add obj_dirs public_cmi_dir ))
+                      Path.Set.union obj_dirs lib_obj_dirs ))
               in
               let src_dirs =
                 Path.Set.union src_dirs

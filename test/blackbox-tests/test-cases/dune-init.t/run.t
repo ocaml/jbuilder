@@ -347,7 +347,7 @@ Can init and build a new library project
   | (lang dune <version>)
   | (name test_lib_proj)
         ocamlc lib/.test_lib_proj.objs/byte/test_lib_proj.{cmi,cmo,cmt}
-      ocamlopt lib/.test_lib_proj.objs/native/test_lib_proj.{cmx,o}
+      ocamlopt lib/.test_lib_proj.objs/native/test_lib_proj.{cmt,cmx,o}
         ocamlc lib/test_lib_proj.cma
       ocamlopt lib/test_lib_proj.{a,cmxa}
       ocamlopt lib/test_lib_proj.cmxs
@@ -355,7 +355,7 @@ Can init and build a new library project
   $ dune runtest --root test_lib_proj --display short
   Entering directory 'test_lib_proj'
         ocamlc test/.test_lib_proj.eobjs/byte/dune__exe__Test_lib_proj.{cmi,cmo,cmt}
-      ocamlopt test/.test_lib_proj.eobjs/native/dune__exe__Test_lib_proj.{cmx,o}
+      ocamlopt test/.test_lib_proj.eobjs/native/dune__exe__Test_lib_proj.{cmt,cmx,o}
       ocamlopt test/test_lib_proj.exe
   test_lib_proj alias test/runtest
 

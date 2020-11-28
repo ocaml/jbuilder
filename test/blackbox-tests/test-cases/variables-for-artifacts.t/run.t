@@ -79,9 +79,9 @@ The next test builds a native .cmxa.
   $ ./sdune build --display short @t4
         ocamlc .a1.objs/byte/a1.{cmi,cmo,cmt}
       ocamldep .a1.objs/a.ml.d
-      ocamlopt .a1.objs/native/a1.{cmx,o}
+      ocamlopt .a1.objs/native/a1.{cmt,cmx,o}
         ocamlc .a1.objs/byte/a1__A.{cmi,cmo,cmt}
-      ocamlopt .a1.objs/native/a1__A.{cmx,o}
+      ocamlopt .a1.objs/native/a1__A.{cmt,cmx,o}
       ocamlopt a1.{a,cmxa}
 
 Command line version.
@@ -203,7 +203,7 @@ subdirectory.
       ocamldep .bar.objs/x.ml.d
         ocamlc .bar.objs/byte/bar.{cmi,cmo,cmt}
         ocamlc .bar.objs/byte/bar__X.{cmi,cmo,cmt}
-      ocamlopt .bar.objs/native/bar__X.{cmx,o}
+      ocamlopt .bar.objs/native/bar__X.{cmt,cmx,o}
 
 The following test checks that the variables can be used in the (action) field
 of a (rule).
@@ -214,13 +214,13 @@ of a (rule).
       ocamldep .plugin.objs/x1.ml.d
       ocamldep .plugin.objs/x2.ml.d
         ocamlc .dummy.objs/byte/dummy.{cmi,cmo,cmt}
-      ocamlopt .plugin.objs/native/plugin.{cmx,o}
+      ocamlopt .plugin.objs/native/plugin.{cmt,cmx,o}
         ocamlc .plugin.objs/byte/plugin__X1.{cmi,cmo,cmt}
         ocamlc .plugin.objs/byte/plugin__X2.{cmi,cmo,cmt}
         ocamlc .dummy.objs/byte/dummy__X3.{cmi,cmo,cmt}
-      ocamlopt .plugin.objs/native/plugin__X1.{cmx,o}
-      ocamlopt .plugin.objs/native/plugin__X2.{cmx,o}
-      ocamlopt .dummy.objs/native/dummy__X3.{cmx,o}
+      ocamlopt .plugin.objs/native/plugin__X1.{cmt,cmx,o}
+      ocamlopt .plugin.objs/native/plugin__X2.{cmt,cmx,o}
+      ocamlopt .dummy.objs/native/dummy__X3.{cmt,cmx,o}
       ocamlopt plugin.{a,cmxa}
       ocamlopt my.cmxs
 
