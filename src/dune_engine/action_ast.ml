@@ -179,7 +179,7 @@ struct
           ; ( "write-file"
             , let+ fn = target
               and+ s = string in
-              Write_file (fn, s) )
+              Write_file (fn, s, true) )
           ; ( "diff"
             , let+ diff = Diff.decode path target ~optional:false in
               Diff diff )
@@ -251,7 +251,9 @@ struct
       List [ atom "copy#"; path x; target y ]
     | System x -> List [ atom "system"; string x ]
     | Bash x -> List [ atom "bash"; string x ]
-    | Write_file (x, y) -> List [ atom "write-file"; target x; string y ]
+    | Write_file (x, y, b) ->
+      assert b;
+      List [ atom "write-file"; target x; string y ]
     | Rename (x, y) -> List [ atom "rename"; target x; target y ]
     | Remove_tree x -> List [ atom "remove-tree"; target x ]
     | Mkdir x -> List [ atom "mkdir"; path x ]
@@ -321,7 +323,7 @@ struct
 
   let bash s = Bash s
 
-  let write_file p s = Write_file (p, s)
+  let write_file p s = Write_file (p, s, true)
 
   let rename a b = Rename (a, b)
 

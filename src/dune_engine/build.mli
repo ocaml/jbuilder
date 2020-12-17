@@ -142,8 +142,8 @@ val dyn_path_set_reuse : Path.Set.t t -> Path.Set.t t
 val catch : 'a t -> on_error:(exn -> 'a) -> 'a t
 
 (** [contents path] returns a description that when run will return the contents
-    of the file at [path]. *)
-val contents : Path.t -> string t
+    of the file at [path]. Files are opened in binary mode by default. *)
+val contents : ?binary:bool -> Path.t -> string t
 
 (** [lines_of path] returns a description that when run will return the contents
     of the file at [path] as a list of lines. *)
@@ -180,10 +180,13 @@ val of_result_map : 'a Or_exn.t -> f:('a -> 'b t) -> 'b t
     its result is computed only once. *)
 val memoize : string -> 'a t -> 'a t
 
-(** Create a file with the given contents. *)
-val write_file : Path.Build.t -> string -> Action.t With_targets.t
+(** Create a file with the given contents. Files are written in binary mode by
+    default. *)
+val write_file :
+  ?binary:bool -> Path.Build.t -> string -> Action.t With_targets.t
 
-val write_file_dyn : Path.Build.t -> string t -> Action.t With_targets.t
+val write_file_dyn :
+  ?binary:bool t -> Path.Build.t -> string t -> Action.t With_targets.t
 
 val copy : src:Path.t -> dst:Path.Build.t -> Action.t With_targets.t
 

@@ -39,7 +39,7 @@ module type Ast = sig
     | Copy_and_add_line_directive of path * target
     | System of string
     | Bash of string
-    | Write_file of target * string
+    | Write_file of target * string * bool
     | Rename of target * target
     | Remove_tree of target
     | Mkdir of path

@@ -99,7 +99,6 @@ module Template = struct
     val new_token : unit -> unit
     val get : unit -> Token.t
     val add_var : part -> unit
-    val add_text : string -> unit
     val add_text_c : char -> unit
   end = struct
     type state =
@@ -146,7 +145,6 @@ module Template = struct
         let parts = add_buf_to_parts parts in
         state := Template (v::parts)
 
-    let add_text   = Buffer.add_string text_buf
     let add_text_c = Buffer.add_char text_buf
   end
 end
@@ -214,9 +212,9 @@ and start_quoted_string = parse
     { quoted_string lexbuf }
 
 and block_string_start kind = parse
-  | newline as s
+  | newline
     { Lexing.new_line lexbuf;
-      Template.Buffer.add_text s;
+      Template.Buffer.add_text_c '\n';
       block_string_after_newline lexbuf
     }
   | ' '
@@ -231,9 +229,9 @@ and block_string_start kind = parse
     }
 
 and block_string = parse
-  | newline as s
+  | newline
     { Lexing.new_line lexbuf;
-      Template.Buffer.add_text s;
+      Template.Buffer.add_text_c '\n';
       block_string_after_newline lexbuf
     }
   | '\\'
@@ -264,9 +262,9 @@ and block_string_after_newline = parse
     }
 
 and raw_block_string = parse
-  | newline as s
+  | newline
     { Lexing.new_line lexbuf;
-      Template.Buffer.add_text s;
+      Template.Buffer.add_text_c '\n';
       block_string_after_newline lexbuf
     }
   | _ as c
@@ -289,9 +287,9 @@ and quoted_string = parse
     { Template.Buffer.add_var (template_variable lexbuf);
       quoted_string lexbuf
     }
-  | newline as s
+  | newline
     { Lexing.new_line lexbuf;
-      Template.Buffer.add_text s;
+      Template.Buffer.add_text_c '\n';
       quoted_string lexbuf
     }
   | _ as c

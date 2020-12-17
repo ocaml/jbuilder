@@ -37,7 +37,7 @@ module Make (Src : Action_intf.Ast) (Dst : Action_intf.Ast) = struct
       Copy_and_add_line_directive (f_path ~dir x, f_target ~dir y)
     | System x -> System (f_string ~dir x)
     | Bash x -> Bash (f_string ~dir x)
-    | Write_file (x, y) -> Write_file (f_target ~dir x, f_string ~dir y)
+    | Write_file (x, y, b) -> Write_file (f_target ~dir x, f_string ~dir y, b)
     | Rename (x, y) -> Rename (f_target ~dir x, f_target ~dir y)
     | Remove_tree x -> Remove_tree (f_target ~dir x)
     | Mkdir x -> Mkdir (f_path ~dir x)

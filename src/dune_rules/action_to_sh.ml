@@ -65,7 +65,9 @@ let simplify act =
       :: acc
     | System x -> Sh x :: acc
     | Bash x -> Run ("bash", [ "-e"; "-u"; "-o"; "pipefail"; "-c"; x ]) :: acc
-    | Write_file (x, y) -> Redirect_out (echo y, Stdout, File x) :: acc
+    | Write_file (x, y, b) ->
+      assert b;
+      Redirect_out (echo y, Stdout, File x) :: acc
     | Rename (x, y) -> Run ("mv", [ x; y ]) :: acc
     | Remove_tree x -> Run ("rm", [ "-rf"; x ]) :: acc
     | Mkdir x -> mkdir x :: acc

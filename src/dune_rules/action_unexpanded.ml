@@ -177,8 +177,8 @@ module Partial = struct
       Copy_and_add_line_directive (E.path ~expander x, E.target ~expander y)
     | System x -> System (E.string ~expander x)
     | Bash x -> Bash (E.string ~expander x)
-    | Write_file (x, y) ->
-      Write_file (E.target ~expander x, E.string ~expander y)
+    | Write_file (x, y, z) ->
+      Write_file (E.target ~expander x, E.string ~expander y, z)
     | Rename (x, y) -> Rename (E.target ~expander x, E.target ~expander y)
     | Remove_tree x -> Remove_tree (E.target ~expander x)
     | Mkdir x -> (
@@ -295,7 +295,8 @@ let rec partial_expand t ~expander : Partial.t =
     Copy_and_add_line_directive (E.path ~expander x, E.target ~expander y)
   | System x -> System (E.string ~expander x)
   | Bash x -> Bash (E.string ~expander x)
-  | Write_file (x, y) -> Write_file (E.target ~expander x, E.string ~expander y)
+  | Write_file (x, y, z) ->
+    Write_file (E.target ~expander x, E.string ~expander y, z)
   | Rename (x, y) -> Rename (E.target ~expander x, E.target ~expander y)
   | Remove_tree x -> Remove_tree (E.target ~expander x)
   | Mkdir x ->
@@ -425,7 +426,7 @@ end = struct
       | Redirect_out (_, fn, t) -> infer (acc +@+ fn) t
       | Redirect_in (_, fn, t) -> infer (acc +< fn) t
       | Cat fn -> acc +< fn
-      | Write_file (fn, _) -> acc +@+ fn
+      | Write_file (fn, _, _) -> acc +@+ fn
       | Rename (src, dst) -> acc +<+ src +@+ dst
       | Copy (src, dst)
       | Copy_and_add_line_directive (src, dst)

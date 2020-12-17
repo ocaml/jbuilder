@@ -222,7 +222,7 @@ let opam_template ~opam_path =
   let opam_template_path = template_file opam_path in
   Build.if_file_exists opam_template_path
     ~then_:
-      (let+ contents = Build.contents opam_template_path in
+      (let+ contents = Build.contents ~binary:false opam_template_path in
        Some (opam_template_path, contents))
     ~else_:(Build.return None)
 
@@ -248,14 +248,39 @@ let generate project pkg ~template =
     | None -> ""
     | Some (_, s) -> s )
 
+let all_endings_are_lf_only s =
+  let rec scan last_was_lf i =
+    let c = s.[i] in
+    if last_was_lf && c = '\r' then
+      false
+    else if i = 0 then
+      true
+    else
+      scan (c = '\n') (pred i)
+  in
+  let len = String.length s in
+  len <> 0 && scan true (pred len)
+
+let opam_existing_file_has_lf_endings ~opam_source_path =
+  let open Build.O in
+  Build.if_file_exists opam_source_path
+    ~then_:
+      (let+ contents = Build.contents opam_source_path in
+       all_endings_are_lf_only contents)
+    ~else_:(Build.return false)
+
 let add_rule sctx ~project ~pkg =
   let open Build.O in
   let build_dir = (Super_context.context sctx).build_dir in
-  let opam_path = Path.Build.append_source build_dir (Package.opam_file pkg) in
+  let opam_file = Package.opam_file pkg in
+  let opam_build_path = Path.Build.append_source build_dir opam_file in
+  let opam_source_path = Path.append_source Path.root opam_file in
+  let opam_path = Path.build opam_build_path in
   let opam_rule =
-    (let+ template = opam_template ~opam_path:(Path.build opam_path) in
+    let binary = opam_existing_file_has_lf_endings ~opam_source_path in
+    (let+ template = opam_template ~opam_path in
      generate project pkg ~template)
-    |> Build.write_file_dyn opam_path
+    |> Build.write_file_dyn ~binary opam_build_path
   in
   let dir = Path.Build.append_source build_dir (Package.dir pkg) in
   let mode =
@@ -268,7 +293,7 @@ let add_rule sctx ~project ~pkg =
     ; Alias.check ~dir (* check doesn't pick up the promote target? *)
     ]
   in
-  let deps = Path.Set.singleton (Path.build opam_path) in
+  let deps = Path.Set.singleton opam_path in
   List.iter aliases ~f:(fun alias -> Rules.Produce.Alias.add_deps alias deps)
 
 let add_rules sctx ~dir =

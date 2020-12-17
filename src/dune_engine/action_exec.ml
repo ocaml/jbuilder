@@ -269,8 +269,8 @@ let rec exec t ~ectx ~eenv =
         [ "-e"; "-u"; "-o"; "pipefail"; "-c"; cmd ]
     in
     Done
-  | Write_file (fn, s) ->
-    Io.write_file (Path.build fn) s;
+  | Write_file (fn, s, binary) ->
+    Io.write_file ~binary (Path.build fn) s;
     Fiber.return Done
   | Rename (src, dst) ->
     Unix.rename (Path.Build.to_string src) (Path.Build.to_string dst);
