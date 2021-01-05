@@ -79,6 +79,12 @@ module Style : sig
   val escape_sequence : t list -> string
 end
 
+module Codes : sig
+  type t
+
+  val erase_from_cursor_to_eol : t
+end
+
 (** Print to [Format.std_formatter] *)
 val print : Style.t list Pp.t -> unit
 
