@@ -1,0 +1,11 @@
+(rule
+ (alias man)
+ (deps (glob_files ../*.py) (glob_files ../*.rst))
+ (mode promote)
+ (target dune.1)
+ (action (chdir .. (run sphinx-build -b man . man))))
+
+(install
+ (section man)
+ (package dune)
+ (files dune.1 as dune-manual.1))
