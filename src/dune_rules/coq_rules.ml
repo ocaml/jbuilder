@@ -23,9 +23,30 @@ module Util = struct
   let coq_nativelib_cmi_dirs ts =
     List.fold_left ts ~init:Path.Set.empty ~f:(fun acc t ->
         let info = Lib.info t in
-        (* We want the cmi files *)
+        (* We want the directory with the cmi files *)
         let obj_dir = Obj_dir.public_cmi_dir (Lib_info.obj_dir info) in
         Path.Set.add acc obj_dir)
+
+  let error ~loc name =
+    User_error.raise ~loc [ Pp.textf "%s does not exist." (Module_name.to_string name) ]
+
+  let path_of_cmi ~sctx ~lib_db ~lib_name (loc,name) =
+    let open Result.O in
+    let* ml_lib = Lib.DB.resolve lib_db (Loc.none, lib_name) in
+    let info = Lib.info ml_lib in
+    let src_dir = Lib_info.src_dir (Lib_info.as_local_exn info) in
+    let dir_contents = Dir_contents.get sctx ~dir:src_dir in
+    let artifacts = Dir_contents.artifacts dir_contents in
+    let name = Module_name.of_string_allow_invalid (loc, name) in
+    match Ml_sources.Artifacts.lookup_module artifacts name with
+    | None ->
+      error ~loc name
+    | Some (t, m) -> (
+      match Obj_dir.Module.cm_file t m ~kind:Cmi with
+      | None ->
+        error ~loc name
+      | Some path -> Result.return (Path.build path)
+    )
 
   let include_flags ts = include_paths ts |> Lib.L.to_iflags
 
@@ -45,8 +66,8 @@ module Util = struct
     List.concat_map plugins ~f:to_mlpack
 end
 
-let resolve_program sctx ~loc ~dir prog =
-  SC.resolve_program ~dir sctx prog ~loc:(Some loc) ~hint:"opam install coq"
+let resolve_program sctx ~loc ~dir ?(hint="opam install coq") prog =
+  SC.resolve_program ~dir sctx prog ~loc:(Some loc) ~hint
 
 module Bootstrap = struct
   (* the internal boot flag determines if the Coq "standard library" is being
@@ -113,6 +134,7 @@ module Context = struct
     ; mode : Coq_mode.t
     ; native_includes : Path.Set.t Or_exn.t
     ; native_theory_includes : Path.Build.Set.t Or_exn.t
+    ; coqffi : Action.Prog.t
     }
 
   let coqc ?stdout_to t args =
@@ -251,6 +273,7 @@ module Context = struct
     ; mode
     ; native_includes
     ; native_theory_includes
+    ; coqffi = rr "coqffi" ~hint:"opam install coqffi"
     }
 
   let for_module t coq_module =
@@ -394,6 +417,19 @@ let coq_modules_of_theory ~sctx lib =
   let coq_sources = Dir_contents.coq dir_contents in
   Coq_sources.library coq_sources ~name
 
+let ffi_rule ~sctx ~lib_db ~dir ~coqffi (s : string) : Action.t Build.With_targets.t =
+
+  let ml_lib_name, coq_module_name = Coq_stanza.Theory.ffi_parse_name s in
+  let coq_v_name = Path.Build.relative dir (coq_module_name ^ ".v") in
+
+  (* Get the path to the cmi file *)
+  let lib_name = Lib_name.of_string ml_lib_name in
+  let cmi_path = Util.path_of_cmi ~sctx ~lib_db ~lib_name (Loc.none, coq_module_name)  in
+  let args = [ Command.of_result_map cmi_path ~f:(fun p -> Command.Args.Path p); A "-o"; Command.Args.Target coq_v_name] in
+  let open Build.With_targets.O in
+  Build.with_no_targets (Build.of_result_map ~f:Build.path cmi_path) >>>
+  Command.run ~dir:(Path.build dir) coqffi args
+
 let source_rule ~sctx theories =
   (* sources for depending libraries coqdep requires all the files to be in the
      tree to produce correct dependencies, including those of dependencies *)
@@ -431,10 +467,15 @@ let setup_rules ~sctx ~dir ~dir_contents (s : Theory.t) =
     in
     source_rule ~sctx theories
   in
+
+  let lib_db = Scope.libs scope in
+  let ffi_rules = List.map ~f:(ffi_rule ~lib_db ~sctx ~dir ~coqffi:cctx.coqffi) s.ffi_modules in
+
   List.concat_map coq_modules ~f:(fun m ->
       let cctx = Context.for_module cctx m in
       let { Module_rule.coqc; coqdep } = setup_rule cctx ~source_rule m in
       [ coqc; coqdep ])
+  |> List.rev_append ffi_rules
 
 (******************************************************************************)
 (* Install rules *)

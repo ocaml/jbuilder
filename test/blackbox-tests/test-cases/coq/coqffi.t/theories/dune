@@ -1,0 +1,17 @@
+(coq.theory
+ (name Foo)
+ (modules :standard)
+ (ffi_modules ocaml_lib.a))
+
+; Petit question?
+; (ffi
+;  (library ...)
+;  (modules ...)
+;  (flags ))
+;
+; or
+; (ffi :flags -finterface)
+; (coq.ffi
+;
+; )
+

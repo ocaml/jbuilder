@@ -30,12 +30,16 @@ module Theory : sig
     ; project : Dune_project.t
     ; synopsis : string option
     ; modules : Ordered_set_lang.t
+    ; ffi_modules : string list
     ; boot : bool
     ; enabled_if : Blang.t
     ; buildable : Buildable.t
     }
 
   type Stanza.t += T of t
+
+  val ffi_parse_name : string -> (string * string)
+  val ffi_target_fnames : t -> string list
 end
 
 module Coqpp : sig

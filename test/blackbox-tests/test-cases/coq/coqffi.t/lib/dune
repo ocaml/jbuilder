@@ -1,0 +1,3 @@
+(library
+ (name ocaml_lib)
+ (wrapped true))

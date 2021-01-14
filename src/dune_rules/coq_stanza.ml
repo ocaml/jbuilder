@@ -84,6 +84,7 @@ module Theory = struct
     ; project : Dune_project.t
     ; synopsis : string option
     ; modules : Ordered_set_lang.t
+    ; ffi_modules : string list
     ; boot : bool
     ; enabled_if : Blang.t
     ; buildable : Buildable.t
@@ -137,6 +138,7 @@ module Theory = struct
        and+ boot =
          field_b "boot" ~check:(Dune_lang.Syntax.since coq_syntax (0, 2))
        and+ modules = Stanza_common.modules_field "modules"
+       and+ ffi_modules = field "ffi_modules" (repeat string)
        and+ enabled_if = Enabled_if.decode ~allowed_vars:Any ~since:None ()
        and+ buildable = Buildable.decode in
        let package = select_deprecation ~package ~public in
@@ -145,6 +147,7 @@ module Theory = struct
        ; project
        ; synopsis
        ; modules
+       ; ffi_modules
        ; boot
        ; buildable
        ; enabled_if
@@ -163,6 +166,19 @@ module Theory = struct
   let coqlib_p = ("coqlib", decode >>| fun x -> [ T (coqlib_warn x) ])
 
   let p = ("coq.theory", decode >>| fun x -> [ T x ])
+
+  (* todo add location to the string *)
+  let ffi_parse_name (s : string) =
+    match Stdune.String.rsplit2 ~on:'.' s with
+    | None ->
+       User_error.raise
+         [ Pp.textf "invalid coqffi module name" ; Pp.verbatim s]
+    | Some (lib_name, module_name) ->
+       (lib_name, module_name)
+
+  let ffi_target_fnames t =
+    List.map t.ffi_modules ~f:(fun m -> ffi_parse_name m |> snd |> (fun m -> m ^ ".v"))
+
 end
 
 let unit_stanzas =
