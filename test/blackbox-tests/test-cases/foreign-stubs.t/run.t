@@ -541,3 +541,63 @@ but the setting [disable_dynamically_linked_foreign_archives] is [true] in the w
 
   $ ./sdune clean
   $ ./sdune build @install
+
+----------------------------------------------------------------------------------
+* Test byte and native compilation modes
+
+  $ cat >dune-workspace <<EOF
+  > (lang dune 2.0)
+  > EOF
+
+  $ cat >dune-project <<EOF
+  > (lang dune 2.0)
+  > EOF
+
+  $ cat >foo_bytes.c <<EOF
+  > #include <caml/mlvalues.h>
+  > #ifdef BYTE
+  > value foo_byte(value unit) { return Val_int(1); }
+  > #endif
+  > #ifdef NATIVE
+  > value foo_native(value unit) { return Val_int(2); }
+  > #endif
+  > value foo_common(value unit) { return Val_int(3); }
+  > EOF
+  $ cp foo_bytes.c foo_native.c
+
+  $ cat >dune <<EOF
+  > (library
+  >  (name foo)
+  >  (modules)
+  >  (foreign_stubs (language c) (mode byte) (flags -DBYTE) (names foo_bytes))
+  >  (foreign_stubs (language c) (mode native) (flags -DNATIVE) (names foo_native)))
+  > (executable
+  >  (name main_byte)
+  >  (modes byte)
+  >  (libraries foo)
+  >  (modules main_byte))
+  > (executable
+  >  (name main_native)
+  >  (modes native)
+  >  (libraries foo)
+  >  (modules main_native))
+  > EOF
+
+  $ cat >main_byte.ml <<EOF
+  > external foo_byte : unit -> int = "foo_byte"
+  > external foo_common : unit -> int = "foo_common"
+  > let () = Printf.printf "%d" (foo_byte () + foo_common ())
+  > EOF
+
+  $ cat >main_native.ml <<EOF
+  > external foo_native : unit -> int = "foo_native"
+  > external foo_common : unit -> int = "foo_common"
+  > let () = Printf.printf "%d" (foo_native () + foo_common ())
+  > EOF
+
+  $ ./sdune clean
+  $ ./sdune build _build/default/main_byte.bc
+  $ (cd _build/default; ocamlrun -I . main_byte.bc)
+  4
+  $ ./sdune exec ./main_native.exe
+  5

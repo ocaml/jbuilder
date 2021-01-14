@@ -89,6 +89,21 @@ module Archive = struct
     Name.dll_file archive.name ~dir ~ext_dll
 end
 
+module Compilation_mode = struct
+  type t =
+    | Both_byte_and_native
+    | Only_byte
+    | Only_native
+
+  let decode =
+    let open Dune_lang.Decoder in
+    let+ mode = field_o "mode" Mode.decode in
+    match mode with
+    | None -> Both_byte_and_native
+    | Some Byte -> Only_byte
+    | Some Native -> Only_native
+end
+
 module Stubs = struct
   module Include_dir = struct
     type t =
@@ -111,6 +126,7 @@ module Stubs = struct
   type t =
     { loc : Loc.t
     ; language : Foreign_language.t
+    ; mode : Compilation_mode.t
     ; names : Ordered_set_lang.t
     ; flags : Ordered_set_lang.Unexpanded.t
     ; include_dirs : Include_dir.t list
@@ -118,7 +134,14 @@ module Stubs = struct
     }
 
   let make ~loc ~language ~names ~flags =
-    { loc; language; names; flags; include_dirs = []; extra_deps = [] }
+    { loc
+    ; language
+    ; mode = Both_byte_and_native
+    ; names
+    ; flags
+    ; include_dirs = []
+    ; extra_deps = []
+    }
 
   let decode_stubs =
     let open Dune_lang.Decoder in
@@ -126,6 +149,7 @@ module Stubs = struct
     and+ loc_archive_name, archive_name =
       located (field_o "archive_name" string)
     and+ language = field "language" decode_lang
+    and+ mode = Compilation_mode.decode
     and+ names = Ordered_set_lang.field "names"
     and+ flags = Ordered_set_lang.Unexpanded.field "flags"
     and+ include_dirs =
@@ -143,7 +167,7 @@ module Stubs = struct
                (foreign_library ...) stanza."
           ]
     in
-    { loc; language; names; flags; include_dirs; extra_deps }
+    { loc; language; mode; names; flags; include_dirs; extra_deps }
 
   let decode = Dune_lang.Decoder.fields decode_stubs
 end
@@ -165,14 +189,16 @@ module Library = struct
 end
 
 module Source = struct
-  (* we store the entire [stubs] record even though [t] only describes an
-     individual source file *)
+  (* We store the entire [stubs] record, including the [names] fields, even
+     though [t] only describes an individual source file. *)
   type t =
     { stubs : Stubs.t
     ; path : Path.Build.t
     }
 
   let language t = t.stubs.language
+
+  let mode t = t.stubs.mode
 
   let flags t = t.stubs.flags
 
@@ -184,12 +210,45 @@ module Source = struct
   let make ~stubs ~path = { stubs; path }
 end
 
+module Object = struct
+  type t =
+    { path : Path.Build.t
+    ; mode : Compilation_mode.t
+    }
+
+  let both_byte_and_native t =
+    match t.mode with
+    | Both_byte_and_native -> true
+    | Only_byte
+    | Only_native ->
+      false
+
+  let build_path t = Path.build t.path
+
+  let build_path_byte t =
+    match t.mode with
+    | Both_byte_and_native
+    | Only_byte ->
+      Some (build_path t)
+    | Only_native -> None
+
+  let build_path_native t =
+    match t.mode with
+    | Both_byte_and_native
+    | Only_native ->
+      Some (build_path t)
+    | Only_byte -> None
+end
+
 module Sources = struct
   type t = (Loc.t * Source.t) String.Map.t
 
   let object_files t ~dir ~ext_obj =
-    String.Map.keys t
-    |> List.map ~f:(fun c -> Path.Build.relative dir (c ^ ext_obj))
+    String.Map.to_list t
+    |> List.map ~f:(fun (c, (_loc, src)) ->
+           { Object.path = Path.Build.relative dir (c ^ ext_obj)
+           ; mode = Source.mode src
+           })
 
   module Unresolved = struct
     type t = (Foreign_language.t * Path.Build.t) String.Map.Multi.t

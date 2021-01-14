@@ -146,8 +146,7 @@ let build_c ~kind ~sctx ~dir ~expander ~include_flags (loc, src, dst) =
          ; S [ A "-I"; Path ctx.stdlib_dir ]
          ; include_flags
          ]
-       @ output_param @ [ A "-c"; Dep src ] ));
-  dst
+       @ output_param @ [ A "-c"; Dep src ] ))
 
 (* TODO: [requires] is a confusing name, probably because it's too general: it
    looks like it's a list of libraries we depend on. *)
@@ -194,4 +193,5 @@ let build_o_files ~sctx ~foreign_sources ~(dir : Path.Build.t) ~expander
            | C -> build_c ~kind:Foreign_language.C
            | Cxx -> build_c ~kind:Foreign_language.Cxx
          in
-         build_file ~sctx ~dir ~expander ~include_flags (loc, src, dst))
+         build_file ~sctx ~dir ~expander ~include_flags (loc, src, dst);
+         { Foreign.Object.path = dst; mode = stubs.mode })

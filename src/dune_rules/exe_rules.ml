@@ -86,7 +86,7 @@ let o_files sctx ~dir ~expander ~(exes : Executables.t) ~linkages ~dir_contents
     in
     Foreign_rules.build_o_files ~sctx ~dir ~expander ~requires:requires_compile
       ~dir_contents ~foreign_sources
-    |> List.map ~f:Path.build
+    |> List.filter_map ~f:Foreign.Object.build_path_native
 
 let executables_rules ~sctx ~dir ~expander ~dir_contents ~scope ~compile_info
     ~embed_in_plugin_libraries (exes : Dune_file.Executables.t) =

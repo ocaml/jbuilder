@@ -108,14 +108,23 @@ let gen_wrapped_compat_modules (lib : Library.t) cctx =
       |> Super_context.add_rule sctx ~loc ~dir:(Compilation_context.dir cctx))
 
 (* Rules for building static and dynamic libraries using [ocamlmklib]. *)
-let ocamlmklib ~loc ~c_library_flags ~sctx ~dir ~expander ~o_files ~archive_name
-    ~build_targets_together =
+let ocamlmklib ~loc ~c_library_flags ~sctx ~dir ~expander ~foreign_objects
+    ~vlib_stubs_o_files ~archive_name ~build_targets_together =
+  (* We can't build static and dynamic libraries together if one of the object
+     files should be treated specially. *)
+  let build_targets_together =
+    build_targets_together
+    && List.for_all foreign_objects ~f:Foreign.Object.both_byte_and_native
+  in
   let ctx = Super_context.context sctx in
   let { Lib_config.ext_lib; ext_dll; _ } = ctx.lib_config in
   let static_target =
     Foreign.Archive.Name.lib_file archive_name ~dir ~ext_lib
   in
-  let build ~custom ~sandbox targets =
+  let build ~custom ~sandbox ~o_files targets =
+    (* CR amokhov: Should we include [vlib_stubs_o_files] into both static and
+       dynamic libraries? *)
+    let o_files = vlib_stubs_o_files @ o_files in
     Super_context.add_rule sctx ~sandbox ~dir ~loc
       (let cclibs_args =
          Expander.expand_and_eval_set expander c_library_flags
@@ -148,16 +157,20 @@ let ocamlmklib ~loc ~c_library_flags ~sctx ~dir ~expander ~o_files ~archive_name
     Foreign.Archive.Name.dll_file archive_name ~dir ~ext_dll
   in
   if build_targets_together then
+    let o_files = List.map foreign_objects ~f:Foreign.Object.build_path in
     (* Build both the static and dynamic targets in one [ocamlmklib] invocation,
        unless dynamically linked foreign archives are disabled. *)
-    build ~sandbox:Sandbox_config.no_special_requirements ~custom:false
+    build ~o_files ~sandbox:Sandbox_config.no_special_requirements ~custom:false
       ( if ctx.dynamically_linked_foreign_archives then
         [ static_target; dynamic_target ]
       else
         [ static_target ] )
-  else (
+  else
+    let o_files =
+      List.filter_map foreign_objects ~f:Foreign.Object.build_path_native
+    in
     (* Build the static target only by passing the [-custom] flag. *)
-    build ~sandbox:Sandbox_config.no_special_requirements ~custom:true
+    build ~o_files ~sandbox:Sandbox_config.no_special_requirements ~custom:true
       [ static_target ];
     (* The second rule (below) may fail on some platforms, but the build will
        succeed as long as the resulting dynamic library isn't actually needed
@@ -171,9 +184,11 @@ let ocamlmklib ~loc ~c_library_flags ~sctx ~dir ~expander ~o_files ~archive_name
        flag, which always produces the static target and sometimes produces the
        dynamic target too. *)
     if ctx.dynamically_linked_foreign_archives then
-      build ~sandbox:Sandbox_config.needs_sandboxing ~custom:false
+      let o_files =
+        List.filter_map foreign_objects ~f:Foreign.Object.build_path_byte
+      in
+      build ~o_files ~sandbox:Sandbox_config.needs_sandboxing ~custom:false
         [ dynamic_target ]
-  )
 
 (* Build a static and a dynamic archive for a foreign library. Note that the
    dynamic archive can't be built on some platforms, in which case the rule that
@@ -181,25 +196,25 @@ let ocamlmklib ~loc ~c_library_flags ~sctx ~dir ~expander ~o_files ~archive_name
 let foreign_rules (library : Foreign.Library.t) ~sctx ~expander ~dir
     ~dir_contents =
   let archive_name = library.archive_name in
-  let o_files =
+  let foreign_objects =
     let foreign_sources =
       Dir_contents.foreign_sources dir_contents
       |> Foreign_sources.for_archive ~archive_name
     in
     Foreign_rules.build_o_files ~sctx ~dir ~expander ~requires:(Result.ok [])
       ~dir_contents ~foreign_sources
-    |> List.map ~f:Path.build
   in
+  let o_files = List.map foreign_objects ~f:Foreign.Object.build_path in
   Check_rules.add_files sctx ~dir o_files;
   ocamlmklib ~archive_name ~loc:library.stubs.loc
     ~c_library_flags:Ordered_set_lang.Unexpanded.standard ~sctx ~dir ~expander
-    ~o_files ~build_targets_together:false
+    ~vlib_stubs_o_files:[] ~foreign_objects ~build_targets_together:false
 
 (* Build a required set of archives for an OCaml library. *)
 let build_stubs lib ~cctx ~dir ~expander ~requires ~dir_contents
     ~vlib_stubs_o_files =
   let sctx = Compilation_context.super_context cctx in
-  let lib_o_files =
+  let lib_foreign_objects =
     let foreign_sources =
       let foreign_sources = Dir_contents.foreign_sources dir_contents in
       let name = Library.best_name lib in
@@ -207,12 +222,12 @@ let build_stubs lib ~cctx ~dir ~expander ~requires ~dir_contents
     in
     Foreign_rules.build_o_files ~sctx ~dir ~expander ~requires ~dir_contents
       ~foreign_sources
-    |> List.map ~f:Path.build
   in
+  let lib_o_files = List.map lib_foreign_objects ~f:Foreign.Object.build_path in
   Check_rules.add_files sctx ~dir lib_o_files;
-  match vlib_stubs_o_files @ lib_o_files with
-  | [] -> ()
-  | o_files ->
+  match (vlib_stubs_o_files, lib_foreign_objects) with
+  | [], [] -> ()
+  | vlib_stubs_o_files, foreign_objects ->
     let ctx = Super_context.context sctx in
     let lib_name = Lib_name.Local.to_string (snd lib.name) in
     let archive_name = Foreign.Archive.Name.stubs lib_name in
@@ -222,7 +237,8 @@ let build_stubs lib ~cctx ~dir ~expander ~requires ~dir_contents
       && Dynlink_supported.get lib.dynlink ctx.supports_shared_libraries
     in
     ocamlmklib ~archive_name ~loc:lib.buildable.loc ~sctx ~expander ~dir
-      ~o_files ~c_library_flags:lib.c_library_flags ~build_targets_together
+      ~foreign_objects ~vlib_stubs_o_files ~c_library_flags:lib.c_library_flags
+      ~build_targets_together
 
 let build_shared lib ~native_archives ~sctx ~dir ~flags =
   let ctx = Super_context.context sctx in

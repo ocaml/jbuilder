@@ -125,7 +125,7 @@ let impl sctx ~(lib : Dune_file.Library.t) ~scope =
               Dir_contents.foreign_sources dir_contents
               |> Foreign_sources.for_lib ~name
               |> Foreign.Sources.object_files ~ext_obj ~dir
-              |> List.map ~f:Path.build
+              |> List.map ~f:Foreign.Object.build_path
             in
             (modules, foreign_objects)
         in

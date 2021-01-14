@@ -65,6 +65,7 @@ end = struct
           let name = Lib_info.name lib in
           let files = Foreign_sources.for_lib foreign_sources ~name in
           Foreign.Sources.object_files files ~dir ~ext_obj
+          |> List.map ~f:(fun (obj : Foreign.Object.t) -> obj.path)
         else
           Lib_info.foreign_archives lib )
       ; (let modules =
@@ -439,7 +440,7 @@ end = struct
               |> Foreign_sources.for_lib ~name
               |> Foreign.Sources.object_files ~dir
                    ~ext_obj:ctx.lib_config.ext_obj
-              |> List.map ~f:Path.build
+              |> List.map ~f:Foreign.Object.build_path
             in
             let modules =
               Dir_contents.ocaml dir_contents
