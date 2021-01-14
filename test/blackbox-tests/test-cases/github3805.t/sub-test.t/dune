@@ -1,0 +1,9 @@
+(executables
+ (names hello))
+
+(rule
+ (alias runtest)
+ (action
+  (with-stdout-to
+   hello.output
+   (run ./hello.exe))))
