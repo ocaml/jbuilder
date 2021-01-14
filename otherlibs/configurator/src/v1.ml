@@ -628,7 +628,18 @@ module Pkg_config = struct
     }
 
   let get c =
-    Option.map (which c "pkg-config") ~f:(fun pkg_config ->
+    let pkg_config =
+      match
+        let (>>=) = Option.bind in
+        ocaml_config_var c "c_compiler" >>=
+        Filename.chop_suffix_opt ~suffix:"gcc" >>= fun pfx ->
+        let fn = pfx ^ "pkg-config" in
+        Option.some_if (Sys.file_exists fn) fn
+      with
+      | Some _ as s -> s
+      | None -> which c "pkg-config"
+    in
+    Option.map pkg_config ~f:(fun pkg_config ->
         { pkg_config; configurator = c })
 
   type package_conf =
