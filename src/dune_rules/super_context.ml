@@ -13,13 +13,26 @@ let default_context_flags (ctx : Context.t) ~project =
     | Some false ->
       (Build.return cflags, Build.return cxxflags)
     | Some true ->
-      let c = cflags @ Ocaml_config.ocamlc_cppflags ctx.ocaml_config in
+      let colors ccomp_type acc =
+        match ccomp_type with
+        | Cxx_flags.Gcc
+        | Clang
+          when Lazy.force Ansi_color.stderr_supports_color ->
+          "-fdiagnostics-color=always" :: acc
+        | _ -> acc
+      in
+      let c =
+        let open Build.O in
+        let+ ccomp_type, _ = Cxx_flags.get_flags ctx.build_dir in
+        cflags @ Ocaml_config.ocamlc_cppflags ctx.ocaml_config
+        |> colors ccomp_type
+      in
       let cxx =
         let open Build.O in
-        let+ db_flags = Cxx_flags.get_flags ctx.build_dir in
-        db_flags @ cxxflags
+        let+ ccomp_type, db_flags = Cxx_flags.get_flags ctx.build_dir in
+        db_flags @ cxxflags |> colors ccomp_type
       in
-      (Build.return c, cxx)
+      (c, cxx)
   in
   Foreign_language.Dict.make ~c ~cxx
 

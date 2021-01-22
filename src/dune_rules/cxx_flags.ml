@@ -42,4 +42,4 @@ let get_flags dir =
   let open Build.O in
   let+ ccomp_type = ccomp_type dir in
   check_warn ccomp_type;
-  base_cxx_flags ccomp_type
+  (ccomp_type, base_cxx_flags ccomp_type)
