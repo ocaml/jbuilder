@@ -3,3 +3,7 @@
 (rule
  (alias blah-non-existent)
  (action (diff x-non-existent x.gen)))
+
+(rule
+ (alias blah-non-existent-in-sub-dir)
+ (action (diff subdir/x-non-existent-in-sub-dir x.gen)))
