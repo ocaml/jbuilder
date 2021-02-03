@@ -563,19 +563,27 @@ let create ~(kind : Kind.t) ~path ~env ~env_nodes ~name ~merlin ~targets
     in
     let env =
       let cwd = Sys.getcwd () in
-      let extend_var var ?(path_sep = Bin.path_sep) v =
-        let v = Filename.concat cwd (Path.Build.to_string v) in
-        match Env.get env var with
-        | None -> (var, v)
-        | Some prev -> (var, sprintf "%s%c%s" v path_sep prev)
+      let extend_var_string_list var ?(path_sep = Bin.path_sep) vs =
+        let init = Option.to_list (Env.get env var) in
+        let all_values = init @ vs in
+        let sep = String.make 1 path_sep in
+        (var, String.concat ~sep all_values)
+      in
+      let of_build v = Filename.concat cwd (Path.Build.to_string v) in
+      let extend_var var ?path_sep v =
+        extend_var_string_list var ?path_sep [ of_build v ]
       in
       let vars =
         let local_lib_root = Config.local_install_lib_root ~context:name in
+        let ocamlpath =
+          List.map ~f:Path.to_string default_ocamlpath
+          @ [ of_build local_lib_root ]
+        in
         [ extend_var "CAML_LD_LIBRARY_PATH"
             (Path.Build.relative
                (Config.local_install_dir ~context:name)
                "lib/stublibs")
-        ; extend_var "OCAMLPATH" ~path_sep:ocamlpath_sep local_lib_root
+        ; extend_var_string_list "OCAMLPATH" ~path_sep:ocamlpath_sep ocamlpath
         ; ("DUNE_OCAML_STDLIB", Ocaml_config.standard_library ocfg)
         ; ( "DUNE_OCAML_HARDCODED"
           , String.concat
