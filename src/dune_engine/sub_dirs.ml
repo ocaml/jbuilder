@@ -247,19 +247,19 @@ let decode =
   in
   let dirs =
     located
-      ( Dune_lang.Syntax.since Stanza.syntax (1, 6)
-      >>> Predicate_lang.Glob.decode )
+      (Dune_lang.Syntax.since Stanza.syntax (1, 6)
+      >>> Predicate_lang.Glob.decode)
   in
   let data_only_dirs =
     located
-      ( Dune_lang.Syntax.since Stanza.syntax (1, 6)
-      >>> strict_subdir_glob "data_only" )
+      (Dune_lang.Syntax.since Stanza.syntax (1, 6)
+      >>> strict_subdir_glob "data_only")
   in
   let vendored_dirs =
     (* let decode = Predicate_lang.Glob.decode in *)
     located
-      ( Dune_lang.Syntax.since Stanza.syntax (1, 11)
-      >>> strict_subdir_glob "vendored_dirs" )
+      (Dune_lang.Syntax.since Stanza.syntax (1, 11)
+      >>> strict_subdir_glob "vendored_dirs")
   in
   let rec subdir () =
     let* () = Dune_lang.Syntax.since Stanza.syntax (2, 5) in

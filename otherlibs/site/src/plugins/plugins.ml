@@ -67,7 +67,7 @@ let rec find_library ~suffix directory meta =
       :: _ -> (
       match directory with
       | None -> Some value
-      | Some old -> Some (Filename.concat old value) )
+      | Some old -> Some (Filename.concat old value))
     | _ :: entries -> find_directory directory entries
   in
   match suffix with
@@ -142,7 +142,8 @@ let load file ~pkg =
       let r = Meta_parser.Parse.entries lb 0 [] in
       close_in ic;
       r
-    with exn ->
+    with
+    | exn ->
       close_in ic;
       raise exn
   in
@@ -175,12 +176,12 @@ let lookup_and_summarize dirs name =
     | [] -> (
       List.assoc_opt pkg Data.builtin_library |> function
       | None -> raise (Library_not_found name)
-      | Some meta -> find_plugin ~dir:(Lazy.force Helpers.stdlib) ~suffix meta )
+      | Some meta -> find_plugin ~dir:(Lazy.force Helpers.stdlib) ~suffix meta)
     | dir :: dirs -> (
       let dir = Filename.concat dir pkg in
       match lookup_and_load_one_dir ~dir ~pkg with
       | None -> loop dirs
-      | Some p -> find_plugin ~dir ~suffix p )
+      | Some p -> find_plugin ~dir ~suffix p)
   in
   loop dirs
 
@@ -229,5 +230,7 @@ let available name =
   try
     ignore (lookup_and_summarize ocamlpath name);
     true
-  with _ -> (* CR - What exceptions are being swallowed here? *)
-            false
+  with
+  | _ ->
+    (* CR - What exceptions are being swallowed here? *)
+    false

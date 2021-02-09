@@ -287,7 +287,7 @@ let encode_to_latest_dune_lang_version t =
       | Inline_tests -> Some "inline_tests"
     with
     | None -> Pform_was_deleted
-    | Some name -> Success { name; payload = None } )
+    | Some name -> Success { name; payload = None })
   | Macro (x, payload) -> (
     match
       match x with
@@ -309,7 +309,7 @@ let encode_to_latest_dune_lang_version t =
       | Artifact a -> Some (String.drop (Artifact.ext a) 1)
     with
     | None -> Pform_was_deleted
-    | Some name -> Success { name; payload = Some payload } )
+    | Some name -> Success { name; payload = Some payload })
 
 let describe_kind = function
   | Var _ -> "variable"
@@ -374,31 +374,31 @@ module Env = struct
         , since ~version:(2, 0) (Macro.Artifact x) )
       in
       String.Map.of_list_exn
-        ( [ ("exe", macro Exe)
-          ; ("bin", macro Bin)
-          ; ("lib", macro (Lib { lib_exec = false; lib_private = false }))
-          ; ("libexec", macro (Lib { lib_exec = true; lib_private = false }))
-          ; ( "lib-private"
-            , since ~version:(2, 1)
-                (Macro.Lib { lib_exec = false; lib_private = true }) )
-          ; ( "libexec-private"
-            , since ~version:(2, 1)
-                (Macro.Lib { lib_exec = true; lib_private = true }) )
-          ; ("lib-available", macro Lib_available)
-          ; ("version", macro Version)
-          ; ("read", macro Read)
-          ; ("read-lines", macro Read_lines)
-          ; ("read-strings", macro Read_strings)
-          ; ("dep", since ~version:(1, 0) Macro.Dep)
-          ; ("path", renamed_in ~version:(1, 0) ~new_name:"dep" Macro.Dep)
-          ; ( "findlib"
-            , renamed_in ~version:(1, 0) ~new_name:"lib"
-                (Macro.Lib { lib_exec = false; lib_private = false }) )
-          ; ("path-no-dep", deleted_in ~version:(1, 0) Macro.Path_no_dep)
-          ; ("ocaml-config", macro Ocaml_config)
-          ; ("env", since ~version:(1, 4) Macro.Env)
-          ]
-        @ List.map ~f:artifact Artifact.all )
+        ([ ("exe", macro Exe)
+         ; ("bin", macro Bin)
+         ; ("lib", macro (Lib { lib_exec = false; lib_private = false }))
+         ; ("libexec", macro (Lib { lib_exec = true; lib_private = false }))
+         ; ( "lib-private"
+           , since ~version:(2, 1)
+               (Macro.Lib { lib_exec = false; lib_private = true }) )
+         ; ( "libexec-private"
+           , since ~version:(2, 1)
+               (Macro.Lib { lib_exec = true; lib_private = true }) )
+         ; ("lib-available", macro Lib_available)
+         ; ("version", macro Version)
+         ; ("read", macro Read)
+         ; ("read-lines", macro Read_lines)
+         ; ("read-strings", macro Read_strings)
+         ; ("dep", since ~version:(1, 0) Macro.Dep)
+         ; ("path", renamed_in ~version:(1, 0) ~new_name:"dep" Macro.Dep)
+         ; ( "findlib"
+           , renamed_in ~version:(1, 0) ~new_name:"lib"
+               (Macro.Lib { lib_exec = false; lib_private = false }) )
+         ; ("path-no-dep", deleted_in ~version:(1, 0) Macro.Path_no_dep)
+         ; ("ocaml-config", macro Ocaml_config)
+         ; ("env", since ~version:(1, 4) Macro.Env)
+         ]
+        @ List.map ~f:artifact Artifact.all)
     in
     let vars =
       let lowercased : (string * Var.t With_versioning_info.t) list =
@@ -509,7 +509,7 @@ module Env = struct
           v
         else
           Dune_lang.Syntax.Error.deleted_in (P.loc pform) Stanza.syntax
-            in_version ~what:(P.describe pform) ~repl )
+            in_version ~what:(P.describe pform) ~repl)
 
   let parse t (pform : Dune_lang.Template.Pform.t) =
     match pform.payload with

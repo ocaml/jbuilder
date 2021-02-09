@@ -79,7 +79,7 @@ let gen_lib pub_name lib ~path ~version =
       | Dot (p, "runtime-lib") ->
         sprintf "Runtime library for %s" (Pub_name.to_string p)
       | Dot (p, "expander") -> sprintf "Expander for %s" (Pub_name.to_string p)
-      | _ -> "" )
+      | _ -> "")
   in
   let preds =
     match kind with
@@ -94,15 +94,15 @@ let gen_lib pub_name lib ~path ~version =
     [ version
     ; [ description desc; requires ~preds lib_deps ]
     ; archives ~preds lib
-    ; ( if Lib_name.Set.is_empty ppx_rt_deps then
+    ; (if Lib_name.Set.is_empty ppx_rt_deps then
         []
       else
         [ Comment
             "This is what dune uses to find out the runtime dependencies of"
         ; Comment "a preprocessor"
         ; ppx_runtime_deps ppx_rt_deps
-        ] )
-    ; ( match kind with
+        ])
+    ; (match kind with
       | Normal -> []
       | Ppx_rewriter _
       | Ppx_deriver _ ->
@@ -117,7 +117,7 @@ let gen_lib pub_name lib ~path ~version =
             ; requires ~preds:[ no_ppx_driver ]
                 (Lib.Meta.ppx_runtime_deps_for_deprecated_method lib)
             ]
-          ; ( match kind with
+          ; (match kind with
             | Normal -> assert false
             | Ppx_rewriter _ ->
               [ rule "ppx"
@@ -134,19 +134,19 @@ let gen_lib pub_name lib ~path ~version =
                   Set
                   ("ppx_deriving,package:" ^ Pub_name.to_string pub_name)
               ; rule "library_kind" [] Set "ppx_deriver"
-              ] )
-          ] )
-    ; ( match Lib_info.jsoo_runtime info with
+              ])
+          ])
+    ; (match Lib_info.jsoo_runtime info with
       | [] -> []
       | l ->
         let root = Pub_name.root pub_name in
         let l = List.map l ~f:Path.basename in
         [ rule "linkopts" [ Pos "javascript" ] Set
-            ( List.map l
-                ~f:(sprintf "+%s/%s" (String.concat ~sep:"/" (root :: path)))
-            |> String.concat ~sep:" " )
+            (List.map l
+               ~f:(sprintf "+%s/%s" (String.concat ~sep:"/" (root :: path)))
+            |> String.concat ~sep:" ")
         ; rule "jsoo_runtime" [] Set (String.concat l ~sep:" ")
-        ] )
+        ])
     ]
 
 let gen ~(package : Package.t) ~add_directory_entry entries =
@@ -186,7 +186,7 @@ let gen ~(package : Package.t) ~add_directory_entry entries =
                 (pub_name, path)
               | _ -> (pub_name, path)
             in
-            (pub_name, gen_lib pub_name ~path (Lib.Local.to_lib lib) ~version) )
+            (pub_name, gen_lib pub_name ~path (Lib.Local.to_lib lib) ~version))
         | Deprecated_library_name
             { old_name = old_public_name, _
             ; new_public_name = _, new_public_name

@@ -41,7 +41,7 @@ module Token = struct
           match s.[j + 1] with
           | '{' -> cons_str i j (Open Braces :: loop (j + 2) (j + 2))
           | '(' -> cons_str i j (Open Parens :: loop (j + 2) (j + 2))
-          | _ -> loop i (j + 1) )
+          | _ -> loop i (j + 1))
         | _ -> loop i (j + 1)
     in
     loop 0 0
@@ -69,7 +69,7 @@ let rec of_tokens : Loc.t -> Token.t list -> part list =
     let s = Token.to_string token in
     match of_tokens loc rest with
     | Text s' :: l -> Text (s ^ s') :: l
-    | l -> Text s :: l )
+    | l -> Text s :: l)
 
 let parse ~loc s = of_tokens loc (Token.tokenise s)
 
@@ -170,14 +170,14 @@ let upgrade_to_dune s ~loc ~quoted ~allow_first_dep_var =
           User_error.raise ~loc:v.loc
             [ Pp.textf "this form is not allowed in dune files.%s" repl ]
       | Keep -> Some v.name
-      | Renamed_to new_name -> Some new_name )
+      | Renamed_to new_name -> Some new_name)
   in
   let map_part = function
     | Text s -> Dune_lang.Template.Text s
     | Var v -> (
       match map_var v with
       | None -> Text (string_of_var v)
-      | Some name -> Pform { name; payload = v.payload; loc = v.loc } )
+      | Some name -> Pform { name; payload = v.payload; loc = v.loc })
   in
   let parts = List.map (parse ~loc s) ~f:map_part in
   match

@@ -34,13 +34,13 @@ end = struct
   type 'a t = (module T with type a = 'a)
 
   let create (type a) (module I : Implicit_output with type t = a) : a t =
-    ( module struct
+    (module struct
       type nonrec a = a
 
       type _ w += W : a w
 
       include I
-    end )
+    end)
 
   let get (type a) (module T : T with type a = a) =
     (module T : Implicit_output with type t = a)
@@ -92,7 +92,7 @@ let produce (type o) (type_ : o t) (value : o) =
         "Implicit_output.produce called with a handler for a different output"
         [ ("type_handled", String (Witness.get_name H.type_))
         ; ("type_produced", String (Witness.get_name type_))
-        ] )
+        ])
 
 let produce_opt t v =
   match v with
@@ -103,13 +103,13 @@ let collect_async (type o) (type_ : o t) f =
   let output = ref None in
   Fiber.map
     (Fiber.Var.set current_handler
-       ( module struct
+       (module struct
          type nonrec o = o
 
          let type_ = type_
 
          let so_far = output
-       end )
+       end)
        f)
     ~f:(fun res -> (res, !output))
 
@@ -117,13 +117,13 @@ let collect_sync (type o) (type_ : o t) f =
   let output = ref None in
   let res =
     Fiber.Var.set_sync current_handler
-      ( module struct
+      (module struct
         type nonrec o = o
 
         let type_ = type_
 
         let so_far = output
-      end )
+      end)
       f
   in
   (res, !output)

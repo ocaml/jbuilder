@@ -20,7 +20,7 @@ let map_result : type a b. (a, b) failure_mode -> int -> f:(unit -> a) -> b =
   | Accept _ -> (
     match t with
     | 0 -> Ok (f ())
-    | n -> Error n )
+    | n -> Error n)
 
 module Io = struct
   type input = Input
@@ -248,9 +248,10 @@ module Fancy = struct
     | [] -> []
     | "-o" :: fn :: rest ->
       Pp.verbatim "-o"
-      :: Pp.tag
-           (User_message.Style.Ansi_styles Ansi_color.Style.[ bold; fg_green ])
-           (Pp.verbatim (String.quote_for_shell fn))
+      ::
+      Pp.tag
+        (User_message.Style.Ansi_styles Ansi_color.Style.[ bold; fg_green ])
+        (Pp.verbatim (String.quote_for_shell fn))
       :: colorize_args rest
     | x :: rest -> Pp.verbatim (String.quote_for_shell x) :: colorize_args rest
 
@@ -289,7 +290,7 @@ module Fancy = struct
           | Install (ctx, name) ->
             split_paths
               (("install " ^ Path.Source.to_string name) :: targets_acc)
-              (add_ctx ctx ctxs_acc) rest )
+              (add_ctx ctx ctxs_acc) rest)
       in
       let targets = Path.Build.Set.to_list targets in
       let target_names, contexts =
@@ -312,10 +313,10 @@ module Fancy = struct
         let open Pp.O in
         pp ++ Pp.char ' '
         ++ Pp.tag User_message.Style.Details
-             ( Pp.char '['
+             (Pp.char '['
              ++ Pp.concat_map l ~sep:(Pp.char ',') ~f:(fun ctx ->
                     Pp.verbatim (Context_name.to_string ctx))
-             ++ Pp.char ']' ) )
+             ++ Pp.char ']'))
 end
 
 let gen_id =
@@ -377,11 +378,12 @@ module Exit_status = struct
         | Signaled signame -> sprintf "got signal %s" signame
       in
       fail
-        ( Pp.tag User_message.Style.Kwd (Pp.verbatim "Command")
-          ++ Pp.space ++ pp_id id ++ Pp.space ++ Pp.text msg ++ Pp.char ':'
-        :: Pp.tag User_message.Style.Prompt (Pp.char '$')
-           ++ Pp.char ' ' ++ command_line
-        :: Option.to_list output )
+        (Pp.tag User_message.Style.Kwd (Pp.verbatim "Command")
+         ++ Pp.space ++ pp_id id ++ Pp.space ++ Pp.text msg ++ Pp.char ':'
+         ::
+         Pp.tag User_message.Style.Prompt (Pp.char '$')
+         ++ Pp.char ' ' ++ command_line
+         :: Option.to_list output)
 
   (* Check if the command output starts with a location, ignoring ansi escape
      sequences *)
@@ -396,8 +398,8 @@ module Exit_status = struct
         | '\027' -> (
           match String.index_from s pos 'm' with
           | None -> false
-          | Some pos -> loop s (pos + 1) len prefix )
-        | c' -> c = c' && loop s (pos + 1) len rest )
+          | Some pos -> loop s (pos + 1) len prefix)
+        | c' -> c = c' && loop s (pos + 1) len rest)
     in
     fun output ->
       loop output 0 (String.length output) [ 'F'; 'i'; 'l'; 'e'; ' ' ]
@@ -423,10 +425,10 @@ module Exit_status = struct
       then
         Console.print_user_message
           (User_message.make
-             ( if show_command then
+             (if show_command then
                progname_and_purpose Ok :: Option.to_list output
              else
-               Option.to_list output ));
+               Option.to_list output));
       n
     | Error err ->
       let msg =
@@ -439,10 +441,11 @@ module Exit_status = struct
         | Signaled signame -> sprintf "(got signal %s)" signame
       in
       fail
-        ( progname_and_purpose Error ++ Pp.char ' '
-          ++ Pp.tag User_message.Style.Error (Pp.verbatim msg)
-        :: Pp.tag User_message.Style.Details (Pp.verbatim command_line)
-        :: Option.to_list output )
+        (progname_and_purpose Error ++ Pp.char ' '
+         ++ Pp.tag User_message.Style.Error (Pp.verbatim msg)
+         ::
+         Pp.tag User_message.Style.Details (Pp.verbatim command_line)
+         :: Option.to_list output)
 end
 
 let default_env = lazy (Dtemp.add_to_env Env.initial)
@@ -615,4 +618,4 @@ let run_capture_line ?dir ?stderr_to ?stdin_from ?env ?(purpose = Internal_job)
             ; Pp.vbox
                 (Pp.concat_map l ~sep:Pp.cut ~f:(fun line ->
                      Pp.seq (Pp.verbatim "> ") (Pp.verbatim line)))
-            ] ))
+            ]))

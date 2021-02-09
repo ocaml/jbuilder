@@ -86,10 +86,10 @@ module For_shell = struct
 
   module rec Ast : Ast = Ast
 
-  include Action_ast.Make (String_with_sexp) (String_with_sexp)
-            (String_with_sexp)
-            (String_with_sexp)
-            (Ast)
+  include
+    Action_ast.Make (String_with_sexp) (String_with_sexp) (String_with_sexp)
+      (String_with_sexp)
+      (Ast)
 end
 
 module Relativise = Action_mapper.Make (Ast) (For_shell.Ast)
@@ -147,9 +147,10 @@ module Unresolved = struct
       ~f_path:(fun ~dir:_ x -> x)
       ~f_target:(fun ~dir:_ x -> x)
       ~f_string:(fun ~dir:_ x -> x)
-      ~f_program:(fun ~dir:_ -> function
-        | This p -> Ok p
-        | Search (loc, s) -> Ok (f loc s))
+      ~f_program:
+        (fun ~dir:_ -> function
+          | This p -> Ok p
+          | Search (loc, s) -> Ok (f loc s))
 end
 
 let fold_one_step t ~init:acc ~f =

@@ -187,7 +187,7 @@ module Partial = struct
       | Unexpanded tmpl ->
         let path = E.path ~expander x in
         check_mkdir (String_with_vars.loc tmpl) path;
-        Mkdir path )
+        Mkdir path)
     | Digest_files x -> Digest_files (List.map x ~f:(E.path ~expander))
     | Diff { optional; file1; file2; mode } ->
       Diff
@@ -265,7 +265,7 @@ let rec partial_expand t ~expander : Partial.t =
       User_error.raise ~loc
         [ Pp.text "This directory cannot be evaluated statically."
         ; Pp.text "This is not allowed by dune"
-        ] )
+        ])
   | Setenv (var, value, t) ->
     let var =
       match E.string ~expander var with
@@ -300,9 +300,9 @@ let rec partial_expand t ~expander : Partial.t =
   | Remove_tree x -> Remove_tree (E.target ~expander x)
   | Mkdir x ->
     let res = E.path ~expander x in
-    ( match res with
+    (match res with
     | Expanded path -> check_mkdir (String_with_vars.loc x) path
-    | Unexpanded _ -> () );
+    | Unexpanded _ -> ());
     Mkdir res
   | Digest_files x -> Digest_files (List.map x ~f:(E.path ~expander))
   | Diff { optional; file1; file2; mode } ->
@@ -488,27 +488,28 @@ end = struct
     end
   end
 
-  include Make (Action.Ast) (Sets) (Outcome)
-            (struct
-              let ( +@+ ) acc fn =
-                { acc with targets = Path.Build.Set.add acc.targets fn }
+  include
+    Make (Action.Ast) (Sets) (Outcome)
+      (struct
+        let ( +@+ ) acc fn =
+          { acc with targets = Path.Build.Set.add acc.targets fn }
 
-              let ( +< ) acc fn = { acc with deps = Path.Set.add acc.deps fn }
+        let ( +< ) acc fn = { acc with deps = Path.Set.add acc.deps fn }
 
-              let ( +<+ ) acc fn =
-                { acc with deps = Path.Set.add acc.deps (Path.build fn) }
+        let ( +<+ ) acc fn =
+          { acc with deps = Path.Set.add acc.deps (Path.build fn) }
 
-              let ( +<? ) acc fn =
-                { acc with deps_if_exist = Path.Set.add acc.deps_if_exist fn }
+        let ( +<? ) acc fn =
+          { acc with deps_if_exist = Path.Set.add acc.deps_if_exist fn }
 
-              let ( +<- ) acc fn =
-                { acc with targets = Path.Build.Set.remove acc.targets fn }
+        let ( +<- ) acc fn =
+          { acc with targets = Path.Build.Set.remove acc.targets fn }
 
-              let ( +<! ) acc prog =
-                match prog with
-                | Ok p -> acc +< p
-                | Error _ -> acc
-            end)
+        let ( +<! ) acc prog =
+          match prog with
+          | Ok p -> acc +< p
+          | Error _ -> acc
+      end)
 
   module Partial_with_all_targets =
     Make (Partial.Past) (Sets) (Outcome)
@@ -675,7 +676,7 @@ let add_deps_if_exist deps_if_exist =
 let expand t ~loc ~dep_kind ~targets_dir ~targets:targets_written_by_user
     ~expander deps_written_by_user =
   let open Action_builder.O in
-  ( match (targets_written_by_user : Targets.Or_forbidden.t) with
+  (match (targets_written_by_user : Targets.Or_forbidden.t) with
   | Targets _ -> ()
   | Forbidden context -> (
     match Infer.unexpanded_targets t with
@@ -683,8 +684,7 @@ let expand t ~loc ~dep_kind ~targets_dir ~targets:targets_written_by_user
     | x :: _ ->
       let loc = String_with_vars.loc x in
       User_error.raise ~loc
-        [ Pp.textf "%s must not have targets." (String.capitalize context) ] )
-  );
+        [ Pp.textf "%s must not have targets." (String.capitalize context) ]));
   let partially_expanded, fully_expanded =
     Expander.expand_action expander ~dep_kind ~deps_written_by_user
       ~targets_written_by_user

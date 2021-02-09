@@ -76,7 +76,7 @@ module Backend = struct
   let set t = main := t
 
   let compose (module A : S) (module B : S) =
-    ( module struct
+    (module struct
       let print_user_message msg =
         A.print_user_message msg;
         B.print_user_message msg
@@ -88,7 +88,7 @@ module Backend = struct
       let reset () =
         A.reset ();
         B.reset ()
-    end : S )
+    end : S)
 end
 
 let print_user_message msg =

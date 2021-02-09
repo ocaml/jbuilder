@@ -149,7 +149,7 @@ let modules_of_files ~dialects ~dir ~files =
                let module_ = make_module dialect name fn in
                match ml_kind with
                | Impl -> Left module_
-               | Intf -> Right module_ ) ))
+               | Intf -> Right module_)))
   in
   let parse_one_set (files : (Module_name.t * Module.File.t) list) =
     match Module_name.Map.of_list files with

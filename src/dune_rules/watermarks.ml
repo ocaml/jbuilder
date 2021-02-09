@@ -4,7 +4,7 @@ open Import
 open Fiber.O
 
 let is_a_source_file path =
-  ( match Path.extension path with
+  (match Path.extension path with
   | ".flv"
   | ".gif"
   | ".ico"
@@ -19,7 +19,7 @@ let is_a_source_file path =
   | ".ttf"
   | ".woff" ->
     false
-  | _ -> true )
+  | _ -> true)
   && Path.is_file path
 
 let subst_string s path ~map =
@@ -94,7 +94,7 @@ let subst_string s path ~map =
           loop (i + 1) acc
         | Some (Error msg) ->
           let loc = loc_of_offset ~ofs:start ~len:(i + 1 - start) in
-          User_error.raise ~loc [ Pp.text msg ] )
+          User_error.raise ~loc [ Pp.text msg ])
       | _ -> loop (i + 1) acc
   in
   match List.rev (loop 0 []) with
@@ -203,7 +203,7 @@ module Dune_project = struct
         in
         let ofs =
           ref
-            ( match t.name with
+            (match t.name with
             | Some { loc; _ } ->
               (* There is no [version] field but there is a [name] one, add the
                  version after it *)
@@ -211,7 +211,7 @@ module Dune_project = struct
             | None ->
               (* If all else fails, add the [version] field after the first line
                  of the file *)
-              0 )
+              0)
         in
         let len = String.length t.contents in
         while !ofs < len && t.contents.[!ofs] <> '\n' do

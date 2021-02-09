@@ -62,7 +62,7 @@ let both a b =
   | Ok a -> (
     match b with
     | Error e -> Error e
-    | Ok b -> Ok (a, b) )
+    | Ok b -> Ok (a, b))
 
 module O = struct
   let ( >>= ) t f = bind t ~f
@@ -122,9 +122,9 @@ end
 
 let hash h1 h2 t =
   Stdlib.Hashtbl.hash
-    ( match t with
+    (match t with
     | Ok s -> h1 s
-    | Error e -> h2 e )
+    | Error e -> h2 e)
 
 let equal e1 e2 x y =
   match (x, y) with

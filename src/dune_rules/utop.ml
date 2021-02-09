@@ -63,7 +63,7 @@ let libs_and_ppx_under_dir sctx ~db ~dir =
                 | Normal -> (lib :: acc, pps)
               else
                 (acc, pps)
-              (* external lib with a name matching our private name *) )
+              (* external lib with a name matching our private name *))
           | _ -> (acc, pps))))
   |> Option.value ~default:([], [])
 

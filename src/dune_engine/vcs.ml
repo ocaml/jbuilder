@@ -15,9 +15,9 @@ module Kind = struct
 
   let to_dyn t =
     Dyn.Variant
-      ( ( match t with
+      ( (match t with
         | Git -> "Git"
-        | Hg -> "Hg" )
+        | Hg -> "Hg")
       , [] )
 
   let equal = ( = )
@@ -54,23 +54,23 @@ include T
 let git, hg =
   let get prog =
     lazy
-      ( match Bin.which ~path:(Env.path Env.initial) prog with
+      (match Bin.which ~path:(Env.path Env.initial) prog with
       | Some x -> x
-      | None -> Utils.program_not_found prog ~loc:None )
+      | None -> Utils.program_not_found prog ~loc:None)
   in
   (get "git", get "hg")
 
 let select git hg t =
   Memo.Build.of_fiber
-    ( match t.kind with
+    (match t.kind with
     | Git -> git t
-    | Hg -> hg t )
+    | Hg -> hg t)
 
 let prog t =
   Lazy.force
-    ( match t.kind with
+    (match t.kind with
     | Git -> git
-    | Hg -> hg )
+    | Hg -> hg)
 
 let run t args =
   let open Fiber.O in
@@ -102,7 +102,7 @@ let hg_describe t =
       match int_of_string dist with
       | 1 -> s
       | n -> sprintf "%s-%d-%s" s (n - 1) id
-      | exception _ -> sprintf "%s-%s-%s" s dist id )
+      | exception _ -> sprintf "%s-%s-%s" s dist id)
   in
   s ^ dirty_suffix
 
@@ -139,10 +139,10 @@ let files =
   @@ make_fun "vcs-files" ~doc:"Return the files committed in the repo"
        ~output:
          (Simple
-            ( module struct
+            (module struct
               type t = Path.t list
 
               let to_dyn = Dyn.Encoder.list Path.to_dyn
-            end ))
+            end))
        ~git:(f [ "ls-tree"; "-z"; "-r"; "--name-only"; "HEAD" ])
        ~hg:(f [ "files"; "-0" ])

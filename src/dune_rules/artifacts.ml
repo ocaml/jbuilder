@@ -22,8 +22,7 @@ module Bin = struct
         | None ->
           Error
             (let context = t.context.name in
-             Action.Prog.Not_found.create ~program:name ?hint ~context ~loc ())
-        )
+             Action.Prog.Not_found.create ~program:name ?hint ~context ~loc ()))
 
   let add_binaries t ~dir l =
     let local_bins =

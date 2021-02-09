@@ -7,8 +7,8 @@ let add_diff sctx loc alias ~dir ~input ~output =
   Super_context.add_alias_action sctx alias ~dir ~loc:(Some loc) ~locks:[]
     ~stamp:input
     (Action_builder.with_no_targets
-       ( Action_builder.paths [ input; Path.build output ]
-       >>> Action_builder.return action ))
+       (Action_builder.paths [ input; Path.build output ]
+       >>> Action_builder.return action))
 
 let rec subdirs_until_root dir =
   match Path.parent dir with
@@ -59,7 +59,7 @@ let gen_rules_output sctx (config : Format_config.t) ~version ~dialects
           | None -> (
             match Dialect.preprocess dialect kind with
             | None -> Dialect.format Dialect.ocaml kind
-            | Some _ -> None )
+            | Some _ -> None)
         in
         let src = Path.as_in_build_dir_exn input in
         let extra_deps =

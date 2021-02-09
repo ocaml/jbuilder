@@ -30,7 +30,7 @@ let parse_deps_exn ~file lines =
     | Some (basename, deps) ->
       let basename = Filename.basename basename in
       if basename <> Path.basename file then invalid ();
-      String.extract_blank_separated_words deps )
+      String.extract_blank_separated_words deps)
 
 let interpret_deps cctx ~unit deps =
   let dir = CC.dir cctx in

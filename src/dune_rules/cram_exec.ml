@@ -318,10 +318,10 @@ let compose_cram_output (cram_to_output : _ Cram_lexer.block list) =
         List.iteri command ~f:(fun i line ->
             let line =
               sprintf "%c %s"
-                ( if i = 0 then
+                (if i = 0 then
                   '$'
                 else
-                  '>' )
+                  '>')
                 line
             in
             add_line_prefixed_with_two_space line);
@@ -329,7 +329,7 @@ let compose_cram_output (cram_to_output : _ Cram_lexer.block list) =
         |> List.iter ~f:add_line_prefixed_with_two_space;
         match exit_code with
         | 0 -> ()
-        | n -> add_line_prefixed_with_two_space (sprintf "[%d]" n) ));
+        | n -> add_line_prefixed_with_two_space (sprintf "[%d]" n)));
   Buffer.contents buf
 
 let create_sh_script cram_stanzas ~temp_dir : sh_script Fiber.t =

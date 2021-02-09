@@ -50,10 +50,10 @@ let pp_file_colon_line t = Pp.verbatim (to_file_colon_line t)
 let pp_left_pad n s =
   let needed_spaces = n - String.length s in
   Pp.verbatim
-    ( if needed_spaces > 0 then
+    (if needed_spaces > 0 then
       String.make needed_spaces ' ' ^ s
     else
-      s )
+      s)
 
 let pp_line padding_width (lnum, l) =
   let open Pp.O in
@@ -79,9 +79,9 @@ let pp_file_excerpt ~context_lines ~max_lines_to_print_in_full { start; stop } :
       let len = stop_c - start_c in
       let open Pp.O in
       Ok
-        ( pp_line padding_width (line_num_str, line)
+        (pp_line padding_width (line_num_str, line)
         ++ pp_left_pad (stop_c + padding_width + 3) (String.make len '^')
-        ++ Pp.newline )
+        ++ Pp.newline)
     else
       let get_padding lines =
         let lnum, _ = Option.value_exn (List.last lines) in

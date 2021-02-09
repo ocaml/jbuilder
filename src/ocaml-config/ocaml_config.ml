@@ -316,7 +316,7 @@ module Vars = struct
             , String.drop line (i + 2) (* skipping the space *) )
           in
           loop (x :: acc) lines
-        | None -> Error (Printf.sprintf "Unrecognized line: %S" line) )
+        | None -> Error (Printf.sprintf "Unrecognized line: %S" line))
     in
     let* vars = loop [] lines in
     Result.map_error (String.Map.of_list vars) ~f:(fun (var, _, _) ->
@@ -355,7 +355,7 @@ module Vars = struct
         match s with
         | "true" -> true
         | "false" -> false
-        | s -> fail "Value of %S is neither 'true' neither 'false': %s." var s )
+        | s -> fail "Value of %S is neither 'true' neither 'false': %s." var s)
 
     let get_int_opt t var =
       Option.bind (get_opt t var) ~f:(fun s ->
@@ -399,7 +399,7 @@ let get_arch_sixtyfour stdlib_dir =
         | line -> (
           match String.extract_blank_separated_words line with
           | [ "#define"; "ARCH_SIXTYFOUR" ] -> true
-          | _ -> loop ic )
+          | _ -> loop ic)
       in
       Exn.protectx (open_in file) ~finally:close_in ~f:loop
     else

@@ -228,12 +228,12 @@ end = struct
   let t =
     (* This [lazy] is safe: it does not call any memoized functions. *)
     lazy
-      ( match P.load file with
+      (match P.load file with
       | Some t -> t
       (* This mutable table is safe: it's only used by [execute_rule_impl] to
          decide whether to rebuild a rule or not; [execute_rule_impl] ensures
          that the targets are produced deterministically. *)
-      | None -> Path.Table.create 1024 )
+      | None -> Path.Table.create 1024)
 
   let dump () =
     if !needs_dumping && Path.build_dir_exists () then (
@@ -397,11 +397,11 @@ let set_vcs vcs =
       match with_repositories with
       | Result.Ok cache ->
         let cache =
-          ( module struct
+          (module struct
             let cache = cache
 
             module Cache = Caching.Cache
-          end : Cache.Caching )
+          end : Cache.Caching)
         in
         Some { caching with cache }
       | Result.Error e ->
@@ -428,7 +428,7 @@ let get_dir_triage t ~dir =
   | External _ ->
     Dir_triage.Known
       (Non_build
-         ( match Path.readdir_unsorted dir with
+         (match Path.readdir_unsorted dir with
          | Error Unix.ENOENT -> Path.Set.empty
          | Error m ->
            User_warning.emit
@@ -436,15 +436,15 @@ let get_dir_triage t ~dir =
              ; Pp.textf "Reason: %s" (Unix.error_message m)
              ];
            Path.Set.empty
-         | Ok filenames -> Path.Set.of_listing ~dir ~filenames ))
+         | Ok filenames -> Path.Set.of_listing ~dir ~filenames))
   | Build (Regular Root) ->
     let allowed_subdirs =
       Subdir_set.to_dir_set
         (Subdir_set.of_list
-           ( ( [ Dpath.Build.alias_dir; Dpath.Build.install_dir ]
-             |> List.map ~f:Path.Build.basename )
-           @ ( Context_name.Map.keys t.contexts
-             |> List.map ~f:Context_name.to_string ) ))
+           (([ Dpath.Build.alias_dir; Dpath.Build.install_dir ]
+            |> List.map ~f:Path.Build.basename)
+           @ (Context_name.Map.keys t.contexts
+             |> List.map ~f:Context_name.to_string)))
     in
     Dir_triage.Known (Loaded.no_rules ~allowed_subdirs)
   | Build (Install Root) ->
@@ -497,13 +497,13 @@ let report_rule_conflict fn (rule' : Rule.t) (rule : Rule.t) =
     ; Pp.textf "- %s" (describe_rule rule)
     ]
     ~hints:
-      ( match (rule.info, rule'.info) with
+      (match (rule.info, rule'.info) with
       | Source_file_copy, _
       | _, Source_file_copy ->
         [ Pp.textf "rm -f %s"
             (Path.to_string_maybe_quoted (Path.drop_optional_build_context fn))
         ]
-      | _ -> [] )
+      | _ -> [])
 
 (* This contains the targets of the actions that are being executed. On exit, we
    need to delete them as they might contain garbage *)
@@ -588,7 +588,7 @@ let remove_old_artifacts ~dir ~rules_here ~(subdirs_to_keep : Subdir_set.t) =
             match subdirs_to_keep with
             | All -> ()
             | These set ->
-              if not (String.Set.mem set fn) then Path.rm_rf (Path.build path) )
+              if not (String.Set.mem set fn) then Path.rm_rf (Path.build path))
           | _ -> Path.unlink (Path.build path))
 
 let no_rule_found t ~loc fn =
@@ -685,7 +685,7 @@ end = struct
     | Build { rules_here; _ } -> (
       match Path.as_in_build_dir fn with
       | None -> false
-      | Some fn -> Path.Build.Map.mem rules_here fn )
+      | Some fn -> Path.Build.Map.mem rules_here fn)
 
   let targets_of ~dir =
     match load_dir ~dir with
@@ -731,7 +731,7 @@ end = struct
                      in
                      Path.Set.empty)
                 ; actions = Appendable_list.empty
-                } )
+                })
       in
       Alias.Name.Map.foldi aliases ~init:[]
         ~f:(fun
@@ -981,17 +981,17 @@ end = struct
     in
     (* Compile the rules and cleanup stale artifacts *)
     let rules =
-      ( match to_copy with
+      (match to_copy with
       | None -> []
       | Some (ctx_dir, source_files) ->
-        create_copy_rules ~ctx_dir ~non_target_source_files:source_files )
+        create_copy_rules ~ctx_dir ~non_target_source_files:source_files)
       @ rules
     in
     let rules_here = compile_rules ~dir ~source_dirs rules in
     let allowed_by_parent =
       Generated_directory_restrictions.allowed_by_parent ~dir
     in
-    ( match allowed_by_parent with
+    (match allowed_by_parent with
     | Unrestricted -> ()
     | Restricted restriction -> (
       match Path.Build.Map.find (Rules.to_map rules_produced) dir with
@@ -1002,7 +1002,7 @@ end = struct
             "Generated rules in a directory not allowed by the parent"
             [ ("dir", Path.Build.to_dyn dir)
             ; ("rules", Rules.Dir_rules.to_dyn rules)
-            ] ) );
+            ]));
     let rules_generated_in =
       Rules.to_map rules_produced
       |> Path.Build.Map.foldi ~init:Dir_set.empty ~f:(fun p _ acc ->
@@ -1049,16 +1049,16 @@ end = struct
       match load_dir ~dir:(Path.build dir') with
       | Non_build _ -> Code_error.raise "Can only forward to a build dir" []
       | Build
-          ( { rules_here = _
-            ; rules_of_alias_dir
-            ; rules_produced = _
-            ; allowed_subdirs = _
-            } as load ) ->
+          ({ rules_here = _
+           ; rules_of_alias_dir
+           ; rules_produced = _
+           ; allowed_subdirs = _
+           } as load) ->
         Loaded.Build
           { load with
             rules_here = rules_of_alias_dir
           ; rules_of_alias_dir = Path.Build.Map.empty
-          } )
+          })
 
   let load_dir =
     let load_dir_impl dir = load_dir_impl (t ()) ~dir in
@@ -1121,8 +1121,8 @@ let all_targets t =
           | Non_build _ -> acc
           | Build { rules_here; rules_of_alias_dir; _ } ->
             List.fold_left ~init:acc ~f:Path.Build.Set.add
-              ( Path.Build.Map.keys rules_of_alias_dir
-              @ Path.Build.Map.keys rules_here )))
+              (Path.Build.Map.keys rules_of_alias_dir
+              @ Path.Build.Map.keys rules_here)))
 
 module type Rec = sig
   val build_file : Path.t -> unit Memo.Build.t
@@ -1258,17 +1258,17 @@ end = struct
         | Some Symlink ->
           if Sandbox_mode.Set.mem config Sandbox_mode.copy then
             Some
-              ( if Sys.win32 then
+              (if Sys.win32 then
                 Sandbox_mode.copy
               else
-                Sandbox_mode.symlink )
+                Sandbox_mode.symlink)
           else
             User_error.raise ~loc
               [ Pp.text
                   "This rule requires sandboxing with symlinks, but that won't \
                    work on Windows."
               ]
-        | _ -> Some preference )
+        | _ -> Some preference)
     in
     match
       List.find_map sandboxing_preference ~f:evaluate_sandboxing_preference
@@ -1297,7 +1297,7 @@ end = struct
     | exception Unix.Unix_error ((ENOENT | ENOTDIR), _, _) -> (
       match Unix.unlink dst with
       | exception Unix.Unix_error (ENOENT, _, _) -> ()
-      | () -> () )
+      | () -> ())
 
   (* The current version of the rule digest scheme. We should increment it when
      making any changes to the scheme, to avoid collisions. *)
@@ -1397,7 +1397,7 @@ end = struct
               match compute_targets_digest targets with
               | None -> true
               | Some targets_digest ->
-                prev_trace.targets_digest <> targets_digest )
+                prev_trace.targets_digest <> targets_digest)
           in
           if rule_or_targets_changed then
             Fiber.return true
@@ -1449,7 +1449,7 @@ end = struct
                       (Digest.to_string rule_digest)
                       msg
                   ];
-                None )
+                None)
           and cache_checking =
             match t.caching with
             | Some { check_probability; _ } ->
@@ -1490,7 +1490,7 @@ end = struct
               | exception Sys_error m ->
                 Log.info [ Pp.textf "error retrieving data file: %s" m ];
                 false
-              | () -> true )
+              | () -> true)
             | _ -> false
           in
           if pulled_from_cache then
@@ -1557,7 +1557,7 @@ end = struct
                   let open Pp.O in
                   let pp x l ~f =
                     Pp.box ~indent:2
-                      ( Pp.verbatim x
+                      (Pp.verbatim x
                       ++ Dyn.pp
                            (Dyn.Encoder.list Path.Build.to_dyn (List.map l ~f))
                       )
@@ -1683,7 +1683,7 @@ end = struct
                      the source tree to be writable by the user, so we
                      explicitly set the user writable bit. *)
                   let chmod n = n lor 0o200 in
-                  t.promote_source ~src:path ~dst ~chmod context ))
+                  t.promote_source ~src:path ~dst ~chmod context))
       in
       t.rule_done <- t.rule_done + 1)
 
@@ -2017,11 +2017,11 @@ let init ~contexts ~promote_source ?caching ~sandboxing_preference () =
     let open Result.O in
     let res =
       let+ cache = Caching.Cache.set_build_dir Caching.cache Path.build_dir in
-      ( module struct
+      (module struct
         module Cache = Caching.Cache
 
         let cache = cache
-      end : Cache.Caching )
+      end : Cache.Caching)
     in
     match res with
     | Result.Ok cache -> Some { v with cache }

@@ -18,7 +18,7 @@ let filter_map l ~f =
     | x :: xs -> (
       match f x with
       | None -> loop acc xs
-      | Some x -> loop (x :: acc) xs )
+      | Some x -> loop (x :: acc) xs)
   in
   loop [] l
 
@@ -51,7 +51,7 @@ let rev_partition_map =
     | x :: l -> (
       match (f x : (_, _) Either.t) with
       | Left y -> loop l (y :: accl) accr ~f
-      | Right y -> loop l accl (y :: accr) ~f )
+      | Right y -> loop l accl (y :: accr) ~f)
   in
   fun l ~f -> loop l [] [] ~f
 
@@ -72,7 +72,7 @@ let rev_filter_partition_map =
       match f x with
       | Skip -> loop l accl accr ~f
       | Left y -> loop l (y :: accl) accr ~f
-      | Right y -> loop l accl (y :: accr) ~f )
+      | Right y -> loop l accl (y :: accr) ~f)
   in
   fun l ~f -> loop l [] [] ~f
 
@@ -86,7 +86,7 @@ let rec find_map l ~f =
   | x :: l -> (
     match f x with
     | None -> find_map l ~f
-    | Some _ as res -> res )
+    | Some _ as res -> res)
 
 let findi l ~f =
   let rec findi acc l ~f =
@@ -143,7 +143,7 @@ let rec compare a b ~compare:f : Ordering.t =
   | x :: a, y :: b -> (
     match (f x y : Ordering.t) with
     | Eq -> compare a b ~compare:f
-    | ne -> ne )
+    | ne -> ne)
 
 let rec assoc t x =
   match t with

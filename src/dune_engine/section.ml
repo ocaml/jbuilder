@@ -101,15 +101,16 @@ Stringlike.Make (struct
     | "" -> false
     | s -> (
       try
-        ( match s.[0] with
+        (match s.[0] with
         | 'A' .. 'Z'
         | 'a' .. 'z' ->
           ()
-        | _ -> raise_notrace Exit );
+        | _ -> raise_notrace Exit);
         String.iter s ~f:(fun c ->
             if not (valid_char c) then raise_notrace Exit);
         true
-      with Exit -> false )
+      with
+      | Exit -> false)
 
   let of_string_opt s =
     if is_valid_module_name s then
@@ -140,7 +141,7 @@ module Site = struct
 
       include T
     end) :
-      Stringlike_intf.S with type t := t )
+      Stringlike_intf.S with type t := t)
 
   module Infix = Comparator.Operators (T)
 end

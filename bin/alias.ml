@@ -10,10 +10,10 @@ type t =
 let pp { name; recursive; dir; contexts = _ } =
   let open Pp.O in
   let s =
-    ( if recursive then
+    (if recursive then
       "@"
     else
-      "@@" )
+      "@@")
     ^ Path.Source.to_string
         (Path.Source.relative dir (Dune_engine.Alias.Name.to_string name))
   in

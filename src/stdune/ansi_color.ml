@@ -85,10 +85,10 @@ end
 
 let term_supports_color =
   lazy
-    ( match Stdlib.Sys.getenv "TERM" with
+    (match Stdlib.Sys.getenv "TERM" with
     | exception Not_found -> false
     | "dumb" -> false
-    | _ -> true )
+    | _ -> true)
 
 let stdout_supports_color =
   lazy (Lazy.force term_supports_color && Unix.isatty Unix.stdout)
@@ -105,10 +105,10 @@ let rec tag_handler current_styles ppf styles pp =
 let make_printer supports_color ppf =
   let f =
     lazy
-      ( if Lazy.force supports_color then
+      (if Lazy.force supports_color then
         Pp.to_fmt_with_tags ppf ~tag_handler:(tag_handler [])
       else
-        Pp.to_fmt ppf )
+        Pp.to_fmt ppf)
   in
   Staged.stage (fun pp ->
       Lazy.force f pp;
@@ -183,7 +183,7 @@ let parse_line str styles =
                      | _ -> s :: styles)
               |> List.rev
           in
-          loop styles (seq_end + 1) acc )
+          loop styles (seq_end + 1) acc)
   in
   loop styles 0 Pp.nop
 

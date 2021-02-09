@@ -94,10 +94,10 @@ let () =
     (runf "%s %s -w -24 -g -o %s -I boot unix.cma %s" compiler
        (* Make sure to produce a self-contained binary as dlls tend to cause
           issues *)
-       ( if v < (4, 10, 1) then
+       (if v < (4, 10, 1) then
          "-custom"
        else
-         "-output-complete-exe" )
+         "-output-complete-exe")
        prog
        (List.map modules ~f:(fun m -> m ^ ".ml") |> String.concat ~sep:" "));
   let args = Array.to_list (Array.sub Sys.argv 1 (Array.length Sys.argv - 1)) in

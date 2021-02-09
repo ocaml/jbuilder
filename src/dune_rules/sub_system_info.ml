@@ -47,7 +47,7 @@ module Register (M : S) : sig end = struct
           | None -> p acc
           | Some x ->
             let acc = Sub_system_name.Map.set acc name (T x) in
-            p acc )
+            p acc)
 end
 
 let record_parser () = !record_parser Sub_system_name.Map.empty

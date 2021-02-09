@@ -104,9 +104,9 @@ let eval_foreign_stubs (d : _ Dir_with_dune.t) foreign_stubs
           User_error.raise ~loc
             [ Pp.textf "Object %S has no source; %s must be present." name
                 (String.enumerate_one_of
-                   ( Foreign.possible_sources ~language name
-                       ~dune_version:d.dune_version
-                   |> List.map ~f:(fun s -> sprintf "%S" s) ))
+                   (Foreign.possible_sources ~language name
+                      ~dune_version:d.dune_version
+                   |> List.map ~f:(fun s -> sprintf "%S" s)))
             ])
   in
   let stub_maps = List.map foreign_stubs ~f:eval in

@@ -24,7 +24,7 @@ let linkages (ctx : Context.t) ~(exes : Executables.t) ~explicit_js_mode =
         else
           match L.Map.find exes.modes L.byte with
           | Some loc -> add_if_not_already_present exes.modes L.js loc
-          | None -> exes.modes )
+          | None -> exes.modes)
     in
     L.Map.to_list modes
     |> List.filter_map ~f:(fun ((mode : L.t), loc) ->

@@ -72,7 +72,7 @@ module Parse = struct
             ]
         | _ when s.[0] = ':' ->
           User_error.raise ~loc [ Pp.textf "undefined symbol %s" s ]
-        | _ -> elt )
+        | _ -> elt)
       | List (_, Atom (loc, A s) :: _) -> (
         match s with
         | ":include" -> inc
@@ -82,7 +82,7 @@ module Parse = struct
                 "This atom must be quoted because it is the first element of a \
                  list and doesn't start with - or:"
             ]
-        | _ -> enter (many []) )
+        | _ -> enter (many []))
       | List _ -> enter (many [])
     and many acc =
       peek >>= function

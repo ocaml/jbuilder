@@ -58,7 +58,7 @@ let rule_kind ~(rule : Rule.t)
   | Some alias -> (
     match action.targets |> Path.Build.Set.choose with
     | None -> Alias_only alias
-    | Some target -> Alias_with_targets (alias, target) )
+    | Some target -> Alias_with_targets (alias, target))
 
 let add_user_rule sctx ~dir ~(rule : Rule.t) ~action ~expander =
   SC.add_rule_get_targets
@@ -83,20 +83,20 @@ let user_rule sctx ?extra_bindings ~dir ~expander (rule : Rule.t) =
   | true -> (
     let targets : Targets.Or_forbidden.t =
       Targets
-        ( match rule.targets with
+        (match rule.targets with
         | Infer -> Infer
         | Static { targets; multiplicity } ->
           let targets =
             List.concat_map targets ~f:(fun target ->
                 let error_loc = String_with_vars.loc target in
-                ( match multiplicity with
+                (match multiplicity with
                 | One ->
                   [ Expander.expand expander ~mode:Single ~template:target ]
                 | Multiple ->
-                  Expander.expand expander ~mode:Many ~template:target )
+                  Expander.expand expander ~mode:Many ~template:target)
                 |> List.map ~f:(check_filename ~dir ~error_loc))
           in
-          Static { multiplicity; targets } )
+          Static { multiplicity; targets })
     in
     let expander =
       match extra_bindings with
@@ -125,7 +125,7 @@ let user_rule sctx ?extra_bindings ~dir ~expander (rule : Rule.t) =
       in
       let locks = interpret_locks ~expander rule.locks in
       Alias_rules.add sctx ~alias ~stamp ~loc:(Some rule.loc) action ~locks;
-      Path.Build.Set.empty )
+      Path.Build.Set.empty)
 
 let copy_files sctx ~dir ~expander ~src_dir (def : Copy_files.t) =
   let loc = String_with_vars.loc def.files in
@@ -184,10 +184,10 @@ let copy_files sctx ~dir ~expander ~src_dir (def : Copy_files.t) =
         let basename = Path.basename file_src in
         let file_dst = Path.Build.relative dir basename in
         SC.add_rule sctx ~loc ~dir ~mode:def.mode
-          (( if def.add_line_directive then
+          ((if def.add_line_directive then
              Action_builder.copy_and_add_line_directive
            else
-             Action_builder.copy )
+             Action_builder.copy)
              ~src:file_src ~dst:file_dst);
         Path.build file_dst)
   in

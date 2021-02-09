@@ -31,14 +31,14 @@ end
 
 let create (type key value) (module Key : Key with type t = key) size :
     (key, value) t =
-  ( module struct
+  (module struct
     module Key = Key
     module H = Hashtbl.Make (Key)
 
     type nonrec value = value
 
     let value = H.create size
-  end )
+  end)
 
 let find (type input output) ((module T) : (input, output) t) x =
   T.H.find T.value x

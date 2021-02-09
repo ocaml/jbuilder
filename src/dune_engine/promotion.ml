@@ -43,7 +43,7 @@ module File = struct
     let correction_exists = Path.exists (Path.build correction_file) in
     Console.print
       [ Pp.box ~indent:2
-          ( if correction_exists then
+          (if correction_exists then
             Pp.textf "Promoting %s to %s."
               (Path.to_string_maybe_quoted (Path.build src))
               (Path.Source.to_string_maybe_quoted dst)
@@ -51,11 +51,11 @@ module File = struct
             Pp.textf "Skipping promotion of %s to %s as the %s is missing."
               (Path.to_string_maybe_quoted (Path.build src))
               (Path.Source.to_string_maybe_quoted dst)
-              ( match staging with
+              (match staging with
               | None -> "file"
               | Some staging ->
                 Format.sprintf "staging file (%s)"
-                  (Path.to_string_maybe_quoted (Path.build staging)) ) )
+                  (Path.to_string_maybe_quoted (Path.build staging))))
       ];
     if correction_exists then
       let chmod perms = perms lor 0o200 in

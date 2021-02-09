@@ -57,12 +57,12 @@ end = struct
 
   let rec restrict (dirs : Path.Local.w Dir_set.t) t : _ t =
     { rules_here =
-        ( if Dir_set.here dirs then
+        (if Dir_set.here dirs then
           Memo.Lazy.bind t ~f:(fun t -> t.rules_here)
         else
-          Memo.Lazy.of_val None )
+          Memo.Lazy.of_val None)
     ; by_child =
-        ( match Dir_set.default dirs with
+        (match Dir_set.default dirs with
         | true ->
           (* This is forcing the lazy potentially too early if the directory the
              user is interested in is not actually in the set. We're not fully
@@ -73,8 +73,7 @@ end = struct
           String.Map.mapi (Dir_set.exceptions dirs) ~f:(fun dir v ->
               Memo.lazy_ (fun () ->
                   restrict v
-                    (Memo.lazy_ (fun () -> descend (Memo.Lazy.force t) dir))))
-        )
+                    (Memo.lazy_ (fun () -> descend (Memo.Lazy.force t) dir)))))
     }
 
   let restrict dirs t = restrict (Dir_set.forget_root dirs) t
@@ -125,14 +124,13 @@ let evaluate ~union_rules =
         List.filter (Path.Build.Map.keys rules) ~f:(fun p ->
             not (Dir_set.mem env p))
       in
-      ( match violations with
+      (match violations with
       | [] -> ()
       | _ :: _ ->
         Code_error.raise
           "Scheme attempted to generate rules in a directory it promised not \
            to touch"
-          [ ("directories", (Dyn.Encoder.list Path.Build.to_dyn) violations) ]
-      );
+          [ ("directories", (Dyn.Encoder.list Path.Build.to_dyn) violations) ]);
       Evaluated.finite ~union_rules rules
     | Thunk f -> loop ~env (f ())
   in

@@ -22,9 +22,9 @@ let dyn_of_t =
 
 let name t =
   String.drop_suffix ~suffix:".t"
-    ( match t with
+    (match t with
     | File file -> Path.Source.basename file
-    | Dir { file = _; dir } -> Path.Source.basename dir )
+    | Dir { file = _; dir } -> Path.Source.basename dir)
   |> Option.value_exn
 
 let script t =

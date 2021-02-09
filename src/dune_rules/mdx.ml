@@ -196,8 +196,8 @@ let gen_rules_for_single_file stanza ~sctx ~dir ~expander ~mdx_prog src =
     Action_builder.(with_no_targets (Dep_conf_eval.unnamed ~expander pkg_deps))
     >>> Action_builder.with_no_targets (Action_builder.dyn_deps dyn_deps)
     >>> Command.run ~dir:(Path.build dir) mdx_prog
-          ( [ Command.Args.A "test" ] @ prelude_args
-          @ [ A "-o"; Target files.corrected; Dep (Path.build files.src) ] )
+          ([ Command.Args.A "test" ] @ prelude_args
+          @ [ A "-o"; Target files.corrected; Dep (Path.build files.src) ])
   in
   Super_context.add_rule sctx ~loc ~dir mdx_action;
   (* Attach the diff action to the @runtest for the src and corrected files *)

@@ -47,7 +47,7 @@ module Dependency = struct
         -> (
         match String.compare path1 path2 with
         | Eq -> String.compare glob1 glob2
-        | not_eq -> not_eq )
+        | not_eq -> not_eq)
 
     let to_dyn _ = Dyn.opaque
   end
@@ -189,7 +189,7 @@ module Context = struct
               { response_fn = greeting.response_fn
               ; prepared_dependencies
               ; targets
-              } ) ) )
+              })))
 
   let prepared_dependencies (t : t) = t.prepared_dependencies
 

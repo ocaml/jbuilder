@@ -39,7 +39,7 @@ module Name = struct
         else
           Some (make s)
     end) :
-      Stringlike_intf.S with type t := t )
+      Stringlike_intf.S with type t := t)
 
   let of_opam_file_basename basename =
     let open Option.O in
@@ -313,9 +313,9 @@ module Source_kind = struct
                      [ Pp.textf "%s repository must be of form user/repo" name ]
                in
                let open Dune_lang.Decoder in
-               ( match since with
+               (match since with
                | None -> return ()
-               | Some v -> Dune_lang.Syntax.since Stanza.syntax v )
+               | Some v -> Dune_lang.Syntax.since Stanza.syntax v)
                >>> plain_string of_string
              in
              let constr = to_string kind in

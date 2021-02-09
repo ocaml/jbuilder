@@ -119,14 +119,14 @@ module File = struct
             ; Pp.nop
             ; Pp.text "Pre-existing stanza:"
             ; pp b
-            ] )
+            ])
   end
 
   (* Stanza *)
 
   let create_dir path =
-    try Path.mkdir_p path
-    with Unix.Unix_error (EACCES, _, _) ->
+    try Path.mkdir_p path with
+    | Unix.Unix_error (EACCES, _, _) ->
       User_error.raise
         [ Pp.textf
             "A project directory cannot be created or accessed: Lacking \
@@ -305,13 +305,14 @@ module Component = struct
 
       let common (options : Options.Common.t) =
         name options.name
-        :: ( optional_field ~f:libraries options.libraries
-           @ optional_field ~f:pps options.pps )
+        ::
+        (optional_field ~f:libraries options.libraries
+        @ optional_field ~f:pps options.pps)
     end
 
     let make kind common_options fields =
       (* Form the AST *)
-      List ((atom kind :: fields) @ Field.common common_options)
+      List (atom kind :: fields @ Field.common common_options)
       (* Convert to a CST *)
       |> Dune_lang.Ast.add_loc ~loc:Loc.none
       |> Cst.concrete (* Package as a list CSTs *) |> List.singleton

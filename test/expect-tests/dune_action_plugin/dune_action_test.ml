@@ -3,8 +3,8 @@ module Glob = Dune_glob.V1
 module Private = Dune_action_plugin.Private
 
 let%expect_test _ =
-  try ignore @@ Path.of_string "/some/absolute/path"
-  with Invalid_argument message ->
+  try ignore @@ Path.of_string "/some/absolute/path" with
+  | Invalid_argument message ->
     print_endline message;
     [%expect
       {| Path "/some/absolute/path" is absolute. All paths used with dune-action-plugin must be relative. |}]
@@ -41,7 +41,8 @@ let run_action_expect_throws action =
   try
     Private.do_run action;
     print_endline "SHOULD BE UNREACHABLE"
-  with Private.Execution_error.E message -> print_endline message
+  with
+  | Private.Execution_error.E message -> print_endline message
 
 let%expect_test _ =
   let action =

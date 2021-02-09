@@ -24,7 +24,7 @@ module Includes = struct
           (Command.Args.S
              [ iflags Native
              ; Hidden_deps
-                 ( if opaque then
+                 (if opaque then
                    List.map libs ~f:(fun lib ->
                        ( lib
                        , if Lib.is_local lib then
@@ -34,7 +34,7 @@ module Includes = struct
                    |> Lib_file_deps.deps_with_exts
                  else
                    Lib_file_deps.deps libs
-                     ~groups:[ Lib_file_deps.Group.Cmi; Cmx ] )
+                     ~groups:[ Lib_file_deps.Group.Cmi; Cmx ])
              ])
       in
       { cmi = cmi_includes; cmo = cmi_includes; cmx = cmx_includes }

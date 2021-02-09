@@ -1,6 +1,8 @@
 type t = float
 
-let of_string f = try Some (float_of_string f) with _ -> None
+let of_string f =
+  try Some (float_of_string f) with
+  | _ -> None
 
 let to_string = string_of_float
 

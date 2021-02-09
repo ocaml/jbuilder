@@ -4,7 +4,7 @@ type ('k, 'v) t =
   (module Store_intf.Instance with type key = 'k and type value = 'v)
 
 let make (type k v) (module S : Store_intf.S with type key = k) : (k, v) t =
-  ( module struct
+  (module struct
     type key = k
 
     type value = v
@@ -18,7 +18,7 @@ let make (type k v) (module S : Store_intf.S with type key = k) : (k, v) t =
     let find = S.find
 
     let clear = S.clear
-  end )
+  end)
 
 let clear (type k v) ((module S) : (k, v) t) = S.clear S.store
 
@@ -28,7 +28,7 @@ let find (type k v) ((module S) : (k, v) t) (k : k) : v option =
   S.find S.store k
 
 let of_table (type k v) (table : (k, v) Table.t) : (k, v) t =
-  ( module struct
+  (module struct
     type key = k
 
     type value = v
@@ -42,4 +42,4 @@ let of_table (type k v) (table : (k, v) Table.t) : (k, v) t =
     let find = Table.find
 
     let set = Table.set
-  end )
+  end)

@@ -180,17 +180,21 @@ let deduplicate cache (file : File.t) =
     let path_in_cache = file_path cache file.digest |> Path.to_string in
     let tmpname = Path.Build.to_string (Path.Build.of_string ".dedup") in
     cache.info [ Pp.textf "deduplicate %s from %s" path path_in_cache ];
-    let rm p = try Unix.unlink p with _ -> () in
+    let rm p =
+      try Unix.unlink p with
+      | _ -> ()
+    in
     try
       rm tmpname;
       Unix.link path_in_cache tmpname;
       Unix.rename tmpname path
-    with Unix.Unix_error (e, syscall, _) ->
+    with
+    | Unix.Unix_error (e, syscall, _) ->
       rm tmpname;
       cache.warn
         [ Pp.textf "error handling dune-cache command: %s: %s" syscall
             (Unix.error_message e)
-        ] )
+        ])
 
 let apply ~f o v =
   match o with
@@ -204,7 +208,7 @@ let promote_sync cache paths key metadata ~repository ~duplication =
     | Some idx -> (
       match List.nth cache.repositories idx with
       | None -> Result.Error (Printf.sprintf "repository out of range: %i" idx)
-      | repo -> Result.Ok repo )
+      | repo -> Result.Ok repo)
     | None -> Result.Ok None
   in
   let metadata =
@@ -300,12 +304,12 @@ let promote_sync cache paths key metadata ~repository ~duplication =
   Path.rename metadata_tmp_path metadata_path;
   (* The files that have already been present in the cache can be deduplicated,
      i.e. replaced with hardlinks to their cached copies. *)
-  ( match cache.duplication_mode with
+  (match cache.duplication_mode with
   | Copy -> ()
   | Hardlink ->
     List.iter promoted ~f:(function
       | Already_promoted file -> cache.command_handler (Dedup file)
-      | _ -> ()) );
+      | _ -> ()));
   (metadata_file, promoted)
 
 let promote cache paths key metadata ~repository ~duplication =
@@ -315,8 +319,8 @@ let promote cache paths key metadata ~repository ~duplication =
 let search cache key =
   let path = metadata_path cache key in
   let* sexp =
-    try Io.with_file_in path ~f:Csexp.input
-    with Sys_error _ -> Error "no cached file"
+    try Io.with_file_in path ~f:Csexp.input with
+    | Sys_error _ -> Error "no cached file"
   in
   let+ metadata = Metadata_file.of_sexp sexp in
   (* Touch cache files so they are removed last by LRU trimming. *)
@@ -325,8 +329,8 @@ let search cache key =
       (* There is no point in trying to trim out files that are missing : dune
          will have to check when hardlinking anyway since they could disappear
          in the meantime. *)
-      try Path.touch ~create:false (file_path cache file.digest)
-      with Unix.(Unix_error (ENOENT, _, _)) -> ()
+      try Path.touch ~create:false (file_path cache file.digest) with
+      | Unix.(Unix_error (ENOENT, _, _)) -> ()
     in
     List.iter ~f metadata.files
   in
@@ -473,7 +477,8 @@ let overhead_size cache =
           Int64.of_int stats.st_size
         else
           0L
-      with Unix.Unix_error (Unix.ENOENT, _, _) -> 0L
+      with
+      | Unix.Unix_error (Unix.ENOENT, _, _) -> 0L
     in
     List.map ~f files
   in

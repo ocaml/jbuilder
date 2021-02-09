@@ -69,7 +69,7 @@ let include_dir_flags ~expander ~dir (stubs : Foreign.Stubs.t) =
                           (Dep.file_selector
                              (File_selector.create ~dir Predicate.true_))
                       in
-                      Command.Args.Hidden_deps deps :: args)) )
+                      Command.Args.Hidden_deps deps :: args)))
          in
          Command.Args.S [ A "-I"; Path include_dir; dep_args ]))
 
@@ -90,7 +90,7 @@ let build_c ~kind ~sctx ~dir ~expander ~include_flags (loc, src, dst) =
           ; Ocaml_config.ocamlc_cppflags cfg
           ; Fdo.c_flags ctx
           ]
-      | Some true -> Fdo.c_flags ctx )
+      | Some true -> Fdo.c_flags ctx)
     | Foreign_language.Cxx -> Fdo.cxx_flags ctx
   in
   let with_user_and_std_flags =
@@ -142,11 +142,11 @@ let build_c ~kind ~sctx ~dir ~expander ~include_flags (loc, src, dst) =
         produced in the current directory *)
      Command.run ~dir:(Path.build dir)
        (Super_context.resolve_program ~loc:None ~dir sctx c_compiler)
-       ( [ Command.Args.dyn with_user_and_std_flags
-         ; S [ A "-I"; Path ctx.stdlib_dir ]
-         ; include_flags
-         ]
-       @ output_param @ [ A "-c"; Dep src ] ));
+       ([ Command.Args.dyn with_user_and_std_flags
+        ; S [ A "-I"; Path ctx.stdlib_dir ]
+        ; include_flags
+        ]
+       @ output_param @ [ A "-c"; Dep src ]));
   dst
 
 (* TODO: [requires] is a confusing name, probably because it's too general: it

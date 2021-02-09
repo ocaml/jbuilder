@@ -20,11 +20,11 @@ module Ast = struct
             (elt, v))
        in
        let+ clauses = repeat clause in
-       ( match clauses with
+       (match clauses with
        | [] ->
          User_error.raise ~loc
            [ Pp.text "case expression must have at least one clause" ]
-       | _ :: _ -> () );
+       | _ :: _ -> ());
        { on; clauses })
 end
 

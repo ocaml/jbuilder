@@ -20,7 +20,7 @@ module Pps_and_flags = struct
             | None ->
               User_error.raise ~loc
                 [ Pp.text "No variables allowed in ppx library names" ]
-            | Some txt -> Left (loc, Lib_name.parse_string_exn (loc, txt)) ))
+            | Some txt -> Left (loc, Lib_name.parse_string_exn (loc, txt))))
     in
     let all_flags = more_flags @ Option.value flags ~default:[] in
     if syntax_version < (1, 10) then
@@ -55,7 +55,7 @@ module Pps = struct
         List.compare flags1 flags2 ~compare:String_with_vars.compare_no_loc
       with
       | (Lt | Gt) as t -> t
-      | Eq -> List.compare pps1 pps2 ~compare:compare_pps )
+      | Eq -> List.compare pps1 pps2 ~compare:compare_pps)
 end
 
 type 'a t =
@@ -159,7 +159,7 @@ let remove_future_syntax (t : 'a t) ~(for_ : Pp_flag_consumer.t) v :
         ( loc
         , Run
             ( String_with_vars.make_pform loc (Macro (Bin, "ocaml-syntax-shims"))
-            , ( match for_ with
+            , (match for_ with
               | Compiler -> [ String_with_vars.make_text loc "-dump-ast" ]
               | Merlin ->
                 (* We generate a text file instead of AST. That gives you less
@@ -172,7 +172,7 @@ let remove_future_syntax (t : 'a t) ~(for_ : Pp_flag_consumer.t) v :
 
                    Hopefully this will be fixed in merlin before that becomes a
                    necessity. *)
-                [] )
+                [])
               @ [ String_with_vars.make_pform loc (Var Input_file) ] ) )
 
 module Per_module = struct

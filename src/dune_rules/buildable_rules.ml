@@ -7,13 +7,13 @@ let gen_select_rules t ~dir compile_info =
       let { Lib.Compile.Resolved_select.dst_fn; src_fn } = rs in
       let dst = Path.Build.relative dir dst_fn in
       Super_context.add_rule t ~dir
-        ( match src_fn with
+        (match src_fn with
         | Ok src_fn ->
           let src = Path.build (Path.Build.relative dir src_fn) in
           Action_builder.copy_and_add_line_directive ~src ~dst
         | Error e ->
           Action_builder.fail { fail = (fun () -> raise e) }
-          |> Action_builder.with_targets ~targets:[ dst ] ))
+          |> Action_builder.with_targets ~targets:[ dst ]))
 
 let with_lib_deps (t : Context.t) compile_info ~dir ~f =
   let prefix =

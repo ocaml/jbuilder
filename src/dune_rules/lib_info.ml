@@ -73,8 +73,8 @@ module Special_builtin_support = struct
       record_fields
         [ field "data_module" Module_name.encode data_module
         ; field "api_version" int
-            ( match api_version with
-            | V1 -> 1 )
+            (match api_version with
+            | V1 -> 1)
         ]
   end
 
@@ -102,8 +102,8 @@ module Special_builtin_support = struct
       let open Dune_lang.Encoder in
       record_fields
         [ field "api_version" int
-            ( match api_version with
-            | V1 -> 1 )
+            (match api_version with
+            | V1 -> 1)
         ]
   end
 
@@ -387,14 +387,13 @@ let for_dune_package t ~name ~ppx_runtime_deps ~requires ~foreign_objects
     | false -> t.orig_src_dir
     | true ->
       Some
-        ( match t.orig_src_dir with
+        (match t.orig_src_dir with
         | Some src_dir -> src_dir
         | None -> (
           match Path.drop_build_context t.src_dir with
           | None -> t.src_dir
           | Some src_dir ->
-            Path.source src_dir |> Path.to_absolute_filename |> Path.of_string )
-        )
+            Path.source src_dir |> Path.to_absolute_filename |> Path.of_string))
   in
   let native_archives =
     Files (eval_native_archives_exn t ~modules:(Some modules))

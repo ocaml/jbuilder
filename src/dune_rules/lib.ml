@@ -79,15 +79,15 @@ module Error = struct
 
   let no_implementation (info, dp) =
     make
-      ( Pp.concat
-          [ Pp.text "No implementation found for virtual library "
-          ; pp_lib info
-          ; Pp.char '.'
-          ]
-      ::
-      ( match dp with
-      | [] -> []
-      | _ -> [ Dep_path.Entries.pp dp ] ) )
+      (Pp.concat
+         [ Pp.text "No implementation found for virtual library "
+         ; pp_lib info
+         ; Pp.char '.'
+         ]
+       ::
+       (match dp with
+       | [] -> []
+       | _ -> [ Dep_path.Entries.pp dp ]))
 
   let overlap ~in_workspace ~installed =
     make
@@ -367,15 +367,15 @@ let main_module_name t =
     let main_module_name = Lib_info.main_module_name vlib.info in
     match main_module_name with
     | This x -> x
-    | From _ -> assert false )
+    | From _ -> assert false)
 
 let entry_module_names t =
   match Lib_info.entry_modules t.info with
   | External d -> d
   | Local ->
     Ok
-      ( Option.value_exn t.modules |> Lazy.force |> Modules.entry_modules
-      |> List.map ~f:Module.name )
+      (Option.value_exn t.modules |> Lazy.force |> Modules.entry_modules
+     |> List.map ~f:Module.name)
 
 let src_dirs t = Lazy.force t.src_dirs
 
@@ -391,7 +391,7 @@ let wrapped t =
     | Some (From _) (* can't inherit this value in virtual libs *)
     | None ->
       assert false (* will always be specified in dune package *)
-    | Some (This x) -> Some x )
+    | Some (This x) -> Some x)
 
 let to_id t : Id.t = t.unique_id
 
@@ -467,8 +467,9 @@ module Link_params = struct
           Path.extend_basename obj_name ~suffix:(Cm_kind.ext Cmo) :: hidden_deps
         | Native ->
           Path.extend_basename obj_name ~suffix:(Cm_kind.ext Cmx)
-          :: Path.extend_basename obj_name ~suffix:t.lib_config.ext_obj
-          :: hidden_deps )
+          ::
+          Path.extend_basename obj_name ~suffix:t.lib_config.ext_obj
+          :: hidden_deps)
     in
     { deps; hidden_deps; include_dirs }
 end
@@ -482,9 +483,9 @@ module L = struct
 
   let to_iflags dirs =
     Command.Args.S
-      ( Path.Set.fold dirs ~init:[] ~f:(fun dir acc ->
-            Command.Args.Path dir :: A "-I" :: acc)
-      |> List.rev )
+      (Path.Set.fold dirs ~init:[] ~f:(fun dir acc ->
+           Command.Args.Path dir :: A "-I" :: acc)
+      |> List.rev)
 
   let include_paths ?project ts mode =
     let visible_cmi =
@@ -501,7 +502,7 @@ module L = struct
           | Private (_, Some _)
           | Installed_private ->
             check_project lib
-          | _ -> true )
+          | _ -> true)
     in
     let dirs =
       List.fold_left ts ~init:Path.Set.empty ~f:(fun acc t ->
@@ -550,10 +551,11 @@ module L = struct
           List.fold_left p.include_dirs ~init:acc ~f:Path.Set.add)
     in
     Command.Args.S
-      ( to_iflags dirs
-      :: List.map params ~f:(fun (p : Link_params.t) ->
-             Command.Args.S
-               [ Deps p.deps; Hidden_deps (Dep.Set.of_files p.hidden_deps) ]) )
+      (to_iflags dirs
+       ::
+       List.map params ~f:(fun (p : Link_params.t) ->
+           Command.Args.S
+             [ Deps p.deps; Hidden_deps (Dep.Set.of_files p.hidden_deps) ]))
 
   let jsoo_runtime_files ts =
     List.concat_map ts ~f:(fun t -> Lib_info.jsoo_runtime t.info)
@@ -588,27 +590,29 @@ module Lib_and_module = struct
           | Lib t ->
             let p = Link_params.get t mode in
             Command.Args.S
-              ( Deps p.deps
-              :: Hidden_deps (Dep.Set.of_files p.hidden_deps)
-              :: List.map p.include_dirs ~f:(fun dir ->
-                     Command.Args.S [ A "-I"; Path dir ]) )
+              (Deps p.deps
+               ::
+               Hidden_deps (Dep.Set.of_files p.hidden_deps)
+               ::
+               List.map p.include_dirs ~f:(fun dir ->
+                   Command.Args.S [ A "-I"; Path dir ]))
           | Module (obj_dir, m) ->
             Command.Args.S
-              ( Dep
-                  (Obj_dir.Module.cm_file_exn obj_dir m
-                     ~kind:(Mode.cm_kind (Link_mode.mode mode)))
-              ::
-              ( match mode with
-              | Native ->
-                [ Command.Args.Hidden_deps
-                    (Dep.Set.of_files
-                       [ Obj_dir.Module.o_file_exn obj_dir m
-                           ~ext_obj:lib_config.ext_obj
-                       ])
-                ]
-              | Byte
-              | Byte_with_stubs_statically_linked_in ->
-                [] ) )))
+              (Dep
+                 (Obj_dir.Module.cm_file_exn obj_dir m
+                    ~kind:(Mode.cm_kind (Link_mode.mode mode)))
+               ::
+               (match mode with
+               | Native ->
+                 [ Command.Args.Hidden_deps
+                     (Dep.Set.of_files
+                        [ Obj_dir.Module.o_file_exn obj_dir m
+                            ~ext_obj:lib_config.ext_obj
+                        ])
+                 ]
+               | Byte
+               | Byte_with_stubs_statically_linked_in ->
+                 []))))
 
     let of_libs l = List.map l ~f:(fun x -> Lib x)
   end
@@ -693,7 +697,8 @@ module Sub_system = struct
              let (Sub_system0.Instance.T ((module M), t)) = inst in
              Option.map M.public_info ~f:(fun f ->
                  M.Info.T (Result.ok_exn (f t)))))
-    with User_error.E _ as exn -> Error exn
+    with
+    | User_error.E _ as exn -> Error exn
 end
 
 (* Library name resolution and transitive closure *)
@@ -783,7 +788,7 @@ let check_private_deps lib ~loc ~(private_deps : private_deps) =
     match Lib_info.status lib.info with
     | Private (_, Some _) -> Ok lib
     | Private (_, None) -> Error.private_deps_not_allowed ~loc lib.info
-    | _ -> Ok lib )
+    | _ -> Ok lib)
 
 let already_in_table info name x =
   let to_dyn = Dyn.Encoder.(pair Path.to_dyn Lib_name.to_dyn) in
@@ -847,10 +852,10 @@ end = struct
       | Some _, Some _ -> assert false (* can't be virtual and implement *)
       | None, Some _ ->
         Ok
-          ( if Set.mem t.implemented lib then
+          (if Set.mem t.implemented lib then
             t
           else
-            { t with unimplemented = Set.add t.unimplemented lib } )
+            { t with unimplemented = Set.add t.unimplemented lib })
       | Some vlib, None ->
         let+ vlib = vlib in
         { implemented = Set.add t.implemented vlib
@@ -901,7 +906,7 @@ end = struct
                   Dep_stack.to_required_by stack ~stop_at:orig_stack
                 in
                 Error.double_implementation (lib'.info, req_by')
-                  (lib.info, req_by) ~vlib:vlib.info ) )
+                  (lib.info, req_by) ~vlib:vlib.info))
         in
         loop Map.empty closure
     end
@@ -1116,7 +1121,7 @@ end = struct
                              This is impossible\n"
                             (Package.Name.to_string p)
                             (Package.Name.to_string p')
-                        ] )))
+                        ])))
     in
     let { requires; pps; selects = resolved_selects; re_exports } =
       let pps =
@@ -1209,15 +1214,15 @@ end = struct
             Option.some_if
               (not (Result.is_ok t.requires && Result.is_ok t.ppx_runtime_deps))
               "optional with unavailable dependencies"
-          | Disabled_because_of_enabled_if -> Some "unsatisfied 'enabled_if'" )
+          | Disabled_because_of_enabled_if -> Some "unsatisfied 'enabled_if'")
       in
       match hidden with
       | None -> Status.Found t
       | Some reason -> Hidden (Hidden.of_lib t ~reason)
     in
-    ( match Table.find db.table name with
+    (match Table.find db.table name with
     | Some (Status.Initializing u) -> assert (Id.equal u unique_id)
-    | _ -> assert false );
+    | _ -> assert false);
     Table.set db.table name res;
     res
 
@@ -1242,7 +1247,7 @@ end = struct
       | Status.Initializing _ as x -> x
       | x ->
         Table.add_exn db.table name x;
-        x )
+        x)
     | Found info -> instantiate db name info ~stack ~hidden:None
     | Invalid e -> Status.Invalid e
     | Not_found ->
@@ -1262,7 +1267,7 @@ end = struct
       | Status.Found _ as x ->
         Table.add_exn db.table name x;
         x
-      | _ -> instantiate db name info ~stack ~hidden:(Some hidden) )
+      | _ -> instantiate db name info ~stack ~hidden:(Some hidden))
 
   let available_internal db (name : Lib_name.t) ~stack =
     resolve_dep db (Loc.none, name) ~private_deps:Allow_all ~stack
@@ -1584,7 +1589,7 @@ end = struct
                   Code_error.raise "Unexpected find result"
                     [ ("found", Status.to_dyn found)
                     ; ("lib.name", Lib_name.to_dyn lib.name)
-                    ] ) )
+                    ]))
           in
           let* new_stack = Dep_stack.push stack ~implements_via (to_id lib) in
           let* deps = lib.requires in
@@ -1658,8 +1663,8 @@ module Compile = struct
   let make_lib_deps_info ~user_written_deps ~pps ~kind =
     Lib_deps_info.merge
       (Dune_file.Lib_deps.info user_written_deps ~kind)
-      ( List.map pps ~f:(fun (_, pp) -> (pp, kind))
-      |> Lib_name.Map.of_list_reduce ~f:Lib_deps_info.Kind.merge )
+      (List.map pps ~f:(fun (_, pp) -> (pp, kind))
+      |> Lib_name.Map.of_list_reduce ~f:Lib_deps_info.Kind.merge)
 
   let for_lib resolve ~allow_overlaps db (t : lib) =
     let requires =
@@ -1696,9 +1701,9 @@ module Compile = struct
     let requires_link =
       let db = Option.some_if (not allow_overlaps) db in
       lazy
-        ( requires
+        (requires
         >>= Resolve.compile_closure_with_overlap_checks db
-              ~stack:Dep_stack.empty ~forbidden_libraries:Map.empty )
+              ~stack:Dep_stack.empty ~forbidden_libraries:Map.empty)
     in
     let merlin_ident = Merlin_ident.for_lib t.name in
     { direct_requires = requires
@@ -1796,7 +1801,7 @@ module DB = struct
               let pkg = Findlib.dummy_lib findlib ~name in
               Found (Dune_package.Lib.info pkg)
             else
-              Not_found ))
+              Not_found))
       ~all:(fun () ->
         Findlib.all_packages findlib |> List.map ~f:Dune_package.Entry.name)
 
@@ -1847,10 +1852,10 @@ module DB = struct
     let lib_deps_info =
       Compile.make_lib_deps_info ~user_written_deps:deps ~pps
         ~kind:
-          ( if optional then
+          (if optional then
             Optional
           else
-            Required )
+            Required)
     in
     let { Resolve.requires = res
         ; pps

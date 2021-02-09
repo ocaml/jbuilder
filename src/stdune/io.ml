@@ -146,7 +146,8 @@ struct
         Buffer.add_channel buffer t chunk_size;
         loop ()
       in
-      try loop () with End_of_file -> Buffer.contents buffer
+      try loop () with
+      | End_of_file -> Buffer.contents buffer
     in
     fun t ->
       (* Optimisation for regular files: if the channel supports seeking, we
@@ -175,7 +176,7 @@ struct
           let buffer = Buffer.create (String.length s + 1 + chunk_size) in
           Buffer.add_string buffer s;
           Buffer.add_char buffer c;
-          read_all_generic t buffer )
+          read_all_generic t buffer)
 
   let read_file ?binary fn = with_file_in fn ~f:read_all ?binary
 
@@ -251,7 +252,8 @@ struct
         Stdlib.open_out_gen
           [ Open_wronly; Open_creat; Open_trunc; Open_binary ]
           perm (Path.to_string dst)
-      with exn ->
+      with
+      | exn ->
         close_in ic;
         Exn.reraise exn
     in

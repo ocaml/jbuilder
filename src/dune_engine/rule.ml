@@ -89,9 +89,9 @@ let make ?(sandbox = Sandbox_config.default) ?(mode = Mode.Standard) ~context
   let open Action_builder.With_targets.O in
   let action =
     Action_builder.With_targets.memoize "Rule.make"
-      ( Action_builder.with_no_targets
-          (Action_builder.dep (Dep.sandbox_config sandbox))
-      >>> action )
+      (Action_builder.with_no_targets
+         (Action_builder.dep (Dep.sandbox_config sandbox))
+      >>> action)
   in
   let targets = action.targets in
   let dir =
@@ -100,12 +100,12 @@ let make ?(sandbox = Sandbox_config.default) ?(mode = Mode.Standard) ~context
       match info with
       | From_dune_file loc ->
         User_error.raise ~loc [ Pp.text "Rule has no targets specified" ]
-      | _ -> Code_error.raise "Build_interpret.Rule.make: no targets" [] )
+      | _ -> Code_error.raise "Build_interpret.Rule.make: no targets" [])
     | Some x ->
       let dir = Path.Build.parent_exn x in
-      ( if
-        Path.Build.Set.exists targets ~f:(fun path ->
-            Path.Build.( <> ) (Path.Build.parent_exn path) dir)
+      (if
+       Path.Build.Set.exists targets ~f:(fun path ->
+           Path.Build.( <> ) (Path.Build.parent_exn path) dir)
       then
         match info with
         | Internal
@@ -117,7 +117,7 @@ let make ?(sandbox = Sandbox_config.default) ?(mode = Mode.Standard) ~context
             [ Pp.text "Rule has targets in different directories.\nTargets:"
             ; Pp.enumerate (Path.Build.Set.to_list targets) ~f:(fun p ->
                   Pp.verbatim (Path.to_string_maybe_quoted (Path.build p)))
-            ] );
+            ]);
       dir
   in
   { id = Id.gen (); context; env; action; mode; locks; info; dir }

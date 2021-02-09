@@ -40,7 +40,7 @@ struct
         | None ->
           set h k v;
           loop xs
-        | Some v' -> Error (k, v', v) )
+        | Some v' -> Error (k, v', v))
     in
     loop l
 
@@ -69,8 +69,8 @@ struct
 
   let to_dyn f t =
     Dyn.Map
-      ( foldi t ~init:[] ~f:(fun key data acc -> (H.to_dyn key, f data) :: acc)
-      |> List.sort ~compare:(fun (k, _) (k', _) -> Dyn.compare k k') )
+      (foldi t ~init:[] ~f:(fun key data acc -> (H.to_dyn key, f data) :: acc)
+      |> List.sort ~compare:(fun (k, _) (k', _) -> Dyn.compare k k'))
 
   let filteri_inplace t ~f =
     (* Surely there's a more performant way of writing this. (e.g. using

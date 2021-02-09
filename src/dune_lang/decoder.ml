@@ -85,7 +85,7 @@ end = struct
             | List (loc, _)
             | Quoted_string (loc, _)
             | Template { loc; _ } ->
-              User_error.raise ~loc [ Pp.text "Atom expected" ] )
+              User_error.raise ~loc [ Pp.text "Atom expected" ])
           | _ ->
             User_error.raise ~loc:(Ast.loc sexp)
               [ Pp.text "S-expression of the form (<name> <values>...) expected"
@@ -106,7 +106,7 @@ end = struct
       | x :: xs -> (
         match x.Unparsed.prev with
         | None -> loop (x.entry :: acc) xs
-        | Some p -> loop (x.entry :: acc) (p :: xs) )
+        | Some p -> loop (x.entry :: acc) (p :: xs))
     in
     loop [] (Name.Map.values unparsed)
     |> List.sort ~compare:(fun a b ->
@@ -156,7 +156,9 @@ let ( and+ ) a b ctx state =
 
 let map t ~f = t >>| f
 
-let try_ t f ctx state = try t ctx state with exn -> f exn ctx state
+let try_ t f ctx state =
+  try t ctx state with
+  | exn -> f exn ctx state
 
 let get_user_context : type k. k context -> Univ_map.t = function
   | Values (_, _, uc) -> uc
@@ -234,7 +236,7 @@ let result : type a k. k context -> a * k -> a =
         User_error.raise ~loc:(Ast.loc sexp) [ Pp.text "This value is unused" ]
       | Some s ->
         User_error.raise ~loc:(Ast.loc sexp)
-          [ Pp.textf "Too many argument for %s" s ] ) )
+          [ Pp.textf "Too many argument for %s" s ]))
   | Fields _ -> (
     match Name.Map.choose state.unparsed with
     | None -> v
@@ -246,7 +248,7 @@ let result : type a k. k context -> a * k -> a =
       in
       User_error.raise ~loc:name_loc
         ~hints:(User_message.did_you_mean name ~candidates:state.known)
-        [ Pp.textf "Unknown field %s" name ] )
+        [ Pp.textf "Unknown field %s" name ])
 
 let parse t context sexp =
   let ctx = Values (Ast.loc sexp, None, context) in
@@ -377,18 +379,18 @@ let either =
       (approximate_how_much_input_a_failing_branch_consumed exn2)
   in
   fun a b ctx state ->
-    try (a >>| Either.left) ctx state
-    with exn_a -> (
+    try (a >>| Either.left) ctx state with
+    | exn_a -> (
       let exn_a = Exn_with_backtrace.capture exn_a in
-      try (b >>| Either.right) ctx state
-      with exn_b ->
+      try (b >>| Either.right) ctx state with
+      | exn_b ->
         let exn_b = Exn_with_backtrace.capture exn_b in
         Exn_with_backtrace.reraise
-          ( match compare_input_consumed exn_a exn_b with
+          (match compare_input_consumed exn_a exn_b with
           | Gt -> exn_a
           | Eq
           | Lt ->
-            exn_b ) )
+            exn_b))
 
 let ( <|> ) x y =
   let+ res = either x y in
@@ -424,7 +426,7 @@ let loc_between_states : type k. k context -> k -> k -> Loc.t =
             { (Ast.loc sexp) with stop = loc.stop }
           | sexp :: rest -> search sexp rest
       in
-      search sexp rest )
+      search sexp rest)
   | Fields _ -> (
     let parsed =
       Name.Map.merge state1.unparsed state2.unparsed
@@ -444,7 +446,7 @@ let loc_between_states : type k. k context -> k -> k -> Loc.t =
       loc
     | first :: l ->
       let last = List.fold_left l ~init:first ~f:(fun _ x -> x) in
-      { first with stop = last.stop } )
+      { first with stop = last.stop })
 
 let located t ctx state1 =
   let x, state2 = t ctx state1 in
@@ -461,7 +463,7 @@ let basic_loc desc f =
     | Atom (loc, s) -> (
       match f ~loc (Atom.to_string s) with
       | None -> User_error.raise ~loc [ Pp.textf "%s expected" desc ]
-      | Some x -> x ))
+      | Some x -> x))
 
 let basic desc f = basic_loc desc (fun ~loc:_ -> f)
 
@@ -547,10 +549,10 @@ let sum ?(force_parens = false) cstrs =
       | List (loc, []) ->
         User_error.raise ~loc
           [ Pp.textf "S-expression of the form %s expected"
-              ( if force_parens then
+              (if force_parens then
                 "(<atom> ...)"
               else
-                "(<atom> ...) or <atom>" )
+                "(<atom> ...) or <atom>")
           ]
       | List (loc, name :: args) -> (
         match name with
@@ -559,7 +561,7 @@ let sum ?(force_parens = false) cstrs =
         | Template { loc; _ } ->
           User_error.raise ~loc [ Pp.text "Atom expected" ]
         | Atom (s_loc, A s) ->
-          find_cstr cstrs s_loc s (Values (loc, Some s, uc)) args ))
+          find_cstr cstrs s_loc s (Values (loc, Some s, uc)) args))
 
 let enum cstrs =
   next (function
@@ -574,7 +576,7 @@ let enum cstrs =
         User_error.raise ~loc
           [ Pp.textf "Unknown value %s" s ]
           ~hints:
-            (User_message.did_you_mean s ~candidates:(List.map cstrs ~f:fst)) ))
+            (User_message.did_you_mean s ~candidates:(List.map cstrs ~f:fst))))
 
 let bool = enum [ ("true", true); ("false", false) ]
 
@@ -615,10 +617,10 @@ let multiple_occurrences ?(on_dup = field_present_too_many_times) uc name last =
 
 let find_single ?on_dup uc (state : Fields.t) name =
   let res = Name.Map.find state.unparsed name in
-  ( match res with
+  (match res with
   | Some ({ prev = Some _; _ } as last) ->
     multiple_occurrences uc name last ?on_dup
-  | _ -> () );
+  | _ -> ());
   res
 
 let field name ?default ?on_dup t (Fields (loc, _, uc)) state =
@@ -630,7 +632,7 @@ let field name ?default ?on_dup t (Fields (loc, _, uc)) state =
   | None -> (
     match default with
     | Some v -> (v, Fields.add_known state name)
-    | None -> field_missing loc name )
+    | None -> field_missing loc name)
 
 let field_o name ?on_dup t (Fields (_, _, uc)) state =
   match find_single uc state name ?on_dup with
@@ -729,7 +731,7 @@ let fields_mutually_exclusive ?on_dup ?default fields
     let names = List.map fields ~f:fst in
     match default with
     | None -> fields_missing_need_exactly_one loc names
-    | Some default -> (default, state) )
+    | Some default -> (default, state))
   | [ (_name, res) ] -> (res, state)
   | _ :: _ :: _ as results ->
     let names = List.map ~f:fst results in

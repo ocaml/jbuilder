@@ -115,7 +115,7 @@ module DB = struct
         | Some d -> loop d
         | None ->
           Code_error.raise "find_by_dir: invalid directory"
-            [ ("d", Path.Source.to_dyn d); ("dir", Path.Source.to_dyn dir) ] )
+            [ ("d", Path.Source.to_dyn d); ("dir", Path.Source.to_dyn dir) ])
     in
     loop dir
 
@@ -173,7 +173,7 @@ module DB = struct
                 (Lib_name.to_string name)
             ; Pp.textf "- %s" (Loc.to_file_colon_line loc1)
             ; Pp.textf "- %s" (Loc.to_file_colon_line loc2)
-            ] )
+            ])
     in
     let resolve = resolve t public_libs in
     Lib.DB.create ~parent:(Some installed_libs) ~resolve ~modules_of_lib

@@ -29,7 +29,7 @@ let escape_to s ~dst:s' ~ofs =
   let n = ref ofs in
   let len = String.length s in
   for i = 0 to len - 1 do
-    ( match String.unsafe_get s i with
+    (match String.unsafe_get s i with
     | ('\"' | '\\') as c ->
       Bytes.unsafe_set s' !n '\\';
       incr n;
@@ -63,7 +63,7 @@ let escape_to s ~dst:s' ~ofs =
       incr n;
       Bytes.unsafe_set s' !n (Char.unsafe_chr (48 + (a / 10 mod 10)));
       incr n;
-      Bytes.unsafe_set s' !n (Char.unsafe_chr (48 + (a mod 10))) );
+      Bytes.unsafe_set s' !n (Char.unsafe_chr (48 + (a mod 10))));
     incr n
   done
 

@@ -24,7 +24,7 @@ let command =
     in
     Common.set_common common ~targets:[];
     Promotion.promote_files_registered_in_last_run
-      ( match files with
+      (match files with
       | [] -> All
       | _ ->
         let files =
@@ -35,6 +35,6 @@ let command =
           Format.eprintf "@{<warning>Warning@}: Nothing to promote for %s.@."
             (Path.Source.to_string_maybe_quoted fn)
         in
-        These (files, on_missing) )
+        These (files, on_missing))
   in
   (term, Term.info "promote" ~doc ~man)

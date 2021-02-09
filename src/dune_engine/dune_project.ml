@@ -112,7 +112,7 @@ end = struct
           |> Path.of_string |> Path.as_in_source_tree
         with
         | Some p -> Anonymous p
-        | None -> invalid s )
+        | None -> invalid s)
       | _ when validate s -> Named s
       | _ -> invalid s
 end
@@ -436,16 +436,16 @@ module Extension = struct
                         if not !dune_project_edited then (
                           dune_project_edited := true;
                           ignore
-                            ( Project_file_edit.append project_file
-                                (List
-                                   [ Dune_lang.atom "using"
-                                   ; Dune_lang.atom
-                                       (Dune_lang.Syntax.name e.syntax)
-                                   ; Dune_lang.atom
-                                       (Dune_lang.Syntax.Version.to_string
-                                          version)
-                                   ])
-                              : created_or_already_exist )
+                            (Project_file_edit.append project_file
+                               (List
+                                  [ Dune_lang.atom "using"
+                                  ; Dune_lang.atom
+                                      (Dune_lang.Syntax.name e.syntax)
+                                  ; Dune_lang.atom
+                                      (Dune_lang.Syntax.Version.to_string
+                                         version)
+                                  ])
+                              : created_or_already_exist)
                         );
                         p ))
                 in
@@ -453,7 +453,7 @@ module Extension = struct
               in
               Enabled
                 { extension = Packed e; version; loc = Loc.none; parse_args }
-              :: acc ))
+              :: acc))
 end
 
 let interpret_lang_and_extensions ~(lang : Lang.Instance.t) ~explicit_extensions
@@ -587,7 +587,7 @@ let default_name ~dir ~(packages : Package.t Package.Name.Map.t) =
          rejected as a valid Dune project name. It would be better to make the
          set of allowed package names and the set of project names coincide. *)
       User_error.raise ~loc:pkg.loc
-        [ Pp.textf "%S is not a valid Dune project name." name ] )
+        [ Pp.textf "%S is not a valid Dune project name." name ])
 
 let infer ~dir packages =
   let lang = get_dune_lang () in
@@ -625,10 +625,10 @@ let infer ~dir packages =
   ; dune_version = lang.version
   ; generate_opam_files = false
   ; use_standard_c_and_cxx_flags =
-      ( if lang.version < (3, 0) then
+      (if lang.version < (3, 0) then
         None
       else
-        Some true )
+        Some true)
   ; file_key
   ; dialects = Dialect.DB.builtin
   ; explicit_js_mode
@@ -723,8 +723,8 @@ let parse ~dir ~lang ~opam_packages ~file ~dir_status =
             ~check:(Dune_lang.Syntax.since Stanza.syntax (2, 8))
         and+ dialects =
           multi_field "dialect"
-            ( Dune_lang.Syntax.since Stanza.syntax (1, 11)
-            >>> located Dialect.decode )
+            (Dune_lang.Syntax.since Stanza.syntax (1, 11)
+            >>> located Dialect.decode)
         and+ explicit_js_mode =
           field_o_b "explicit_js_mode"
             ~check:(Dune_lang.Syntax.since Stanza.syntax (1, 11))
@@ -741,7 +741,7 @@ let parse ~dir ~lang ~opam_packages ~file ~dir_status =
             Package.Name.Map.map opam_packages ~f:(fun (_loc, p) ->
                 Lazy.force p)
           else (
-            ( match (packages, name) with
+            (match (packages, name) with
             | [ p ], Some (Named name) ->
               if Package.Name.to_string (Package.name p) <> name then
                 User_error.raise ~loc:p.loc
@@ -750,7 +750,7 @@ let parse ~dir ~lang ~opam_packages ~file ~dir_status =
                        name as the project name: %s"
                       name
                   ]
-            | _, _ -> () );
+            | _, _ -> ());
             let package_defined_twice name loc1 loc2 =
               User_error.raise
                 [ Pp.textf "Package name %s is defined twice:"

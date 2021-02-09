@@ -37,9 +37,9 @@ module Pform = struct
 
   let describe t =
     to_string
-      ( match t.payload with
+      (match t.payload with
       | None -> t
-      | Some _ -> { t with payload = Some ".." } )
+      | Some _ -> { t with payload = Some ".." })
 
   let describe_kind t =
     match t.payload with
@@ -78,11 +78,11 @@ end = struct
     let before, after = ("%{", "}") in
     Buffer.add_string buf before;
     Buffer.add_string buf name;
-    ( match payload with
+    (match payload with
     | None -> ()
     | Some payload ->
       Buffer.add_char buf ':';
-      Buffer.add_string buf payload );
+      Buffer.add_string buf payload);
     Buffer.add_string buf after
 
   let check_valid_unquoted s ~loc =
@@ -106,10 +106,10 @@ end = struct
       | [] -> commit_text acc_text
       | Text s :: rest ->
         add_parts
-          ( if acc_text = "" then
+          (if acc_text = "" then
             s
           else
-            acc_text ^ s )
+            acc_text ^ s)
           rest
       | Pform v :: rest ->
         commit_text acc_text;
@@ -141,7 +141,7 @@ let pp_split_strings ppf (t : t) =
         | split ->
           Format.pp_print_list
             ~pp_sep:(fun ppf () -> Format.fprintf ppf "@,\\n")
-            Format.pp_print_string ppf split ));
+            Format.pp_print_string ppf split));
     Format.fprintf ppf "@}\"@]"
   ) else
     Format.pp_print_string ppf (Pp.to_string t)

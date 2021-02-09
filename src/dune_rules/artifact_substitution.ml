@@ -133,7 +133,7 @@ let eval t ~conf =
   | Vcs_describe p -> (
     match conf.get_vcs p with
     | None -> Fiber.return ""
-    | Some vcs -> Memo.Build.run (Vcs.describe vcs) )
+    | Some vcs -> Memo.Build.run (Vcs.describe vcs))
   | Location (name, lib_name) ->
     Fiber.return (relocatable (conf.get_location name lib_name))
   | Configpath d ->
@@ -144,11 +144,11 @@ let eval t ~conf =
          relocatable dir))
   | Hardcoded_ocaml_path ->
     Fiber.return
-      ( match conf.hardcoded_ocaml_path with
+      (match conf.hardcoded_ocaml_path with
       | Relocatable _ -> "relocatable"
       | Hardcoded l ->
         let l = List.map l ~f:Path.to_absolute_filename in
-        "hardcoded\000" ^ String.concat ~sep:"\000" l )
+        "hardcoded\000" ^ String.concat ~sep:"\000" l)
 
 let encode_replacement ~len ~repl:s =
   let repl = sprintf "=%u:%s" (String.length s) s in
@@ -166,7 +166,7 @@ let max_len = 65536
 let encode ?(min_len = 0) t =
   let suffix =
     sprintf ":%s%%%%"
-      ( match t with
+      (match t with
       | Vcs_describe p ->
         let s = Path.Source.to_string p in
         sprintf "vcs-describe:%d:%s" (String.length s) s
@@ -177,7 +177,7 @@ let encode ?(min_len = 0) t =
       | Configpath Sourceroot -> sprintf "configpath:sourceroot:"
       | Configpath Stdlib -> sprintf "configpath:stdlib:"
       | Hardcoded_ocaml_path -> sprintf "hardcoded_ocaml_path:"
-      | Repeat (n, s) -> sprintf "repeat:%d:%d:%s" n (String.length s) s )
+      | Repeat (n, s) -> sprintf "repeat:%d:%d:%s" n (String.length s) s)
   in
   let len =
     let len0 = prefix_len + String.length suffix in
@@ -474,7 +474,7 @@ let copy ~conf ~input_file ~input ~output =
       match decode placeholder with
       | Some t ->
         let* s = eval t ~conf in
-        ( if !Clflags.debug_artifact_substitution then
+        (if !Clflags.debug_artifact_substitution then
           let open Pp.O in
           Console.print
             [ Pp.textf "Found placeholder in %s:"
@@ -483,7 +483,7 @@ let copy ~conf ~input_file ~input ~output =
                 [ Pp.text "placeholder: " ++ Dyn.pp (to_dyn t)
                 ; Pp.text "evaluates to: " ++ Dyn.pp (String s)
                 ]
-            ] );
+            ]);
         let s = encode_replacement ~len ~repl:s in
         output (Bytes.unsafe_of_string s) 0 len;
         let pos = placeholder_start + len in
@@ -493,7 +493,7 @@ let copy ~conf ~input_file ~input ~output =
            cannot start before that. *)
         loop Scan0 ~beginning_of_data:placeholder_start
           ~pos:(placeholder_start + prefix_len)
-          ~end_of_data )
+          ~end_of_data)
     | scanner_state -> (
       (* We reached the end of the buffer: move the leftover data back to the
          beginning of [buf] and refill the buffer *)
@@ -523,10 +523,10 @@ let copy ~conf ~input_file ~input ~output =
           (* Nothing more to read; [leftover] is definitely not the beginning of
              a placeholder, send it and end the copy *)
           output buf 0 leftover;
-          Fiber.return () )
+          Fiber.return ())
       | n ->
         loop scanner_state ~beginning_of_data:0 ~pos:leftover
-          ~end_of_data:(leftover + n) )
+          ~end_of_data:(leftover + n))
   in
   match input buf 0 buf_len with
   | 0 -> Fiber.return ()

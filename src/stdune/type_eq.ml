@@ -23,11 +23,11 @@ module Id = struct
     | _ -> false
 
   let create (type a) () : a t =
-    ( module struct
+    (module struct
       type nonrec a = a
 
       type _ w += W : a w
-    end )
+    end)
 
   let same (type a b) ((module M1) : a t) ((module M2) : b t) =
     match M1.W with

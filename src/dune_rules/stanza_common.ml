@@ -80,8 +80,8 @@ module Pkg = struct
              ~hints:
                (User_message.did_you_mean name_s
                   ~candidates:
-                    ( Package.Name.Map.keys packages
-                    |> List.map ~f:Package.Name.to_string )))
+                    (Package.Name.Map.keys packages
+                    |> List.map ~f:Package.Name.to_string)))
 
   let decode =
     let+ p = Dune_project.get_exn ()

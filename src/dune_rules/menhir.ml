@@ -74,10 +74,10 @@ module Run (P : PARAMS) : sig end = struct
   let targets m ~cmly =
     let base = [ m ^ ".ml"; m ^ ".mli" ] in
     List.map ~f:(Path.Build.relative dir)
-      ( if cmly then
+      (if cmly then
         (m ^ ".cmly") :: base
       else
-        base )
+        base)
 
   let sources ms = List.map ~f:source ms
 
@@ -252,7 +252,7 @@ module Run (P : PARAMS) : sig end = struct
             | Some "--cmly" -> (only_tokens, true)
             | Some _
             | None ->
-              acc ))
+              acc))
     in
     if ocaml_type_inference_disabled || not stanza.infer then
       process1 base stanza ~cmly

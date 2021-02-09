@@ -172,8 +172,8 @@ let of_config ~ext ~dune_lang ~version =
         [ Pp.textf "To port it to the new syntax, you can delete this part." ]
     in
     User_error.raise ~loc:ext.loc
-      ( Pp.textf
-          "Starting with (lang dune 2.0), formatting is enabled by default."
-      :: suggestion )
+      (Pp.textf
+         "Starting with (lang dune 2.0), formatting is enabled by default."
+       :: suggestion)
 
 let equal { enabled_for; _ } t = Enabled_for.equal enabled_for t.enabled_for

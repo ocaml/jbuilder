@@ -51,8 +51,8 @@ let backtrace_result dyn_of_ok =
 
 let test ?(expect_never = false) to_dyn f =
   let never_raised = ref false in
-  ( try Scheduler.run f |> to_dyn |> print_dyn
-    with Scheduler.Never -> never_raised := true );
+  (try Scheduler.run f |> to_dyn |> print_dyn with
+  | Scheduler.Never -> never_raised := true);
   match (!never_raised, expect_never) with
   | false, false ->
     (* We don't raise in this case b/c we assume something else is being tested *)
@@ -274,7 +274,8 @@ let%expect_test "nested with_error_handler" =
             Exn_with_backtrace.reraise exn)
           (fun () -> raise Exit))
   in
-  (try test unit fiber with Exit -> print_endline "[PASS] got Exit");
+  (try test unit fiber with
+  | Exit -> print_endline "[PASS] got Exit");
   [%expect {|
      inner handler
      outter handler
@@ -285,15 +286,16 @@ let must_set_flag f =
   let setter () = flag := true in
   let check_set () =
     print_endline
-      ( if !flag then
+      (if !flag then
         "[PASS] flag set"
       else
-        "[FAIL] flag not set" )
+        "[FAIL] flag not set")
   in
   try
     f setter;
     check_set ()
-  with e ->
+  with
+  | e ->
     check_set ();
     raise e
 
@@ -314,7 +316,8 @@ let%expect_test "finalize" =
       ~finally:(fun () -> Fiber.return (print_endline "finally"))
       (fun () -> raise Exit)
   in
-  (try test unit fiber with Exit -> print_endline "[PASS] got Exit");
+  (try test unit fiber with
+  | Exit -> print_endline "[PASS] got Exit");
   [%expect {|
     finally
     [PASS] got Exit |}];
@@ -343,7 +346,8 @@ let%expect_test "nested finalize" =
           ~finally:(fun () -> Fiber.return (print_endline "inner finally"))
           (fun () -> raise Exit))
   in
-  (try test unit fiber with Exit -> print_endline "[PASS] got Exit");
+  (try test unit fiber with
+  | Exit -> print_endline "[PASS] got Exit");
   [%expect {|
     inner finally
     outter finally
@@ -366,7 +370,8 @@ let%expect_test "context switch and raise inside finalize" =
             printf "raising in second fiber\n";
             raise Exit))
   in
-  (try test unit fiber with Exit -> print_endline "[PASS] got Exit");
+  (try test unit fiber with
+  | Exit -> print_endline "[PASS] got Exit");
   [%expect
     {|
     Hello from first fiber!

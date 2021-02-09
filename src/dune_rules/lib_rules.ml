@@ -64,18 +64,18 @@ let build_lib (lib : Library.t) ~native_archives ~sctx ~expander ~flags ~dir
                        Command.quote_args "-cclib" (map_cclibs x)))
               ; Command.Args.dyn library_flags
               ; As
-                  ( match lib.kind with
+                  (match lib.kind with
                   | Normal -> []
                   | Ppx_deriver _
                   | Ppx_rewriter _ ->
-                    [ "-linkall" ] )
+                    [ "-linkall" ])
               ; Dyn
-                  ( Cm_files.top_sorted_cms cm_files ~mode
-                  |> Action_builder.map ~f:(fun x -> Command.Args.Deps x) )
+                  (Cm_files.top_sorted_cms cm_files ~mode
+                  |> Action_builder.map ~f:(fun x -> Command.Args.Deps x))
               ; Hidden_targets
-                  ( match mode with
+                  (match mode with
                   | Byte -> []
-                  | Native -> native_archives )
+                  | Native -> native_archives)
               ]))
 
 let gen_wrapped_compat_modules (lib : Library.t) cctx =
@@ -83,9 +83,9 @@ let gen_wrapped_compat_modules (lib : Library.t) cctx =
   let wrapped_compat = Modules.wrapped_compat modules in
   let transition_message =
     lazy
-      ( match Modules.wrapped modules with
+      (match Modules.wrapped modules with
       | Simple _ -> assert false
-      | Yes_with_transition r -> r )
+      | Yes_with_transition r -> r)
   in
   Module_name.Map.iteri wrapped_compat ~f:(fun name m ->
       let main_module_name =
@@ -124,10 +124,10 @@ let ocamlmklib ~loc ~c_library_flags ~sctx ~dir ~expander ~o_files ~archive_name
        let ctx = Super_context.context sctx in
        Command.run ~dir:(Path.build ctx.build_dir) ctx.ocamlmklib
          [ A "-g"
-         ; ( if custom then
+         ; (if custom then
              A "-custom"
            else
-             Command.Args.empty )
+             Command.Args.empty)
          ; A "-o"
          ; Path (Path.build (Foreign.Archive.Name.path ~dir archive_name))
          ; Deps o_files
@@ -151,10 +151,10 @@ let ocamlmklib ~loc ~c_library_flags ~sctx ~dir ~expander ~o_files ~archive_name
     (* Build both the static and dynamic targets in one [ocamlmklib] invocation,
        unless dynamically linked foreign archives are disabled. *)
     build ~sandbox:Sandbox_config.no_special_requirements ~custom:false
-      ( if ctx.dynamically_linked_foreign_archives then
+      (if ctx.dynamically_linked_foreign_archives then
         [ static_target; dynamic_target ]
       else
-        [ static_target ] )
+        [ static_target ])
   else (
     (* Build the static target only by passing the [-custom] flag. *)
     build ~sandbox:Sandbox_config.no_special_requirements ~custom:true
@@ -246,8 +246,8 @@ let build_shared lib ~native_archives ~sctx ~dir ~flags =
       let build =
         Action_builder.with_no_targets
           (Action_builder.paths
-             ( Library.foreign_lib_files lib ~dir ~ext_lib
-             |> List.map ~f:Path.build ))
+             (Library.foreign_lib_files lib ~dir ~ext_lib
+             |> List.map ~f:Path.build))
         >>> Command.run ~dir:(Path.build ctx.build_dir) (Ok ocamlopt)
               [ Command.Args.dyn (Ocaml_flags.get flags Native)
               ; A "-shared"

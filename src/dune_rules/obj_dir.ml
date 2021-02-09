@@ -384,9 +384,9 @@ module Module = struct
   let cmti_file t m =
     let ext =
       Ml_kind.cmt_ext
-        ( match Module.file m ~ml_kind:Intf with
+        (match Module.file m ~ml_kind:Intf with
         | None -> Impl
-        | Some _ -> Intf )
+        | Some _ -> Intf)
     in
     obj_file t m ~kind:Cmi ~ext
 

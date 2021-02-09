@@ -51,9 +51,9 @@ end = struct
     ; cctx = cons_maybe x.cctx acc.cctx
     ; source_dirs = cons_maybe x.source_dirs acc.source_dirs
     ; js =
-        ( match x.js with
+        (match x.js with
         | None -> acc.js
-        | Some js -> List.rev_append acc.js js )
+        | Some js -> List.rev_append acc.js js)
     }
 
   let rev t =
@@ -117,8 +117,8 @@ end = struct
         let src_glob = Expander.expand_str expander glob in
         if Filename.is_relative src_glob then
           Some
-            ( Path.Source.relative src_dir src_glob ~error_loc:loc
-            |> Path.Source.parent_exn )
+            (Path.Source.relative src_dir src_glob ~error_loc:loc
+            |> Path.Source.parent_exn)
         else
           None
       in
@@ -248,17 +248,17 @@ let gen_rules sctx dir_contents cctxs expander
             List.map (Menhir_rules.targets m) ~f:(Path.Build.relative ctx_dir)
           in
           Super_context.add_rule sctx ~dir:ctx_dir
-            ( Action_builder.fail
-                { fail =
-                    (fun () ->
-                      User_error.raise ~loc:m.loc
-                        [ Pp.text
-                            "I can't determine what library/executable the \
-                             files produced by this stanza are part of."
-                        ])
-                }
-            |> Action_builder.with_targets ~targets )
-        | Some cctx -> Menhir_rules.gen_rules cctx m ~dir:ctx_dir )
+            (Action_builder.fail
+               { fail =
+                   (fun () ->
+                     User_error.raise ~loc:m.loc
+                       [ Pp.text
+                           "I can't determine what library/executable the \
+                            files produced by this stanza are part of."
+                       ])
+               }
+            |> Action_builder.with_targets ~targets)
+        | Some cctx -> Menhir_rules.gen_rules cctx m ~dir:ctx_dir)
       | Coq_stanza.Theory.T m when Expander.eval_blang expander m.enabled_if ->
         Coq_rules.setup_rules ~sctx ~dir:ctx_dir ~dir_contents m
         |> Super_context.add_rules ~dir:ctx_dir sctx
@@ -307,20 +307,20 @@ let gen_rules ~sctx ~dir components : Build_system.extra_sub_directories_to_keep
       Jsoo_rules.setup_separate_compilation_rules sctx rest;
       match rest with
       | [] -> All
-      | _ -> These String.Set.empty )
+      | _ -> These String.Set.empty)
     | "_doc" :: rest -> (
       Odoc.gen_rules sctx rest ~dir;
       match rest with
       | [] -> All
-      | _ -> These String.Set.empty )
+      | _ -> These String.Set.empty)
     | ".ppx" :: rest -> (
       Preprocessing.gen_rules sctx rest;
       match rest with
       | [] -> All
-      | _ -> These String.Set.empty )
+      | _ -> These String.Set.empty)
     | comps ->
       let subdirs = [ ".formatted"; ".bin"; ".utop" ] in
-      ( match List.last comps with
+      (match List.last comps with
       | Some ".formatted" ->
         let expander = Super_context.expander sctx ~dir in
         gen_format_rules sctx ~expander ~output_dir:dir
@@ -350,9 +350,9 @@ let gen_rules ~sctx ~dir components : Build_system.extra_sub_directories_to_keep
             let cctxs = gen_rules sctx dir_contents [] ~source_dir ~dir in
             List.iter subs ~f:(fun dc ->
                 ignore
-                  ( gen_rules sctx dir_contents cctxs ~source_dir
-                      ~dir:(Dir_contents.dir dc)
-                    : _ list )) ) ) );
+                  (gen_rules sctx dir_contents cctxs ~source_dir
+                     ~dir:(Dir_contents.dir dc)
+                    : _ list)))));
       These (String.Set.of_list subdirs)
   in
   let subdirs_to_keep3 =

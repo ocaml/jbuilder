@@ -30,16 +30,15 @@ let bash_exn =
 
 let not_found fmt ?loc ?context ?hint x =
   User_error.make ?loc
-    ( Pp.textf fmt (String.maybe_quoted x)
-    ::
-    ( match context with
-    | None -> []
-    | Some name -> [ Pp.textf " (context: %s)" (Context_name.to_string name) ]
-    ) )
+    (Pp.textf fmt (String.maybe_quoted x)
+     ::
+     (match context with
+     | None -> []
+     | Some name -> [ Pp.textf " (context: %s)" (Context_name.to_string name) ]))
     ~hints:
-      ( match hint with
+      (match hint with
       | None -> []
-      | Some hint -> [ Pp.text hint ] )
+      | Some hint -> [ Pp.text hint ])
 
 let program_not_found_message ?context ?hint ~loc prog =
   not_found "Program %s not found in the tree or in PATH" ?context ?hint ?loc

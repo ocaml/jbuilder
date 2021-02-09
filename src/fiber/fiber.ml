@@ -126,17 +126,19 @@ end = struct
       )
 
   and safe_run_k : type a. (a -> unit) -> a -> unit =
-   fun k x -> try k x with exn -> forward_error exn
+   fun k x ->
+    try k x with
+    | exn -> forward_error exn
 
   and forward_exn_with_bt t exn =
     match t.on_error with
     | None -> Exn_with_backtrace.reraise exn
     | Some { ctx; run } -> (
       current := ctx;
-      try run exn
-      with exn ->
+      try run exn with
+      | exn ->
         let exn = Exn_with_backtrace.capture exn in
-        forward_exn_with_bt ctx exn )
+        forward_exn_with_bt ctx exn)
 
   and forward_error exn =
     let exn = Exn_with_backtrace.capture exn in
@@ -191,7 +193,8 @@ end = struct
 
   let apply f x k =
     let backup = !current in
-    (try f x k with exn -> forward_error exn);
+    (try f x k with
+    | exn -> forward_error exn);
     current := backup
 
   let reraise_all exns =
@@ -476,9 +479,9 @@ module Ivar = struct
 
   let peek t k =
     k
-      ( match t.state with
+      (match t.state with
       | Full x -> Some x
-      | Empty _ -> None )
+      | Empty _ -> None)
 end
 
 module Mvar = struct
@@ -512,7 +515,7 @@ module Mvar = struct
       | Some (v', w) ->
         t.value <- Some v';
         EC.safe_run_k k v;
-        K.run w () )
+        K.run w ())
 
   let write t x k =
     match t.value with
@@ -524,7 +527,7 @@ module Mvar = struct
         k ()
       | Some r ->
         EC.safe_run_k k ();
-        K.run r x )
+        K.run r x)
 end
 
 module Mutex = struct

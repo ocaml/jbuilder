@@ -55,13 +55,12 @@ let print_rule_sexp ppf (rule : Build_system.Evaluated_rule.t) =
          [ [ ("deps", Dep.Set.encode rule.deps)
            ; ( "targets"
              , paths
-                 ( Path.Build.Set.to_list rule.targets
-                 |> Path.set_of_build_paths_list ) )
+                 (Path.Build.Set.to_list rule.targets
+                 |> Path.set_of_build_paths_list) )
            ]
-         ; ( match rule.context with
+         ; (match rule.context with
            | None -> []
-           | Some c -> [ ("context", Dune_engine.Context_name.encode c.name) ]
-           )
+           | Some c -> [ ("context", Dune_engine.Context_name.encode c.name) ])
          ; [ ("action", sexp_of_action rule.action) ]
          ])
   in

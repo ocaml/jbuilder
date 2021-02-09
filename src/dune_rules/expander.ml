@@ -145,7 +145,7 @@ let expand_version scope ~source s =
             "Package %S doesn't exist in the current project and isn't \
              installed either."
             s
-        ] )
+        ])
 
 let isn't_allowed_in_this_position_message ~source _pform =
   User_error.make ~loc:source.Dune_lang.Template.Pform.loc
@@ -186,9 +186,9 @@ let expand_artifact ~dir ~source t a s : Expanded.t =
           (Module_name.to_string name)
       | Some (t, m) ->
         Value
-          ( match Obj_dir.Module.cm_file t m ~kind with
+          (match Obj_dir.Module.cm_file t m ~kind with
           | None -> [ Value.String "" ]
-          | Some path -> [ Value.Path (Path.build path) ] ) )
+          | Some path -> [ Value.Path (Path.build path) ]))
     | Lib mode -> (
       let name =
         Lib_name.parse_string_exn (Dune_lang.Template.Pform.loc source, name)
@@ -200,7 +200,7 @@ let expand_artifact ~dir ~source t a s : Expanded.t =
           ~what:"Library" (Lib_name.to_string name)
       | Some lib ->
         let archives = Mode.Dict.get (Lib_info.archives lib) mode in
-        Value (Value.L.paths (List.map ~f:Path.build archives)) ) )
+        Value (Value.L.paths (List.map ~f:Path.build archives))))
 
 let path_exp path = [ Value.Path path ]
 
@@ -228,19 +228,19 @@ let common_static_expand ~ocaml_config ~(context : Context.t) ~source
   | Var Ocamlopt -> Some (get_prog context.ocamlopt)
   | Var Make ->
     Some
-      ( match context.which "make" with
+      (match context.which "make" with
       | None ->
         Error
           (Utils.program_not_found_message ~context:context.name
              ~loc:(Some (Dune_lang.Template.Pform.loc source))
              "make")
-      | Some p -> path p )
+      | Some p -> path p)
   | Var Cpp -> Some (strings (c_compiler_and_flags context @ [ "-E" ]))
   | Var Pa_cpp ->
     Some
       (strings
-         ( c_compiler_and_flags context
-         @ [ "-undef"; "-traditional"; "-x"; "c"; "-E" ] ))
+         (c_compiler_and_flags context
+         @ [ "-undef"; "-traditional"; "-x"; "c"; "-E" ]))
   | Var Arch_sixtyfour -> Some (string (string_of_bool context.arch_sixtyfour))
   | Var Ocaml_bin_dir -> Some (Value [ Dir context.ocaml_bin ])
   | Var Ocaml_version ->
@@ -256,10 +256,10 @@ let common_static_expand ~ocaml_config ~(context : Context.t) ~source
     Some
       (string
          (Mode.plugin_ext
-            ( if Ocaml_config.natdynlink_supported context.ocaml_config then
+            (if Ocaml_config.natdynlink_supported context.ocaml_config then
               Mode.Native
             else
-              Mode.Byte )))
+              Mode.Byte)))
   | Var Profile -> Some (string (Profile.to_string context.profile))
   | Var Workspace_root ->
     Some (Value [ Value.Dir (Path.build context.build_dir) ])
@@ -301,7 +301,7 @@ let static_expand
       | Macro (Version, s) -> Value (expand_version scope ~source s)
       | Macro (Artifact a, s) when not artifacts_dynamic ->
         expand_artifact ~dir ~source t a s
-      | pform -> Deferred (source, pform) ) )
+      | pform -> Deferred (source, pform)))
 
 let make ~scope ~scope_host ~(context : Context.t) ~lib_artifacts
     ~lib_artifacts_host ~bin_artifacts_host ~find_package =
@@ -378,7 +378,7 @@ let expand_with_reduced_var_set ~(context : Context.t) =
       | Value x -> Expanded x
       | Error e -> raise (User_error.E e)
       | Deferred (source, pform) -> isn't_allowed_in_this_position ~source pform
-      | Unknown -> Unknown )
+      | Unknown -> Unknown)
 
 module Resolved_forms = struct
   type t =
@@ -468,10 +468,10 @@ let expand_and_record_generic acc ~dep_kind ~(dir : Path.Build.t) t ~source
   | Macro (Dep, s) -> Static (path_exp (relative dir s))
   | Macro (Bin, s) ->
     Static
-      ( Artifacts.Bin.binary
-          ~loc:(Some (Dune_lang.Template.Pform.loc source))
-          t.bin_artifacts_host s
-      |> Action.Prog.ok_exn |> path_exp )
+      (Artifacts.Bin.binary
+         ~loc:(Some (Dune_lang.Template.Pform.loc source))
+         t.bin_artifacts_host s
+      |> Action.Prog.ok_exn |> path_exp)
   | Macro (Lib { lib_exec; lib_private }, s) -> (
     let lib, file =
       parse_lib_file ~loc:(Dune_lang.Template.Pform.loc source) s
@@ -508,17 +508,17 @@ let expand_and_record_generic acc ~dep_kind ~(dir : Path.Build.t) t ~source
                       "The variable \"lib%s-private\" can only refer to \
                        libraries within the same project. The current \
                        project's name is %S, but the reference is to %s."
-                      ( if lib_exec then
+                      (if lib_exec then
                         "exec"
                       else
-                        "" )
+                        "")
                       (Dune_project.Name.to_string_hum
                          (Dune_project.name current_project))
-                      ( match referenced_project with
+                      (match referenced_project with
                       | None -> "an external library"
                       | Some project ->
                         Dune_project.name project
-                        |> Dune_project.Name.to_string_hum |> String.quoted )
+                        |> Dune_project.Name.to_string_hum |> String.quoted)
                   ]))
       else
         let artifacts =
@@ -548,7 +548,7 @@ let expand_and_record_generic acc ~dep_kind ~(dir : Path.Build.t) t ~source
         Dynamic dep
     | Error e ->
       raise
-        ( match lib_private with
+        (match lib_private with
         | true -> e
         | false ->
           if Lib.DB.available (Scope.libs scope) lib then
@@ -560,13 +560,13 @@ let expand_and_record_generic acc ~dep_kind ~(dir : Path.Build.t) t ~source
                       expands to the file's installation path which is not \
                       defined for private libraries."
                      (Lib_name.to_string lib)
-                     ( if lib_exec then
+                     (if lib_exec then
                        "exec"
                      else
-                       "" )
+                       "")
                  ])
           else
-            e ) )
+            e))
   | Macro (Lib_available, s) ->
     let lib =
       Lib_name.parse_string_exn (Dune_lang.Template.Pform.loc source, s)
@@ -664,7 +664,7 @@ end = struct
           ; ( "deps_written_by_user"
             , Bindings.to_dyn Path.to_dyn deps_written_by_user )
           ]
-      | Some x -> Value.L.paths x )
+      | Some x -> Value.L.paths x)
     | Var Deps -> deps_written_by_user |> Bindings.to_list |> Value.L.paths
     | Var First_dep ->
       (* This case is for %{<} which was only allowed inside jbuild files *)
@@ -678,12 +678,12 @@ end = struct
      can finally substitute them back form the dynamic_expansions map *)
   let expand_ddeps_and_bindings ~(dynamic_expansions : Value.t list Pform.Map.t)
       ~(deps_written_by_user : Path.t Bindings.t) ~expand_var t ~source pform =
-    ( match Pform.Map.find dynamic_expansions pform with
+    (match Pform.Map.find dynamic_expansions pform with
     | Some v -> Some v
     | None ->
       expand_var t ~source pform
       |> Expanded.to_value_opt ~on_deferred:(fun ~source pform ->
-             Some (expand_special_vars ~deps_written_by_user ~source pform)) )
+             Some (expand_special_vars ~deps_written_by_user ~source pform)))
     |> Expanded.of_value_opt
 
   let add_ddeps_and_bindings t ~dynamic_expansions ~deps_written_by_user =

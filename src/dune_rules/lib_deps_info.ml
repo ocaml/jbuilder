@@ -19,9 +19,9 @@ module Kind = struct
 
   let to_dyn t =
     Dyn.String
-      ( match t with
+      (match t with
       | Optional -> "optional"
-      | Required -> "required" )
+      | Required -> "required")
 end
 
 type t = Kind.t Lib_name.Map.t

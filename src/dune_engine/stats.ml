@@ -31,7 +31,7 @@ module Fd_count = struct
     | exception _ -> (
       match try_to_use_lsof () with
       | exception _ -> Unknown
-      | value -> value )
+      | value -> value)
     | files -> This (Array.length files - 1 (* -1 for the dirfd *))
 end
 

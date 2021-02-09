@@ -33,12 +33,12 @@ let needs_dumping = ref false
    subscribing for file-watching updates. *)
 let cache =
   lazy
-    ( match P.load db_file with
+    (match P.load db_file with
     | None ->
       { checked_key = 0; table = Path.Table.create 1024; max_timestamp = 0. }
     | Some cache ->
       cache.checked_key <- cache.checked_key + 1;
-      cache )
+      cache)
 
 let get_current_filesystem_time () =
   let special_path = Path.relative Path.build_dir ".filesystem-clock" in
@@ -69,9 +69,9 @@ let dump () =
 let () = Hooks.End_of_build.always dump
 
 let invalidate_cached_timestamps () =
-  ( if Lazy.is_val cache then
+  (if Lazy.is_val cache then
     let cache = Lazy.force cache in
-    cache.checked_key <- cache.checked_key + 1 );
+    cache.checked_key <- cache.checked_key + 1);
   delete_very_recent_entries ()
 
 let set_max_timestamp cache (stat : Unix.stats) =
@@ -120,7 +120,7 @@ let peek_file fn =
   | None -> None
   | Some x ->
     Some
-      ( if x.stats_checked = cache.checked_key then
+      (if x.stats_checked = cache.checked_key then
         x.digest
       else (
         needs_dumping := true;
@@ -142,7 +142,7 @@ let peek_file fn =
         if !dirty then x.digest <- Digest.file_with_stats fn stat;
         x.stats_checked <- cache.checked_key;
         x.digest
-      ) )
+      ))
 
 let file fn =
   let res =

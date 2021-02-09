@@ -88,10 +88,10 @@ let encode = function
   | Glob_files { glob = t; recursive } ->
     List
       [ Dune_lang.unsafe_atom_of_string
-          ( if recursive then
+          (if recursive then
             "glob_files_rec"
           else
-            "glob_files" )
+            "glob_files")
       ; String_with_vars.encode t
       ]
   | Source_tree t ->

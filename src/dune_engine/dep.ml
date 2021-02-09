@@ -67,8 +67,8 @@ module T = struct
          ~visibility:Hidden Sync
          (fun dir_glob ->
            Digest.generic
-             ( Fdecl.get eval_pred dir_glob
-             |> Path.Set.fold ~init:[] ~f:(fun f acc -> trace_file f :: acc) )))
+             (Fdecl.get eval_pred dir_glob
+             |> Path.Set.fold ~init:[] ~f:(fun f acc -> trace_file f :: acc))))
 
   and trace t ~sandbox_mode ~env : Trace.Fact.t Option.t =
     match t with

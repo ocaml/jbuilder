@@ -42,14 +42,14 @@ let rule sctx compile (exes : Dune_file.Executables.t) () =
                         [ Path.Source.to_dyn
                             (Path.Build.drop_build_context_exn dir)
                         ; Dyn.Encoder.option Module_name.to_dyn
-                            ( match Lib_info.main_module_name info with
+                            (match Lib_info.main_module_name info with
                             | From _ -> None
-                            | This x -> x )
-                        ; ( match
-                              Dir_contents.get sctx ~dir |> Dir_contents.dirs
-                            with
+                            | This x -> x)
+                        ; (match
+                             Dir_contents.get sctx ~dir |> Dir_contents.dirs
+                           with
                           | _ :: _ :: _ -> Dyn.Bool true
-                          | _ -> Dyn.Bool false )
+                          | _ -> Dyn.Bool false)
                         ; Dyn.Encoder.option Module_name.to_dyn
                             special_builtin_support
                         ])))

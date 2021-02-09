@@ -83,13 +83,13 @@ module Source = struct
       ]
 
   let make ?impl ?intf name =
-    ( match (impl, intf) with
+    (match (impl, intf) with
     | None, None ->
       Code_error.raise "Module.Source.make called with no files"
         [ ("name", Module_name.to_dyn name) ]
     | Some _, _
     | _, Some _ ->
-      () );
+      ());
     let files = Ml_kind.Dict.make ~impl ~intf in
     { name; files }
 
@@ -135,7 +135,7 @@ let kind t = t.kind
 let pp_flags t = t.pp
 
 let of_source ?obj_name ~visibility ~(kind : Kind.t) (source : Source.t) =
-  ( match (kind, visibility) with
+  (match (kind, visibility) with
   | (Alias | Impl_vmodule | Virtual | Wrapped_compat), Visibility.Public
   | (Impl | Intf_only), _ ->
     ()
@@ -144,8 +144,8 @@ let of_source ?obj_name ~visibility ~(kind : Kind.t) (source : Source.t) =
       [ ("name", Module_name.to_dyn source.name)
       ; ("kind", Kind.to_dyn kind)
       ; ("visibility", Visibility.to_dyn visibility)
-      ] );
-  ( match (kind, source.files.impl, source.files.intf) with
+      ]);
+  (match (kind, source.files.impl, source.files.intf) with
   | (Alias | Impl_vmodule | Impl | Wrapped_compat), None, _
   | (Alias | Impl_vmodule | Wrapped_compat), Some _, Some _
   | (Intf_only | Virtual), Some _, _
@@ -157,7 +157,7 @@ let of_source ?obj_name ~visibility ~(kind : Kind.t) (source : Source.t) =
       ; ("intf", (option File.to_dyn) source.files.intf)
       ; ("impl", (option File.to_dyn) source.files.impl)
       ]
-  | _, _, _ -> () );
+  | _, _, _ -> ());
   let obj_name =
     match obj_name with
     | Some s -> s

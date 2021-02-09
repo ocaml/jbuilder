@@ -48,11 +48,11 @@ module Target_dir = struct
         | Some (ctx, fn) -> (
           match Context_name.of_string_opt ctx with
           | None -> Invalid original_fn
-          | Some ctx -> Install (With_context (ctx, Path.Source.of_local fn)) )
+          | Some ctx -> Install (With_context (ctx, Path.Source.of_local fn)))
       else
         match Context_name.of_string_opt name with
         | None -> Invalid fn
-        | Some ctx -> Regular (With_context (ctx, Path.Source.of_local sub)) )
+        | Some ctx -> Regular (With_context (ctx, Path.Source.of_local sub)))
 end
 
 type 'build path_kind =
@@ -76,7 +76,7 @@ let analyse_target (fn as original_fn) : target_kind =
       if String.length digest = 32 then
         Alias (ctx, Path.Source.relative (Path.Source.parent_exn fn) basename)
       else
-        Other original_fn )
+        Other original_fn)
 
 let describe_target fn =
   let ctx_suffix name =

@@ -79,7 +79,7 @@ let decode_manually f =
             | exception User_error.E msg
               when Pform.Env.syntax_version env < (3, 0) ->
               (* Before dune 3.0, unknown variable errors were delayed *)
-              Error (v, msg) ))
+              Error (v, msg)))
     }
 
 let decode = decode_manually Pform.Env.parse
@@ -281,9 +281,9 @@ module Make (A : Applicative_intf.S1) = struct
       | None -> Partial.Unexpanded t
       | Some e ->
         Expanded
-          ( match Mode.value mode e with
+          (match Mode.value mode e with
           | None -> invalid_multivalue source p e
-          | Some s -> s ) )
+          | Some s -> s))
     | _ ->
       let expanded_parts =
         List.map t.parts ~f:(fun part ->
@@ -298,7 +298,7 @@ module Make (A : Applicative_intf.S1) = struct
               | Some (([] | _ :: _ :: _) as e) when not t.quoted ->
                 invalid_multivalue source p e
               | Some t -> Text (Value.L.concat ~dir t)
-              | None -> part ))
+              | None -> part))
       in
       let open App.O in
       let+ expanded = App.all expanded_parts in
@@ -316,7 +316,7 @@ module Make (A : Applicative_intf.S1) = struct
           match acc with
           | [] -> Partial.Expanded (Mode.string mode (concat_rev acc_text))
           | _ ->
-            Unexpanded { t with parts = List.rev (commit_text acc_text acc) } )
+            Unexpanded { t with parts = List.rev (commit_text acc_text acc) })
         | Text s :: items -> loop (s :: acc_text) acc items
         | it :: items -> loop [] (it :: commit_text acc_text acc) items
       in
@@ -369,7 +369,7 @@ let encode t =
                       (Dune_lang.Template.Pform.describe source)
                   ]
               | Success { name; payload } ->
-                Pform { loc = source.loc; name; payload } ))
+                Pform { loc = source.loc; name; payload }))
       }
 
 let to_dyn t = Dune_lang.to_dyn (encode t)

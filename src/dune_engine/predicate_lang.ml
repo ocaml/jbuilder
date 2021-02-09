@@ -52,7 +52,7 @@ let rec decode_one f =
         [ Pp.text ":include isn't supported in the predicate language" ]
     | _ when s.[0] = ':' ->
       User_error.raise ~loc [ Pp.textf "undefined symbol %s" s ]
-    | _ -> elt )
+    | _ -> elt)
   | List (_, Atom (loc, A s) :: _) -> (
     match s with
     | ":include" ->
@@ -68,7 +68,7 @@ let rec decode_one f =
             "This atom must be quoted because it is the first element of a \
              list and doesn't start with - or:"
         ]
-    | _ -> enter (many f union []) )
+    | _ -> enter (many f union []))
   | List _ -> enter (many f union [])
 
 and many f k acc =

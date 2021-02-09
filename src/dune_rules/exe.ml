@@ -71,7 +71,7 @@ module Linkage = struct
           if Result.is_ok ctx.ocamlopt then
             Native
           else
-            Byte_with_stubs_statically_linked_in )
+            Byte_with_stubs_statically_linked_in)
     in
     let ext =
       Dune_file.Executables.Link_mode.extension m ~loc
@@ -89,12 +89,12 @@ module Linkage = struct
           match link_mode with
           | Byte_with_stubs_statically_linked_in ->
             [ Ocaml_version.custom_or_output_complete_exe ctx.version ]
-          | _ -> [] )
+          | _ -> [])
         | Object -> o_flags
         | Plugin -> (
           match link_mode with
           | Native -> cmxs_flags
-          | _ -> cma_flags )
+          | _ -> cma_flags)
         | Shared_object -> (
           let so_flags =
             let os_type = Ocaml_config.os_type ctx.ocaml_config in
@@ -115,7 +115,7 @@ module Linkage = struct
             @ so_flags
           | Byte
           | Byte_with_stubs_statically_linked_in ->
-            so_flags ) )
+            so_flags))
     in
     { ext; mode = link_mode; flags }
 end
@@ -135,9 +135,9 @@ let link_exe ~loc ~name ~(linkage : Linkage.t) ~cm_files ~link_time_code_gen
   let fdo_linker_script = Fdo.Linker_script.create cctx (Path.build exe) in
   SC.add_rule sctx ~loc ~dir
     ~mode:
-      ( match promote with
+      (match promote with
       | None -> Standard
-      | Some p -> Promote p )
+      | Some p -> Promote p)
     (let ocaml_flags = Ocaml_flags.get (CC.flags cctx) mode in
      let prefix =
        Cm_files.top_sorted_objects_and_cms cm_files ~mode
@@ -175,10 +175,10 @@ let link_exe ~loc ~name ~(linkage : Linkage.t) ~cm_files ~link_time_code_gen
                ~f:(fun { Link_time_code_gen.to_link; force_linkall } ->
                  S
                    [ As
-                       ( if force_linkall then
+                       (if force_linkall then
                          [ "-linkall" ]
                        else
-                         [] )
+                         [])
                    ; Lib.Lib_and_module.L.link_flags to_link
                        ~lib_config:ctx.lib_config ~mode:linkage.mode
                    ])

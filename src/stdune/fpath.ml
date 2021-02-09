@@ -29,10 +29,10 @@ let resolve_link path =
   | link ->
     Ok
       (Some
-         ( if Filename.is_relative link then
+         (if Filename.is_relative link then
            Filename.concat (Filename.dirname path) link
          else
-           link ))
+           link))
 
 type follow_symlink_error =
   | Not_a_symlink

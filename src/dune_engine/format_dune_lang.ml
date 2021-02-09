@@ -73,10 +73,10 @@ let rec pp_sexp ~version : Dune_lang.Cst.t -> _ = function
   | (Atom _ | Quoted_string _ | Template _) as sexp -> pp_simple sexp
   | List (_, sexps) ->
     Pp.vbox ~indent:1
-      ( if can_be_displayed_wrapped sexps then
+      (if can_be_displayed_wrapped sexps then
         print_wrapped_list ~version sexps
       else
-        pp_sexp_list ~version sexps )
+        pp_sexp_list ~version sexps)
   | Comment (loc, c) -> pp_comment loc c
 
 and pp_sexp_list ~version sexps =

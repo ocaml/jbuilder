@@ -135,8 +135,8 @@ module Context = struct
               ]
         in
         field "paths" ~default:[]
-          ( Dune_lang.Syntax.since Stanza.syntax (1, 12)
-          >>> map ~f (repeat (pair (located string) Ordered_set_lang.decode)) )
+          (Dune_lang.Syntax.since Stanza.syntax (1, 12)
+          >>> map ~f (repeat (pair (located string) Ordered_set_lang.decode)))
       and+ instrument_with =
         field ~default:instrument_with "instrument_with"
           (Dune_lang.Syntax.since syntax (2, 7) >>> repeat Lib_name.decode)
@@ -206,7 +206,7 @@ module Context = struct
               ; Pp.text
                   "Please specify a context name manually with the (name ..) \
                    field"
-              ] )
+              ])
       in
       let base = { base with targets = Target.add base.targets x; name } in
       { base; switch; root; merlin }
@@ -288,9 +288,10 @@ module Context = struct
   let all_names t =
     let n = name t in
     n
-    :: List.filter_map (targets t) ~f:(function
-         | Native -> None
-         | Named s -> Some (Context_name.target n ~toolchain:s))
+    ::
+    List.filter_map (targets t) ~f:(function
+      | Native -> None
+      | Named s -> Some (Context_name.target n ~toolchain:s))
 
   let default ?x ?profile ?instrument_with () =
     Default

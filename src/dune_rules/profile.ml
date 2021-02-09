@@ -16,10 +16,10 @@ include (
     let of_string_opt p =
       (* TODO actually validate *)
       Some
-        ( match p with
+        (match p with
         | "dev" -> Dev
         | "release" -> Release
-        | s -> User_defined s )
+        | s -> User_defined s)
 
     let description_of_valid_string = None
 
@@ -30,7 +30,7 @@ include (
       | Release -> "release"
       | User_defined s -> s
   end) :
-    Stringlike_intf.S with type t := t )
+    Stringlike_intf.S with type t := t)
 
 let equal x y =
   match (x, y) with

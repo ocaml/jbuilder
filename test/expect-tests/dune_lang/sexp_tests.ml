@@ -29,8 +29,8 @@ let of_sexp =
   enter (fields (field "foo" int))
 
 let%expect_test _ =
-  ( try ignore (parse of_sexp Univ_map.empty (Lazy.force sexp) : int)
-    with User_error.E msg -> User_message.print { msg with loc = None } );
+  (try ignore (parse of_sexp Univ_map.empty (Lazy.force sexp) : int) with
+  | User_error.E msg -> User_message.print { msg with loc = None });
   [%expect {|
 Error: Field "foo" is present too many times
 |}]
@@ -76,8 +76,8 @@ let parse s =
   let f ~lexer =
     try
       Ok
-        ( Dune_lang.Parser.parse_string ~fname:"" ~mode:Many ~lexer s
-        |> List.map ~f:Dune_lang.Ast.remove_locs )
+        (Dune_lang.Parser.parse_string ~fname:"" ~mode:Many ~lexer s
+        |> List.map ~f:Dune_lang.Ast.remove_locs)
     with
     | User_error.E msg -> Error (string_of_user_error msg)
     | e -> Error (Printexc.to_string e)
@@ -298,9 +298,9 @@ let test syntax sexp =
       match
         Dune_lang.Parser.parse_string s ~mode:Single ~fname:""
           ~lexer:
-            ( match syntax with
+            (match syntax with
             | Jbuild -> Jbuild_support.Lexer.token
-            | Dune -> Dune_lang.Lexer.token )
+            | Dune -> Dune_lang.Lexer.token)
       with
       | sexp' ->
         let sexp' = Dune_lang.Ast.remove_locs sexp' in

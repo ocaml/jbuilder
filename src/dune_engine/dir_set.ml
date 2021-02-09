@@ -109,7 +109,7 @@ let rec diff x y =
     | Empty -> x
     | Universal -> Empty
     | Nontrivial ny ->
-      merge_nontrivial nx ny ~f_one:(fun a b -> a && not b) ~f_set:diff )
+      merge_nontrivial nx ny ~f_one:(fun a b -> a && not b) ~f_set:diff)
 
 let rec mem t dir =
   match t with
@@ -121,7 +121,7 @@ let rec mem t dir =
     | child :: rest -> (
       match String.Map.find exceptions child with
       | None -> default
-      | Some t -> mem t rest ) )
+      | Some t -> mem t rest))
 
 let mem t dir = mem t (Path.Local_gen.explode dir)
 
@@ -132,7 +132,7 @@ let descend t child =
   | Nontrivial { here = _; default; exceptions } -> (
     match String.Map.find exceptions child with
     | None -> trivial default
-    | Some t -> t )
+    | Some t -> t)
 
 let union_all = List.fold_left ~init:empty ~f:union
 
@@ -179,16 +179,16 @@ let rec to_dyn =
   | Nontrivial { here; default; exceptions } ->
     let open Dyn in
     List
-      ( ( ( match here with
-          | true -> [ (".", String "true") ]
-          | false -> [] )
-        @ ( String.Map.to_list exceptions
-          |> List.map ~f:(fun (s, t) -> (s, to_dyn t)) )
-        @
-        match default with
-        | false -> []
-        | true -> [ ("*", String "Universal") ] )
-      |> List.map ~f:(fun (k, v) -> List [ String k; v ]) )
+      (((match here with
+        | true -> [ (".", String "true") ]
+        | false -> [])
+       @ (String.Map.to_list exceptions
+         |> List.map ~f:(fun (s, t) -> (s, to_dyn t)))
+       @
+       match default with
+       | false -> []
+       | true -> [ ("*", String "Universal") ])
+      |> List.map ~f:(fun (k, v) -> List [ String k; v ]))
 
 let forget_root t = t
 

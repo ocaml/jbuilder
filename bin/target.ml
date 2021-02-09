@@ -21,10 +21,10 @@ let request targets =
       | File path -> Action_builder.path path
       | Alias { Alias.name; recursive; dir; contexts } ->
         let contexts = List.map ~f:Dune_rules.Context.name contexts in
-        ( if recursive then
+        (if recursive then
           Build_system.Alias.dep_rec_multi_contexts
         else
-          Build_system.Alias.dep_multi_contexts )
+          Build_system.Alias.dep_multi_contexts)
           ~dir ~name ~contexts)
 
 let target_hint (_setup : Dune_rules.Main.build_system) path =
@@ -88,11 +88,11 @@ let resolve_path path ~(setup : Dune_rules.Main.build_system) =
               None)
       with
       | [] -> can't_build path
-      | l -> Ok l ) )
+      | l -> Ok l))
   | In_build_dir (_ctx, src) -> (
     match as_source_dir src with
     | Some res -> Ok res
-    | None -> build () )
+    | None -> build ())
   | In_install_dir _ -> build ()
 
 let expand_path common ~(setup : Dune_rules.Main.build_system) ctx sv =

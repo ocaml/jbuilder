@@ -31,9 +31,9 @@ let init ?(file = File.Default) () =
         (String.concat
            (List.map (Array.to_list Sys.argv) ~f:String.quote_for_shell)
            ~sep:" ")
-        ( match Env.get Env.initial "OCAMLPARAM" with
+        (match Env.get Env.initial "OCAMLPARAM" with
         | Some s -> Printf.sprintf "%S" s
-        | None -> "unset" ));
+        | None -> "unset"));
   let buf = Buffer.create 1024 in
   let ppf = Format.formatter_of_buffer buf in
   Fdecl.set t (Some { oc; buf; ppf })
@@ -67,9 +67,9 @@ let command ~command_line ~output ~exit_status =
         match Ansi_color.strip s with
         | "" -> output_string oc ">\n"
         | s -> Printf.fprintf oc "> %s\n" s);
-    ( match (exit_status : Unix.process_status) with
+    (match (exit_status : Unix.process_status) with
     | WEXITED 0 -> ()
     | WEXITED n -> Printf.fprintf oc "[%d]\n" n
     | WSIGNALED n -> Printf.fprintf oc "[got signal %s]\n" (Signal.name n)
-    | WSTOPPED _ -> assert false );
+    | WSTOPPED _ -> assert false);
     flush oc

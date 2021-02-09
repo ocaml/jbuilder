@@ -60,9 +60,9 @@ let default =
   ( term
   , Term.info "dune" ~doc
       ~version:
-        ( match Build_info.V1.version () with
+        (match Build_info.V1.version () with
         | None -> "n/a"
-        | Some v -> Build_info.V1.Version.to_string v )
+        | Some v -> Build_info.V1.Version.to_string v)
       ~man:
         [ `Blocks common_commands_synopsis
         ; `S "DESCRIPTION"
@@ -96,7 +96,8 @@ let () =
     match Term.Group.eval default all ~catch:false with
     | `Error _ -> exit 1
     | _ -> exit 0
-  with exn ->
+  with
+  | exn ->
     let exn = Exn_with_backtrace.capture exn in
     Dune_engine.Report_error.report exn;
     exit 1

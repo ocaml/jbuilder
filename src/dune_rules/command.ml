@@ -61,7 +61,7 @@ let expand_static ~dir t =
       | Error e -> raise (Fail e)
       | Ok (args, deps) ->
         static_deps := Dep.Set.union !static_deps deps;
-        args )
+        args)
   in
   match loop_static t with
   | exception Fail fail -> Error fail
@@ -110,11 +110,11 @@ let expand ~dir ts =
       Action_builder.with_targets ~targets:fns (Action_builder.return [])
     | Expand f ->
       Action_builder.with_no_targets
-        ( match f ~dir with
+        (match f ~dir with
         | Error e -> Action_builder.fail e
         | Ok (args, deps) ->
           let open Action_builder.O in
-          Action_builder.deps deps >>> Action_builder.return args )
+          Action_builder.deps deps >>> Action_builder.return args)
   in
   loop (S ts)
 

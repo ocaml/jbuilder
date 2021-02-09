@@ -99,7 +99,7 @@ let test_rule ~sctx ~expander ~dir (spec : effective)
       in
       let cram = Action_builder.with_no_targets cram in
       List.iter aliases ~f:(fun alias ->
-          Alias_rules.add sctx ~alias ~stamp ~loc cram ~locks:[]) )
+          Alias_rules.add sctx ~alias ~stamp ~loc cram ~locks:[]))
 
 let rules ~sctx ~expander ~dir tests =
   let stanzas =

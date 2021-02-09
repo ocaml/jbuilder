@@ -176,8 +176,8 @@ module Stanza = struct
     and+ env_vars = env_vars_field
     and+ binaries =
       field ~default:[] "binaries"
-        ( Dune_lang.Syntax.since Stanza.syntax (1, 6)
-        >>> File_binding.Unexpanded.L.decode )
+        (Dune_lang.Syntax.since Stanza.syntax (1, 6)
+        >>> File_binding.Unexpanded.L.decode)
     and+ inline_tests = inline_tests_field
     and+ menhir_flags = menhir_flags ~since:(Some (2, 1))
     and+ odoc = odoc_field

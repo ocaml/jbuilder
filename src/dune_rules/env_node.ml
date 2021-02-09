@@ -60,18 +60,18 @@ let make ~dir ~inherit_from ~scope ~config_stanza ~profile ~expander
   let inherited ~field ~root extend =
     Memo.lazy_ (fun () ->
         extend
-          ( match inherit_from with
+          (match inherit_from with
           | None -> root
-          | Some t -> field (Memo.Lazy.force t) ))
+          | Some t -> field (Memo.Lazy.force t)))
   in
   let inherited_if_absent ~field ~root f_absent =
     Memo.lazy_ (fun () ->
         match root with
         | None ->
           f_absent
-            ( match inherit_from with
+            (match inherit_from with
             | None -> None
-            | Some t -> Some (field (Memo.Lazy.force t)) )
+            | Some t -> Some (field (Memo.Lazy.force t)))
         | Some x -> x)
   in
   let local_binaries =
@@ -118,10 +118,10 @@ let make ~dir ~inherit_from ~scope ~config_stanza ~profile ~expander
     | { inline_tests = None; _ } ->
       inherited ~field:inline_tests Fun.id
         ~root:
-          ( if Profile.is_inline_test profile then
+          (if Profile.is_inline_test profile then
             Enabled
           else
-            Disabled )
+            Disabled)
   in
   let foreign_flags =
     inherited ~field:foreign_flags ~root:default_context_flags (fun flags ->

@@ -66,7 +66,7 @@ let find () =
             { candidate with
               ancestor_vcs = Some { kind; root = Path.of_string dir }
             }
-          | None -> candidate )
+          | None -> candidate)
       in
       cont counter ~candidate dir ~to_cwd
   and cont counter ~candidate ~to_cwd dir =

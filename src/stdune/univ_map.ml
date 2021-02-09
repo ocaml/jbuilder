@@ -102,7 +102,7 @@ let superpose = Int.Map.superpose
 let to_dyn (t : t) =
   let open Dyn.Encoder in
   Dyn.Map
-    ( Int.Map.values t
+    (Int.Map.values t
     |> List.map ~f:(fun (Binding.T (key, v)) ->
            let (module K) = key in
-           (string K.name, K.to_dyn v)) )
+           (string K.name, K.to_dyn v)))

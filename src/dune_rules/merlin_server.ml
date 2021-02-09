@@ -27,7 +27,7 @@ module Commands = struct
       | List [ Atom "File"; Atom path ] -> File path
       | sexp ->
         let msg = Printf.sprintf "Bad input: %s" (Sexp.to_string sexp) in
-        Unknown msg )
+        Unknown msg)
     | Error _ -> Halt
 end
 
@@ -42,8 +42,8 @@ let to_local abs_file_path =
   in
   match path_opt with
   | Some path -> (
-    try Ok (Filename.concat "." path |> Path.Local.of_string)
-    with User_error.E mess -> User_message.to_string mess |> error )
+    try Ok (Filename.concat "." path |> Path.Local.of_string) with
+    | User_error.E mess -> User_message.to_string mess |> error)
   | None ->
     Printf.sprintf "Path is not in dune workspace %s" abs_file_path |> error
 
@@ -83,10 +83,10 @@ let load_merlin_file local_path file =
     | Some p -> Some p
     | None ->
       Option.bind ~f:find_closest
-        ( if Path.Local.is_root path then
+        (if Path.Local.is_root path then
           None
         else
-          Path.Local.parent path )
+          Path.Local.parent path)
   in
   let default =
     Merlin_conf.make_error "Project isn't built. (Try calling `dune build`.)"

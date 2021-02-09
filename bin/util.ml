@@ -35,8 +35,8 @@ let check_path contexts =
             (User_message.did_you_mean
                (Dune_engine.Context_name.to_string ctx)
                ~candidates:
-                 ( Dune_engine.Context_name.Map.keys contexts
-                 |> List.map ~f:Dune_engine.Context_name.to_string ))
+                 (Dune_engine.Context_name.Map.keys contexts
+                 |> List.map ~f:Dune_engine.Context_name.to_string))
     in
     match path with
     | External e -> External e
@@ -46,4 +46,4 @@ let check_path contexts =
       | Other _ -> internal_path ()
       | Alias (_, _) -> internal_path ()
       | Install (name, src) -> In_install_dir (context_exn name, src)
-      | Regular (name, src) -> In_build_dir (context_exn name, src) )
+      | Regular (name, src) -> In_build_dir (context_exn name, src))

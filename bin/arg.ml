@@ -50,10 +50,10 @@ module Dep = struct
       in
       let s = String_with_vars.make_text Loc.none (String.drop s pos) in
       Some
-        ( if recursive then
+        (if recursive then
           Dep_conf.Alias_rec s
         else
-          Dep_conf.Alias s )
+          Dep_conf.Alias s)
 
   let dep_parser =
     Dune_lang.Syntax.set Stanza.syntax (Active Stanza.latest_version)
@@ -71,7 +71,7 @@ module Dep = struct
              ~mode:Dune_lang.Parser.Mode.Single s)
       with
       | x -> `Ok x
-      | exception User_error.E msg -> `Error (User_message.to_string msg) )
+      | exception User_error.E msg -> `Error (User_message.to_string msg))
 
   let string_of_alias ~recursive sv =
     let prefix =

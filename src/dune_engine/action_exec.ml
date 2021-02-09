@@ -224,7 +224,7 @@ let rec exec t ~ectx ~eenv =
     Io.copy_file ~src ~dst ();
     Fiber.return Done
   | Symlink (src, dst) ->
-    ( if Sys.win32 then
+    (if Sys.win32 then
       let dst = Path.build dst in
       Io.copy_file ~src ~dst ()
     else
@@ -244,7 +244,7 @@ let rec exec t ~ectx ~eenv =
           Unix.unlink dst;
           Unix.symlink src dst
         )
-      | exception _ -> Unix.symlink src dst );
+      | exception _ -> Unix.symlink src dst);
     Fiber.return Done
   | Copy_and_add_line_directive (src, dst) ->
     Io.with_file_in src ~f:(fun ic ->
@@ -297,8 +297,8 @@ let rec exec t ~ectx ~eenv =
   | Diff ({ optional; file1; file2; mode } as diff) ->
     let remove_intermediate_file () =
       if optional then
-        try Path.unlink (Path.build file2)
-        with Unix.Unix_error (ENOENT, _, _) -> ()
+        try Path.unlink (Path.build file2) with
+        | Unix.Unix_error (ENOENT, _, _) -> ()
     in
     if Diff.eq_files diff then (
       remove_intermediate_file ();
@@ -322,7 +322,7 @@ let rec exec t ~ectx ~eenv =
               Print_diff.print file1 (Path.build file2)
                 ~skip_trailing_cr:(mode = Text && Sys.win32))
           ~finally:(fun () ->
-            ( match optional with
+            (match optional with
             | false ->
               (* Promote if in the source tree or not a target. The second case
                  means that the diffing have been done with the empty file *)
@@ -346,7 +346,7 @@ let rec exec t ~ectx ~eenv =
                           (Path.extract_build_context_dir_maybe_sandboxed file1)))
                   ~correction_file:file2
               else
-                remove_intermediate_file () );
+                remove_intermediate_file ());
             Fiber.return ())
       in
       Done
@@ -423,7 +423,7 @@ and exec_list ts ~ectx ~eenv =
     in
     match done_or_deps with
     | Need_more_deps _ as need -> Fiber.return need
-    | Done -> exec_list rest ~ectx ~eenv )
+    | Done -> exec_list rest ~ectx ~eenv)
 
 and exec_pipe outputs ts ~ectx ~eenv =
   let tmp_file () =
@@ -454,7 +454,7 @@ and exec_pipe outputs ts ~ectx ~eenv =
       Dtemp.destroy File in_;
       match done_or_deps with
       | Need_more_deps _ as need -> Fiber.return need
-      | Done -> loop ~in_:out ts )
+      | Done -> loop ~in_:out ts)
   in
   match ts with
   | [] -> assert false
@@ -469,7 +469,7 @@ and exec_pipe outputs ts ~ectx ~eenv =
     let* done_or_deps = redirect_out t1 ~ectx ~eenv outputs out in
     match done_or_deps with
     | Need_more_deps _ as need -> Fiber.return need
-    | Done -> loop ~in_:out ts )
+    | Done -> loop ~in_:out ts)
 
 let exec_until_all_deps_ready ~ectx ~eenv t =
   let open DAP in

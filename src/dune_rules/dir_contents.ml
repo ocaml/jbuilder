@@ -8,9 +8,9 @@ open! No_io
 let loc_of_dune_file ft_dir =
   Loc.in_file
     (Path.source
-       ( match File_tree.Dir.dune_file ft_dir with
+       (match File_tree.Dir.dune_file ft_dir with
        | Some d -> File_tree.Dune_file.path d
-       | None -> Path.Source.relative (File_tree.Dir.path ft_dir) "_unknown_" ))
+       | None -> Path.Source.relative (File_tree.Dir.path ft_dir) "_unknown_"))
 
 type t =
   { kind : kind
@@ -333,7 +333,7 @@ end = struct
     | See_above group_root -> (
       match Memo.exec memo0 (sctx, group_root) with
       | See_above _ -> assert false
-      | Here { t; rules = _; subdirs = _ } -> t )
+      | Here { t; rules = _; subdirs = _ } -> t)
 
   let () =
     let f sctx ~dir ~name =

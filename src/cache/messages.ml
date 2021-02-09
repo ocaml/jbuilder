@@ -35,13 +35,14 @@ let sexp_of_message : type a. version -> a message -> Sexp.t =
     cmd "hint" @@ List.map ~f keys
   | Lang versions ->
     cmd "lang"
-      ( Sexp.Atom "dune-cache-protocol"
-      :: (List.map ~f:(fun { major; minor } ->
-              Sexp.List
-                [ Sexp.Atom (string_of_int major)
-                ; Sexp.Atom (string_of_int minor)
-                ]))
-           versions )
+      (Sexp.Atom "dune-cache-protocol"
+       ::
+       (List.map ~f:(fun { major; minor } ->
+            Sexp.List
+              [ Sexp.Atom (string_of_int major)
+              ; Sexp.Atom (string_of_int minor)
+              ]))
+         versions)
   | Promote promotion ->
     let key = Key.to_string promotion.key
     and f (path, digest) =
@@ -74,10 +75,11 @@ let sexp_of_message : type a. version -> a message -> Sexp.t =
       | None -> rest
     in
     cmd "promote"
-      ( Sexp.List [ Sexp.Atom "key"; Sexp.Atom key ]
-      :: Sexp.List (Sexp.Atom "files" :: List.map ~f promotion.files)
-      :: Sexp.List [ Sexp.Atom "metadata"; Sexp.List promotion.metadata ]
-      :: rest )
+      (Sexp.List [ Sexp.Atom "key"; Sexp.Atom key ]
+       ::
+       Sexp.List (Sexp.Atom "files" :: List.map ~f promotion.files)
+       ::
+       Sexp.List [ Sexp.Atom "metadata"; Sexp.List promotion.metadata ] :: rest)
   | SetBuildRoot root ->
     cmd "set-build-root" [ Sexp.Atom (Path.to_absolute_filename root) ]
   | SetCommonMetadata metadata -> cmd "set-common-metadata" metadata
@@ -104,9 +106,9 @@ let int_of_string ?where s =
   | None ->
     Result.Error
       (Printf.sprintf "invalid integer%s: %s"
-         ( match where with
+         (match where with
          | Some l -> " in " ^ l
-         | None -> "" )
+         | None -> "")
          s)
 
 let lang_of_sexp = function
@@ -214,7 +216,7 @@ let outgoing_message_of_sexp version =
         match Digest.from_hex k with
         | Some k -> Result.Ok k
         | None ->
-          Result.Error (Format.asprintf "invalid key in hint message: %s" k) )
+          Result.Error (Format.asprintf "invalid key in hint message: %s" k))
       | k ->
         Result.Error
           (Format.asprintf "invalid expression in hint message: %a" Pp.to_fmt
@@ -226,7 +228,7 @@ let outgoing_message_of_sexp version =
   | Sexp.List (Sexp.Atom cmd :: args) ->
     Result.map_error
       ~f:(fun s -> cmd ^ ": " ^ s)
-      ( match cmd with
+      (match cmd with
       | "hint" when hint_supported version ->
         let+ keys = hint_of_sexp args in
         Hint keys
@@ -240,7 +242,7 @@ let outgoing_message_of_sexp version =
       | "set-repos" ->
         let+ repos = repos_of_sexp args in
         SetRepos repos
-      | _ -> Result.Error (Printf.sprintf "unknown command: %s" cmd) )
+      | _ -> Result.Error (Printf.sprintf "unknown command: %s" cmd))
   | cmd ->
     Result.Error
       (Printf.sprintf "invalid command format: %s" (Sexp.to_string cmd))

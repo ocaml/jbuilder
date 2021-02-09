@@ -101,9 +101,9 @@ module Make (Value : Value) : S with type value := Value.t = struct
     else
       Format.fprintf fmt "(%d: k=%d) (%a) [@[%a@]]" n.info.id n.info.level
         pp_value n.data
-        ( pp_depth (depth + 1) pp_value
+        (pp_depth (depth + 1) pp_value
         |> Format.pp_print_list ~pp_sep:(fun fmt () ->
-               Format.fprintf fmt ";@, ") )
+               Format.fprintf fmt ";@, "))
         n.info.deps
 
   let pp_node pp_value fmt n = pp_depth 0 pp_value fmt n

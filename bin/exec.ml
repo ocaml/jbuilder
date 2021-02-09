@@ -62,26 +62,26 @@ let term =
   in
   let targets =
     lazy
-      ( ( match prog_where with
-        | `Search p ->
-          [ Path.Build.relative
-              (Config.local_install_bin_dir ~context:context.name)
-              p
-            |> Path.build
-          ]
-        | `This_rel p when Sys.win32 ->
-          [ p; Path.extend_basename p ~suffix:Bin.exe ]
-        | `This_rel p -> [ p ]
-        | `This_abs p when Path.is_in_build_dir p -> [ p ]
-        | `This_abs _ -> [] )
+      ((match prog_where with
+       | `Search p ->
+         [ Path.Build.relative
+             (Config.local_install_bin_dir ~context:context.name)
+             p
+           |> Path.build
+         ]
+       | `This_rel p when Sys.win32 ->
+         [ p; Path.extend_basename p ~suffix:Bin.exe ]
+       | `This_rel p -> [ p ]
+       | `This_abs p when Path.is_in_build_dir p -> [ p ]
+       | `This_abs _ -> [])
       |> List.map ~f:(fun p -> Target.Path p)
       |> Target.resolve_targets_mixed common setup
       |> List.concat_map ~f:(function
            | Ok targets -> targets
-           | Error _ -> []) )
+           | Error _ -> []))
   in
   let real_prog =
-    ( if not no_rebuild then
+    (if not no_rebuild then
       match Lazy.force targets with
       | [] -> ()
       | targets ->
@@ -89,7 +89,7 @@ let term =
         Build_system.cache_teardown ();
         (* We must manually run the hook because Unix.exec will not run
            [at_exit] hooks *)
-        Hooks.End_of_build.run () );
+        Hooks.End_of_build.run ());
     match prog_where with
     | `Search prog ->
       let path =
@@ -130,7 +130,7 @@ let term =
             "Program %S isn't built yet. You need to build it first or remove \
              the --no-build option."
             prog
-        ] )
+        ])
   | None, false ->
     let hints = hints () in
     User_error.raise ~hints [ Pp.textf "Program %S not found!" prog ]

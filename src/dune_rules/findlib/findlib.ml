@@ -272,7 +272,7 @@ end = struct
            least one of the archive is present. *)
         match archives t with
         | { byte = []; native = [] } -> true
-        | { byte; native } -> List.exists (byte @ native) ~f:Path.exists )
+        | { byte; native } -> List.exists (byte @ native) ~f:Path.exists)
 
     let to_dune_library t ~(lib_config : Lib_config.t) =
       let loc = Loc.in_file t.meta_file in
@@ -377,7 +377,7 @@ end = struct
         in
         let entry_modules =
           Lib_info.Source.External
-            ( match Vars.get_words t.vars "main_modules" Ps.empty with
+            (match Vars.get_words t.vars "main_modules" Ps.empty with
             | _ :: _ as modules ->
               Ok (List.map ~f:Module_name.of_string modules)
             | [] -> (
@@ -409,7 +409,7 @@ end = struct
                             (Loc.in_dir src_dir, name)
                         with
                         | Ok s -> Ok (Some s)
-                        | Error e -> Error (User_error.E e) )) ) )
+                        | Error e -> Error (User_error.E e)))))
         in
         Lib_info.create ~path_kind:External ~loc ~name:t.name ~kind ~status
           ~src_dir ~orig_src_dir ~obj_dir ~version ~synopsis ~main_module_name
@@ -535,7 +535,7 @@ end = struct
         | _ -> (
           Package.Name.Map.find db.builtins name |> function
           | None -> Error Unavailable_reason.Not_found
-          | Some meta -> Ok (load_builtin db meta) ) )
+          | Some meta -> Ok (load_builtin db meta)))
       | dir :: dirs -> (
         let dir = Path.relative dir (Package.Name.to_string name) in
         let dune = Path.relative dir Dune_package.fn in
@@ -550,7 +550,7 @@ end = struct
         | Ok Use_meta -> (
           match lookup_and_load_one_dir db ~dir ~name with
           | None -> loop dirs
-          | Some p -> Ok p ) )
+          | Some p -> Ok p))
     in
     loop db.paths
 end

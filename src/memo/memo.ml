@@ -124,7 +124,7 @@ module Spec = struct
         Code_error.raise
           "[Spec.register] called twice on a function with the same name"
           [ ("name", Dyn.String info.name) ]
-      | None -> String.Table.set by_name info.name (T t) )
+      | None -> String.Table.set by_name info.name (T t))
 
   let create (type o) ~info ~input ~visibility ~(output : o Output.t) ~f =
     let (output : (module Output_simple with type t = o)), allow_cutoff =
@@ -370,11 +370,11 @@ module Cached_value = struct
 
   let capture_dep_values ~deps_rev =
     List.rev_map deps_rev ~f:(function Dep_node.T dep_node ->
-        ( match get_cached_value_in_current_cycle dep_node with
+        (match get_cached_value_in_current_cycle dep_node with
         | None ->
           Code_error.raise
             "Attempted to create a cached value based on some stale inputs" []
-        | Some cv -> Last_dep.T (dep_node, cv.id) ))
+        | Some cv -> Last_dep.T (dep_node, cv.id)))
 
   let create x ~deps_rev =
     { deps = capture_dep_values ~deps_rev
@@ -396,7 +396,7 @@ module Cached_value = struct
     | Ok prev_output, Ok curr_output -> (
       match node.without_state.spec.allow_cutoff with
       | Yes equal -> not (equal prev_output curr_output)
-      | No -> true )
+      | No -> true)
 end
 
 let ser_input (type a) (node : (a, _, _) Dep_node_without_state.t) =
@@ -415,9 +415,9 @@ module Stack_frame_without_state = struct
   let to_dyn t =
     Dyn.Tuple
       [ String
-          ( match name t with
+          (match name t with
           | Some name -> name
-          | None -> "<unnamed>" )
+          | None -> "<unnamed>")
       ; input t
       ]
 end
@@ -486,9 +486,9 @@ let pp_stack () =
   let open Pp.O in
   let stack = Call_stack.get_call_stack () in
   Pp.vbox
-    ( Pp.box (Pp.text "Memoized function stack:")
+    (Pp.box (Pp.text "Memoized function stack:")
     ++ Pp.cut
-    ++ Pp.chain stack ~f:(fun frame -> Dyn.pp (Stack_frame.to_dyn frame)) )
+    ++ Pp.chain stack ~f:(fun frame -> Dyn.pp (Stack_frame.to_dyn frame)))
 
 let dump_stack () = Format.eprintf "%a" Pp.to_fmt (pp_stack ())
 
@@ -539,12 +539,13 @@ let add_dep_from_caller (type i o f) ~called_from_peek
           try
             Dag.add_assuming_missing global_dep_dag
               running_state_of_caller.sample_attempt node
-          with Dag.Cycle cycle ->
+          with
+          | Dag.Cycle cycle ->
             raise
               (Cycle_error.E
                  { stack = Call_stack.get_call_stack_without_state ()
                  ; cycle = List.map cycle ~f:(fun node -> node.Dag.data)
-                 }) )
+                 }))
       in
       running_state_of_caller.deps_so_far <-
         { set =
@@ -552,7 +553,7 @@ let add_dep_from_caller (type i o f) ~called_from_peek
               node.without_state.id
         ; deps_reversed =
             Dep_node.T node :: running_state_of_caller.deps_so_far.deps_reversed
-        } )
+        })
 
 type ('input, 'output, 'f) t =
   { spec : ('input, 'output, 'f) Spec.t
@@ -608,9 +609,9 @@ let create_with_cache (type i o f) name ~cache ?doc ~input ~visibility ~output
   let spec =
     Spec.create ~info:(Some { name; doc }) ~input ~output ~visibility ~f
   in
-  ( match visibility with
+  (match visibility with
   | Public _ -> Spec.register spec
-  | Hidden -> () );
+  | Hidden -> ());
   Caches.register ~clear:(fun () -> Store.clear cache);
   { cache; spec }
 
@@ -703,15 +704,15 @@ end = struct
         let res = Exec_unknown.exec_dep_node_internal_from_sync dep in
         match Value_id.equal res.id v_id with
         | true -> go deps
-        | false -> Changed_or_not.Changed )
+        | false -> Changed_or_not.Changed)
     in
     go
 
   let do_validate (dep_node : _ Dep_node.t) inp running_state =
     let res =
       let frame =
-        ( T { without_state = dep_node.without_state; running_state }
-          : Stack_frame_with_state.t )
+        (T { without_state = dep_node.without_state; running_state }
+          : Stack_frame_with_state.t)
       in
       Call_stack.push_sync_frame frame (fun () ->
           let from_cache =
@@ -724,7 +725,7 @@ end = struct
               | Unchanged -> Prev_cycle_cache_lookup_result.Valid cv
               | Changed ->
                 dep_node.last_cached_value <- None;
-                Invalid { old_value = Some cv } )
+                Invalid { old_value = Some cv })
           in
           match from_cache with
           | Valid v -> v
@@ -750,10 +751,10 @@ end = struct
                     Cached_value.value_changed dep_node old_cv.value res
                   with
                   | false -> Cached_value.confirm_old_value ~deps_rev old_cv
-                  | true -> Cached_value.create res ~deps_rev )
+                  | true -> Cached_value.create res ~deps_rev)
               in
               dep_node.last_cached_value <- Some res;
-              res ))
+              res))
     in
     dep_node.state <- Not_considering;
     res
@@ -780,7 +781,7 @@ end = struct
     | Not_considering -> (
       match get_cached_value_in_current_cycle dep_node with
       | None -> newly_considering dep_node dep_node.without_state.input
-      | Some cv -> Done cv )
+      | Some cv -> Done cv)
     | Considering
         { running = { sample_attempt; deps_so_far = _ }; completion = Sync; _ }
       ->
@@ -845,7 +846,7 @@ end = struct
         let* res = Exec_unknown.exec_dep_node_internal dep in
         match Value_id.equal res.id v_id with
         | true -> go deps
-        | false -> Fiber.return Changed_or_not.Changed )
+        | false -> Fiber.return Changed_or_not.Changed)
     in
     go
 
@@ -867,7 +868,7 @@ end = struct
                 Prev_cycle_cache_lookup_result.Valid cv
               | Changed ->
                 dep_node.last_cached_value <- None;
-                Invalid { old_value = Some cv } )
+                Invalid { old_value = Some cv })
           in
           match from_cache with
           | Valid v -> Fiber.return v
@@ -895,10 +896,10 @@ end = struct
                     Cached_value.value_changed dep_node old_cv.value res
                   with
                   | true -> Cached_value.create res ~deps_rev
-                  | false -> Cached_value.confirm_old_value ~deps_rev old_cv )
+                  | false -> Cached_value.confirm_old_value ~deps_rev old_cv)
               in
               dep_node.last_cached_value <- Some res;
-              res ))
+              res))
     in
     dep_node.state <- Not_considering;
     let+ () = Fiber.Ivar.fill ivar res in
@@ -928,7 +929,7 @@ end = struct
     | Not_considering -> (
       match get_cached_value_in_current_cycle dep_node with
       | None -> newly_considering dep_node dep_node.without_state.input
-      | Some cv -> Done cv )
+      | Some cv -> Done cv)
     | Considering
         { running = { sample_attempt; deps_so_far = _ }
         ; completion = Async ivar
@@ -996,7 +997,7 @@ let peek_exn (type i o f) (t : (i, o, f) t) inp =
 
            We just consider it a bug when [peek_exn] raises. *)
         add_dep_from_caller ~called_from_peek:true dep_node Finished;
-        Value.get_sync_exn cv.value ) )
+        Value.get_sync_exn cv.value))
 
 let get_deps (type i o f) (t : (i, o, f) t) inp =
   match Store.find t.cache inp with
@@ -1008,7 +1009,7 @@ let get_deps (type i o f) (t : (i, o, f) t) inp =
       Some
         (List.map cv.deps ~f:(fun (Last_dep.T (dep, _value)) ->
              ( Option.map dep.without_state.spec.info ~f:(fun x -> x.name)
-             , ser_input dep.without_state ))) )
+             , ser_input dep.without_state ))))
 
 let get_func name =
   match Spec.find name with
@@ -1020,9 +1021,9 @@ let call name input =
   let (module Output : Output_simple with type t = _) = spec.output in
   let input = Dune_lang.Decoder.parse spec.decode Univ_map.empty input in
   let+ output =
-    ( match spec.f with
+    (match spec.f with
     | Function.Async f -> f
-    | Function.Sync f -> fun x -> Fiber.return (f x) )
+    | Function.Sync f -> fun x -> Fiber.return (f x))
       input
   in
   Output.to_dyn output
@@ -1080,12 +1081,12 @@ module With_implicit_output = struct
       (typ : (i, o, f) Function.Type.t) (impl : f) =
     let output =
       Output.Simple
-        ( module struct
+        (module struct
           type t = o * io option
 
           let to_dyn ((o, _io) : t) =
             Dyn.List [ O.to_dyn o; Dyn.String "<implicit output is opaque>" ]
-        end )
+        end)
     in
     match typ with
     | Function.Type.Sync ->
@@ -1093,21 +1094,21 @@ module With_implicit_output = struct
         create name ?doc ~input ~visibility ~output Sync (fun i ->
             Implicit_output.collect_sync implicit_output (fun () -> impl i))
       in
-      ( fun input ->
-          let res, output = exec memo input in
-          Implicit_output.produce_opt implicit_output output;
-          res
-        : f )
+      (fun input ->
+         let res, output = exec memo input in
+         Implicit_output.produce_opt implicit_output output;
+         res
+        : f)
     | Function.Type.Async ->
       let memo =
         create name ?doc ~input ~visibility ~output Async (fun i ->
             Implicit_output.collect_async implicit_output (fun () -> impl i))
       in
-      ( fun input ->
-          Fiber.map (exec memo input) ~f:(fun (res, output) ->
-              Implicit_output.produce_opt implicit_output output;
-              res)
-        : f )
+      (fun input ->
+         Fiber.map (exec memo input) ~f:(fun (res, output) ->
+             Implicit_output.produce_opt implicit_output output;
+             res)
+        : f)
 
   let exec t = t
 end
@@ -1270,7 +1271,7 @@ module Poly = struct
             "Type_eq.Id.t mismatch in Memo.Poly: the likely reason is that the \
              provided Function.id returns different ids for the same input."
             [ ("Function.name", Dyn.String name) ]
-        | Some Type_eq.T -> res )
+        | Some Type_eq.T -> res)
   end
 
   module Sync (Function : sig

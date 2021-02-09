@@ -98,14 +98,14 @@ module Lib = struct
        ; field_o "instrumentation.backend" (no_loc Lib_name.encode)
            instrumentation_backend
        ]
-    @ ( Sub_system_name.Map.to_list sub_systems
+    @ (Sub_system_name.Map.to_list sub_systems
       |> List.map ~f:(fun (name, info) ->
              let (module S) = Sub_system_info.get name in
              match info with
              | S.T info ->
                let _ver, sexps = S.encode info in
                field_l (Sub_system_name.to_string name) sexp sexps
-             | _ -> assert false) )
+             | _ -> assert false))
 
   let decode ~(lang : Vfile.Lang.Instance.t) ~base =
     let open Dune_lang.Decoder in
@@ -158,8 +158,8 @@ module Lib = struct
               ~src_dir ~version:lang.version)
        and+ special_builtin_support =
          field_o "special_builtin_support"
-           ( Dune_lang.Syntax.since Stanza.syntax (1, 10)
-           >>> Lib_info.Special_builtin_support.decode )
+           (Dune_lang.Syntax.since Stanza.syntax (1, 10)
+           >>> Lib_info.Special_builtin_support.decode)
        and+ instrumentation_backend =
          field_o "instrumentation.backend" (located Lib_name.decode)
        in
@@ -392,8 +392,8 @@ let encode ~dune_version { entries; name; version; dir; sections; sites; files }
              list (Dune_lang.atom "library" :: Lib.encode lib ~package_root:dir)
            | Deprecated_library_name d ->
              list
-               ( Dune_lang.atom "deprecated_library_name"
-               :: Deprecated_library_name.encode d )
+               (Dune_lang.atom "deprecated_library_name"
+                :: Deprecated_library_name.encode d)
            | Hidden_library lib ->
              Code_error.raise "Dune_package.encode got Hidden_library"
                [ ("lib", Lib.to_dyn lib) ])

@@ -13,17 +13,17 @@ let retry ?message ?(count = 100) f =
   let rec loop = function
     | x when x >= count ->
       Result.Error
-        ( Printf.sprintf "too many retries (%i)" x
+        (Printf.sprintf "too many retries (%i)" x
         ^
         match message with
         | None -> ""
-        | Some msg -> ": " ^ msg )
+        | Some msg -> ": " ^ msg)
     | x -> (
       match f () with
       | Some v -> Result.Ok v
       | None ->
         Unix.sleepf 0.1;
-        loop (x + 1) )
+        loop (x + 1))
   in
   loop 0
 
@@ -130,8 +130,8 @@ let daemonize ?workdir ?(foreground = false) beacon
           ~message:
             (Printf.sprintf "waiting for beacon file \"%s\" to be created" path)
           (fun () ->
-            try Some (Unix.openfile path [ Unix.O_RDONLY ] 0o600)
-            with Unix.Unix_error (Unix.ENOENT, _, _) -> None)
+            try Some (Unix.openfile path [ Unix.O_RDONLY ] 0o600) with
+            | Unix.Unix_error (Unix.ENOENT, _, _) -> None)
       in
       let+ daemon_info, pid =
         retry
@@ -160,4 +160,4 @@ let stop beacon =
       (* Unfortunately the logger may not be set. Print on stderr directly? *)
       (* Log.info "unable to terminate daemon with SIGTERM, using SIGKILL"; *)
       kill Sys.sigkill
-    | ok -> ok )
+    | ok -> ok)

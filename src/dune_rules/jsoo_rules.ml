@@ -38,10 +38,10 @@ type sub_command =
 let js_of_ocaml_rule sctx ~sub_command ~dir ~flags ~spec ~target =
   let jsoo = jsoo ~dir sctx in
   Command.run ~dir:(Path.build dir) jsoo
-    [ ( match sub_command with
+    [ (match sub_command with
       | Compile -> S []
       | Link -> A "link"
-      | Build_runtime -> A "build-runtime" )
+      | Build_runtime -> A "build-runtime")
     ; flags
     ; A "-o"
     ; Target target
@@ -173,7 +173,7 @@ let setup_separate_compilation_rules sctx components =
             SC.add_rule sctx ~dir
               (js_of_ocaml_rule sctx ~sub_command:Compile ~dir
                  ~flags:(As (standard sctx))
-                 ~spec ~target)) )
+                 ~spec ~target)))
 
 let build_exe cc ~js_of_ocaml ~src ~(cm : Path.t list Action_builder.t) ~flags
     ~promote =

@@ -91,22 +91,22 @@ module Lib_deps = struct
                 "library %S is present both as a forbidden and required \
                  dependency"
                 (Lib_name.to_string name)
-            ] )
+            ])
     in
     ignore
-      ( List.fold_left t ~init:Lib_name.Map.empty ~f:(fun acc x ->
-            match x with
-            | Lib_dep.Re_export (_, s)
-            | Lib_dep.Direct (_, s) ->
-              add Required s acc
-            | Select { choices; _ } ->
-              List.fold_left choices ~init:acc
-                ~f:(fun acc (c : Lib_dep.Select.Choice.t) ->
-                  let acc =
-                    Lib_name.Set.fold c.required ~init:acc ~f:(add Optional)
-                  in
-                  Lib_name.Set.fold c.forbidden ~init:acc ~f:(add Forbidden)))
-        : kind Lib_name.Map.t );
+      (List.fold_left t ~init:Lib_name.Map.empty ~f:(fun acc x ->
+           match x with
+           | Lib_dep.Re_export (_, s)
+           | Lib_dep.Direct (_, s) ->
+             add Required s acc
+           | Select { choices; _ } ->
+             List.fold_left choices ~init:acc
+               ~f:(fun acc (c : Lib_dep.Select.Choice.t) ->
+                 let acc =
+                   Lib_name.Set.fold c.required ~init:acc ~f:(add Optional)
+                 in
+                 Lib_name.Set.fold c.forbidden ~init:acc ~f:(add Forbidden)))
+        : kind Lib_name.Map.t);
     t
 
   let of_pps pps = List.map pps ~f:(fun pp -> Lib_dep.direct (Loc.none, pp))
@@ -203,8 +203,8 @@ module Buildable = struct
         (Dune_lang.Syntax.since Stanza.syntax (2, 0) >>> Foreign.Stubs.decode)
     and+ foreign_archives =
       field_o "foreign_archives"
-        ( Dune_lang.Syntax.since Stanza.syntax (2, 0)
-        >>> repeat (located Foreign.Archive.decode) )
+        (Dune_lang.Syntax.since Stanza.syntax (2, 0)
+        >>> repeat (located Foreign.Archive.decode))
     and+ c_flags =
       only_in_library
         (field_o "c_flags" (use_foreign >>> Ordered_set_lang.Unexpanded.decode))
@@ -225,9 +225,9 @@ module Buildable = struct
       located
         (only_in_library
            (field ~default:None "self_build_stubs_archive"
-              ( Dune_lang.Syntax.deleted_in Stanza.syntax (2, 0)
-                  ~extra_info:"Use the (foreign_archives ...) field instead."
-              >>> enter (maybe string) )))
+              (Dune_lang.Syntax.deleted_in Stanza.syntax (2, 0)
+                 ~extra_info:"Use the (foreign_archives ...) field instead."
+              >>> enter (maybe string))))
     and+ modules_without_implementation =
       Stanza_common.modules_field "modules_without_implementation"
     and+ libraries = field "libraries" (Lib_deps.decode for_) ~default:[]
@@ -240,7 +240,7 @@ module Buildable = struct
     and+ loc_instrumentation, instrumentation =
       located
         (multi_field "instrumentation"
-           ( Dune_lang.Syntax.since Stanza.syntax (2, 7)
+           (Dune_lang.Syntax.since Stanza.syntax (2, 7)
            >>> fields
                  (field "backend"
                     (let+ libname = located Lib_name.decode
@@ -263,7 +263,7 @@ module Buildable = struct
                        in
                        repeat (String_with_vars.decode >>| version_check)
                      in
-                     (libname, flags))) ))
+                     (libname, flags)))))
     and+ root_module =
       field_o "root_module"
         (Dune_lang.Syntax.since Stanza.syntax (2, 8) >>> Module_name.decode_loc)
@@ -368,10 +368,10 @@ module Public_lib = struct
       |> Result.map ~f:(fun pkg ->
              { package = pkg
              ; sub_dir =
-                 ( if rest = [] then
+                 (if rest = [] then
                    None
                  else
-                   Some (String.concat rest ~sep:"/") )
+                   Some (String.concat rest ~sep:"/"))
              ; name = loc_name
              })
 
@@ -521,14 +521,14 @@ module Library = struct
 
     let make ~wrapped ~implements ~special_builtin_support :
         t Lib_info.Inherited.t =
-      ( match (wrapped, special_builtin_support) with
+      (match (wrapped, special_builtin_support) with
       | Some (loc, Yes_with_transition _), Some _ ->
         User_error.raise ~loc
           [ Pp.text
               "Cannot have transition modules for libraries with special \
                builtin support"
           ]
-      | _, _ -> () );
+      | _, _ -> ());
       match (wrapped, implements) with
       | None, None -> This default
       | None, Some w -> From w
@@ -617,40 +617,40 @@ module Library = struct
        and+ project = Dune_project.get_exn ()
        and+ virtual_modules =
          field_o "virtual_modules"
-           ( Dune_lang.Syntax.since Stanza.syntax (1, 7)
-           >>> Ordered_set_lang.decode )
+           (Dune_lang.Syntax.since Stanza.syntax (1, 7)
+           >>> Ordered_set_lang.decode)
        and+ implements =
          field_o "implements"
-           ( Dune_lang.Syntax.since Stanza.syntax (1, 7)
-           >>> located Lib_name.decode )
+           (Dune_lang.Syntax.since Stanza.syntax (1, 7)
+           >>> located Lib_name.decode)
        and+ default_implementation =
          field_o "default_implementation"
-           ( Dune_lang.Syntax.since Stanza.syntax (2, 6)
-           >>> located Lib_name.decode )
+           (Dune_lang.Syntax.since Stanza.syntax (2, 6)
+           >>> located Lib_name.decode)
        and+ private_modules =
          field_o "private_modules"
            (let* () = Dune_lang.Syntax.since Stanza.syntax (1, 2) in
             Ordered_set_lang.decode)
        and+ stdlib =
          field_o "stdlib"
-           ( Dune_lang.Syntax.since Ocaml_stdlib.syntax (0, 1)
-           >>> Ocaml_stdlib.decode )
+           (Dune_lang.Syntax.since Ocaml_stdlib.syntax (0, 1)
+           >>> Ocaml_stdlib.decode)
        and+ special_builtin_support =
          field_o "special_builtin_support"
-           ( Dune_lang.Syntax.since Stanza.syntax (1, 10)
-           >>> Lib_info.Special_builtin_support.decode )
+           (Dune_lang.Syntax.since Stanza.syntax (1, 10)
+           >>> Lib_info.Special_builtin_support.decode)
        and+ enabled_if =
          let open Enabled_if in
          let allowed_vars = Only Lib_config.allowed_in_enabled_if in
          decode ~allowed_vars ~since:(Some (1, 10)) ()
        and+ instrumentation_backend =
          field_o "instrumentation.backend"
-           ( Dune_lang.Syntax.since Stanza.syntax (2, 7)
-           >>> fields (field "ppx" (located Lib_name.decode)) )
+           (Dune_lang.Syntax.since Stanza.syntax (2, 7)
+           >>> fields (field "ppx" (located Lib_name.decode)))
        and+ package =
          field_o "package"
-           ( Dune_lang.Syntax.since Stanza.syntax (2, 8)
-           >>> located Stanza_common.Pkg.decode )
+           (Dune_lang.Syntax.since Stanza.syntax (2, 8)
+           >>> located Stanza_common.Pkg.decode)
        in
        let wrapped =
          Wrapped.make ~wrapped ~implements ~special_builtin_support
@@ -681,10 +681,10 @@ module Library = struct
          | None, None ->
            User_error.raise ~loc:stanza_loc
              [ Pp.text
-                 ( if dune_version >= (1, 1) then
+                 (if dune_version >= (1, 1) then
                    "supply at least least one of name or public_name fields"
                  else
-                   "name field is missing" )
+                   "name field is missing")
              ]
        in
        let visibility =
@@ -707,13 +707,13 @@ module Library = struct
                 [ Pp.textf "A library cannot be both virtual and implement %s"
                     (Lib_name.to_string impl)
                 ]);
-       ( match (virtual_modules, default_implementation) with
+       (match (virtual_modules, default_implementation) with
        | None, Some (loc, _) ->
          User_error.raise ~loc
            [ Pp.text
                "Only virtual libraries can specify a default implementation."
            ]
-       | _ -> () );
+       | _ -> ());
        { name
        ; visibility
        ; synopsis
@@ -757,10 +757,10 @@ module Library = struct
   let has_foreign t = Buildable.has_foreign t.buildable
 
   let foreign_archives t =
-    ( if List.is_empty t.buildable.foreign_stubs then
+    (if List.is_empty t.buildable.foreign_stubs then
       []
     else
-      [ Foreign.Archive.stubs (Lib_name.Local.to_string (snd t.name)) ] )
+      [ Foreign.Archive.stubs (Lib_name.Local.to_string (snd t.name)) ])
     @ List.map ~f:snd t.buildable.foreign_archives
 
   let foreign_lib_files t ~dir ~ext_lib =
@@ -808,8 +808,8 @@ module Library = struct
 
   let to_lib_info conf ~dir
       ~lib_config:
-        ( { Lib_config.has_native; ext_lib; ext_dll; natdynlink_supported; _ }
-        as lib_config ) =
+        ({ Lib_config.has_native; ext_lib; ext_dll; natdynlink_supported; _ } as
+        lib_config) =
     let obj_dir = obj_dir ~dir conf in
     let archive ?(dir = dir) ext = archive conf ~dir ~ext in
     let modes = Mode_conf.Set.eval ~has_native conf.modes in
@@ -871,10 +871,10 @@ module Library = struct
             archive_for_mode ~f_ext:Mode.plugin_ext ~mode |> Option.to_list
           in
           { Mode.Dict.native =
-              ( if Dynlink_supported.get conf.dynlink natdynlink_supported then
+              (if Dynlink_supported.get conf.dynlink natdynlink_supported then
                 archive_file ~mode:Native
               else
-                [] )
+                [])
           ; byte = archive_file ~mode:Byte
           }
         in
@@ -985,14 +985,14 @@ module Promote = struct
            (Dune_lang.Syntax.since Stanza.syntax (1, 10) >>> into_decode)
        and+ only =
          field_o "only"
-           ( Dune_lang.Syntax.since Stanza.syntax (1, 10)
-           >>> Predicate_lang.Glob.decode )
+           (Dune_lang.Syntax.since Stanza.syntax (1, 10)
+           >>> Predicate_lang.Glob.decode)
        in
        { Rule.Promote.lifetime =
-           ( if until_clean then
+           (if until_clean then
              Until_clean
            else
-             Unlimited )
+             Unlimited)
        ; into
        ; only
        })
@@ -1122,8 +1122,8 @@ module Executables = struct
                            to be a valid module name or add a \"name\" field \
                            with a valid module name."
                       ]
-                      ~hints:(Module_name.valid_format_doc :: user_message.hints)
-                  ))
+                      ~hints:
+                        (Module_name.valid_format_doc :: user_message.hints)))
           else
             User_error.raise ~loc
               [ Pp.textf "%s field may not be omitted before dune version %s"
@@ -1194,7 +1194,7 @@ module Executables = struct
         | Other a, Other b -> (
           match Poly.compare a.mode b.mode with
           | Eq -> Poly.compare a.kind b.kind
-          | ne -> ne )
+          | ne -> ne)
 
       let to_dyn _ = Dyn.opaque
     end
@@ -1295,7 +1295,7 @@ module Executables = struct
         | Byte, Js -> ".bc.js"
         | Native, Js ->
           User_error.raise ~loc
-            [ Pp.text "Javascript generation only supports bytecode!" ] )
+            [ Pp.text "Javascript generation only supports bytecode!" ])
 
     module O = Comparable.Make (T)
 
@@ -1311,10 +1311,10 @@ module Executables = struct
             List.fold_left l ~init:empty ~f:(fun acc (loc, link_mode) ->
                 set acc link_mode loc)
           in
-          ( match
-              String.Map.of_list_map (to_list t) ~f:(fun (lm, loc) ->
-                  (extension lm ~loc ~ext_obj:".OBJ" ~ext_dll:".DLL", lm))
-            with
+          (match
+             String.Map.of_list_map (to_list t) ~f:(fun (lm, loc) ->
+                 (extension lm ~loc ~ext_obj:".OBJ" ~ext_dll:".DLL", lm))
+           with
           | Ok _ -> ()
           | Error (_ext, (lm1, _), (lm2, _)) ->
             User_error.raise ~loc
@@ -1323,7 +1323,7 @@ module Executables = struct
                    the same file extension."
                   (Dune_lang.to_string (encode lm1))
                   (Dune_lang.to_string (encode lm2))
-              ] );
+              ]);
           t
 
       let byte_and_exe = of_list_exn [ (byte, Loc.none); (exe, Loc.none) ]
@@ -1395,12 +1395,12 @@ module Executables = struct
                  ]))
     and+ embed_in_plugin_libraries =
       field_o "embed_in_plugin_libraries"
-        ( Dune_lang.Syntax.since Stanza.syntax (2, 4)
-        >>> located (repeat (located Lib_name.decode)) )
+        (Dune_lang.Syntax.since Stanza.syntax (2, 4)
+        >>> located (repeat (located Lib_name.decode)))
     and+ forbidden_libraries =
       field "forbidden_libraries"
-        ( Dune_lang.Syntax.since Stanza.syntax (2, 0)
-        >>> repeat (located Lib_name.decode) )
+        (Dune_lang.Syntax.since Stanza.syntax (2, 0)
+        >>> repeat (located Lib_name.decode))
         ~default:[]
     and+ bootstrap_info =
       field_o "bootstrap_info"
@@ -1430,10 +1430,10 @@ module Executables = struct
         | None when has_public_name ->
           User_error.raise ~loc:buildable.loc
             [ Pp.textf "No installable mode found for %s."
-                ( if multi then
+                (if multi then
                   "these executables"
                 else
-                  "this executable" )
+                  "this executable")
             ; Pp.text
                 "When public_name is set, one of the following modes is \
                  required:"
@@ -1612,8 +1612,8 @@ module Rule = struct
          Enabled_if.decode ~allowed_vars:Any ~since:(Some (1, 4)) ()
        and+ package =
          field_o "package"
-           ( Dune_lang.Syntax.since Stanza.syntax (2, 0)
-           >>> Stanza_common.Pkg.decode )
+           (Dune_lang.Syntax.since Stanza.syntax (2, 0)
+           >>> Stanza_common.Pkg.decode)
        and+ alias =
          field_o "alias"
            (Dune_lang.Syntax.since Stanza.syntax (2, 0) >>> Alias.Name.decode)
@@ -1631,7 +1631,7 @@ module Rule = struct
             (User_message.did_you_mean s
                ~candidates:(String.Map.keys atom_table))
       | Some Field -> fields long_form
-      | Some Action -> short_form )
+      | Some Action -> short_form)
     | sexp ->
       User_error.raise ~loc:(Dune_lang.Ast.loc sexp)
         [ Pp.textf "S-expression of the form (<atom> ...) expected" ]
@@ -1817,12 +1817,12 @@ module Tests = struct
             Enabled_if.decode ~allowed_vars:Any ~since:(Some (1, 4)) ()
           and+ action =
             field_o "action"
-              ( Dune_lang.Syntax.since ~fatal:false Stanza.syntax (1, 2)
-              >>> Action_dune_lang.decode )
+              (Dune_lang.Syntax.since ~fatal:false Stanza.syntax (1, 2)
+              >>> Action_dune_lang.decode)
           and+ forbidden_libraries =
             field "forbidden_libraries"
-              ( Dune_lang.Syntax.since Stanza.syntax (2, 0)
-              >>> repeat (located Lib_name.decode) )
+              (Dune_lang.Syntax.since Stanza.syntax (2, 0)
+              >>> repeat (located Lib_name.decode))
               ~default:[]
           in
           { exes =

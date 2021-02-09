@@ -31,9 +31,9 @@ let () =
            subst |> encode |> decode: %s"
           (Dyn.to_string (Artifact_substitution.to_dyn subst))
           (Artifact_substitution.encode subst ?min_len)
-          ( match subst' with
+          (match subst' with
           | None -> "-"
-          | Some x -> Dyn.to_string (Artifact_substitution.to_dyn x) )
+          | Some x -> Dyn.to_string (Artifact_substitution.to_dyn x))
     in
     let test s =
       let value = Artifact_substitution.Repeat (n, s) in
@@ -105,10 +105,10 @@ let simple_subst =
           Buffer.add_string buf
             (Artifact_substitution.encode_replacement ~len
                ~repl:
-                 ( match subst with
+                 (match subst with
                  | Repeat (n, s) ->
                    Array.make n s |> Array.to_list |> String.concat ~sep:""
-                 | _ -> failwith "substitution value not supported" ));
+                 | _ -> failwith "substitution value not supported"));
           loop (pos + len)
     in
     loop 0

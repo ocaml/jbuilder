@@ -91,7 +91,7 @@ let pp_flags t =
         (Pp.verbatim "Clflags.all_ppx :=" ++ Pp.cut ++ Dyn.pp ppx)
       ++ Pp.verbatim ";" ++ Pp.newline
       ++ Pp.verbatim "Compenv.first_ppx :="
-      ++ Pp.cut ++ Dyn.pp ppx ++ Pp.verbatim ";" ++ Pp.newline )
+      ++ Pp.cut ++ Dyn.pp ppx ++ Pp.verbatim ";" ++ Pp.newline)
   | Action _
   | Future_syntax _ ->
     assert false (* Error in parsing *)
@@ -165,8 +165,8 @@ module Stanza = struct
       in
       Lib.DB.resolve_user_written_deps_for_exes (Scope.libs scope)
         [ (source.loc, source.name) ]
-        ( Lib_dep.Direct (source.loc, compiler_libs)
-        :: List.map toplevel.libraries ~f:(fun d -> Lib_dep.Direct d) )
+        (Lib_dep.Direct (source.loc, compiler_libs)
+         :: List.map toplevel.libraries ~f:(fun d -> Lib_dep.Direct d))
         ~pps ~dune_version ~allow_overlaps:false ~optional:false
     in
     let requires_compile = Lib.Compile.direct_requires compile_info in

@@ -37,9 +37,9 @@ let term =
         Common.workspace_file common |> Option.map ~f:Arg.Path.path
       in
       Dune_rules.Workspace.init ?x ?workspace_file ();
-      ( match dump_config with
+      (match dump_config with
       | Some s -> Dune_rules.Merlin_server.dump s
-      | None -> Dune_rules.Merlin_server.start () )
+      | None -> Dune_rules.Merlin_server.start ())
       |> Fiber.return)
 
 let command = (term, info)

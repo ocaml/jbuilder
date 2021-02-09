@@ -152,7 +152,7 @@ module Crawl = struct
           | Dune_file.Executables exes -> (
             match executables sctx ~project:dune_file.project ~dir exes with
             | None -> accu
-            | Some exes -> exes :: accu )
+            | Some exes -> exes :: accu)
           | _ -> accu)
     in
     Dyn.List exes_and_libs

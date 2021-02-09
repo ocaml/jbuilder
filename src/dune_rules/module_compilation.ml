@@ -102,7 +102,7 @@ let build_cm cctx ~dep_graphs ~precompiled_cmi ~cm_kind (m : Module.t) ~phase =
           , [] )
         | Cmi, _, _ ->
           copy_interface ~dir ~obj_dir ~sctx m;
-          ([], [], []) )
+          ([], [], []))
   in
   let other_targets =
     match cm_kind with
@@ -112,7 +112,7 @@ let build_cm cctx ~dep_graphs ~precompiled_cmi ~cm_kind (m : Module.t) ~phase =
       | Some Fdo.Emit -> other_targets
       | Some Fdo.All
       | None ->
-        obj :: other_targets )
+        obj :: other_targets)
     | Cmi
     | Cmo ->
       other_targets
@@ -192,11 +192,11 @@ let build_cm cctx ~dep_graphs ~precompiled_cmi ~cm_kind (m : Module.t) ~phase =
           ; As (Fdo.phase_flags phase)
           ; opens modules m
           ; As
-              ( match stdlib with
+              (match stdlib with
               | None -> []
               | Some _ ->
                 (* XXX why aren't these just normal library flags? *)
-                [ "-nopervasives"; "-nostdlib" ] )
+                [ "-nopervasives"; "-nostdlib" ])
           ; A "-o"
           ; Target output
           ; A "-c"
@@ -213,7 +213,7 @@ let build_module ~dep_graphs ?(precompiled_cmi = false) cctx m =
     Ocaml_version.supports_split_at_emit ctx.version
     || Ocaml_config.is_dev_version ctx.ocaml_config
   in
-  ( match (ctx.fdo_target_exe, can_split) with
+  (match (ctx.fdo_target_exe, can_split) with
   | None, _ ->
     build_cm cctx m ~dep_graphs ~precompiled_cmi ~cm_kind:Cmx ~phase:None
   | Some _, false ->
@@ -224,7 +224,7 @@ let build_module ~dep_graphs ?(precompiled_cmi = false) cctx m =
       ~phase:(Some Fdo.Compile);
     Fdo.opt_rule cctx m;
     build_cm cctx m ~dep_graphs ~precompiled_cmi ~cm_kind:Cmx
-      ~phase:(Some Fdo.Emit) );
+      ~phase:(Some Fdo.Emit));
   if not precompiled_cmi then
     build_cm cctx m ~dep_graphs ~precompiled_cmi ~cm_kind:Cmi ~phase:None;
   let obj_dir = CC.obj_dir cctx in
@@ -316,8 +316,8 @@ let build_alias_module ~alias_module ~cctx =
   let alias_file () = alias_source modules in
   let dir = Compilation_context.dir cctx in
   Super_context.add_rule ~loc:Loc.none sctx ~dir
-    ( Action_builder.delayed alias_file
-    |> Action_builder.write_file_dyn (Path.as_in_build_dir_exn file) );
+    (Action_builder.delayed alias_file
+    |> Action_builder.write_file_dyn (Path.as_in_build_dir_exn file));
   let cctx = Compilation_context.for_alias_module cctx in
   build_module cctx alias_module
     ~dep_graphs:(Dep_graph.Ml_kind.dummy alias_module)

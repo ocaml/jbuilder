@@ -191,7 +191,7 @@ let term =
   let template = Option.value template ~default:Options.Project.Template.Exec in
   (* for the [kind] of initialization *)
   let check_unsupported_options = validate_component_options kind in
-  ( match kind with
+  (match kind with
   | Kind.Executable ->
     check_unsupported_options
       [ ("inline-tests", inline_tests)
@@ -213,7 +213,7 @@ let term =
       ; ("kind", given_template)
       ; ("pkg", given_pkg)
       ];
-    init @@ Test { context; common; options = () } );
+    init @@ Test { context; common; options = () });
   print_completion kind name
 
 let command = (term, info)

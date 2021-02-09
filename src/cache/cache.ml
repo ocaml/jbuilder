@@ -15,11 +15,11 @@ let promotion_to_string = function
 
 let make_caching (type t) (module Caching : Cache with type t = t) (cache : t) :
     (module Caching) =
-  ( module struct
+  (module struct
     module Cache = Caching
 
     let cache = cache
-  end )
+  end)
 
 let cachable = function
   | Unix.S_REG -> true

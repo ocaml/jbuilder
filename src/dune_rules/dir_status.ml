@@ -89,8 +89,7 @@ module DB = struct
       match enclosing_group ~dir with
       | No_group -> Generated
       | Group_root group_root ->
-        Is_component_of_a_group_but_not_the_root { stanzas = None; group_root }
-      )
+        Is_component_of_a_group_but_not_the_root { stanzas = None; group_root })
     | Some ft_dir -> (
       let project_root = File_tree.Dir.project ft_dir |> Dune_project.root in
       let build_dir_is_project_root =
@@ -105,7 +104,7 @@ module DB = struct
           | No_group -> Source_only ft_dir
           | Group_root group_root ->
             Is_component_of_a_group_but_not_the_root
-              { stanzas = None; group_root } )
+              { stanzas = None; group_root })
       | Some d -> (
         match get_include_subdirs d.data with
         | Some (loc, Include mode) -> Group_root (ft_dir, (loc, mode), d)
@@ -119,7 +118,7 @@ module DB = struct
               check_no_module_consumer d.data;
               Is_component_of_a_group_but_not_the_root
                 { stanzas = Some d; group_root }
-            | No_group -> Standalone (ft_dir, d) ) ) )
+            | No_group -> Standalone (ft_dir, d))))
 
   let make ~stanzas_per_dir =
     (* CR-someday aalekseyev: This local recursive module is a bit awkward. In

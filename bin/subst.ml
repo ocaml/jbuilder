@@ -20,10 +20,10 @@ let man =
       {|Substitute $(b,%%ID%%) strings in source files, in a similar fashion to
           what topkg does in the default configuration.|}
   ; `P
-      ( {|This command is only meant to be called when a user pins a package to
+      ({|This command is only meant to be called when a user pins a package to
           its development version. Especially it replaces $(b,|}
-      ^ literal_version
-      ^ {|) strings by the version obtained from the vcs. Currently only git is
+     ^ literal_version
+     ^ {|) strings by the version obtained from the vcs. Currently only git is
             supported and the version is obtained from the output of:|}
       )
   ; `Pre {|  \$ git describe --always --dirty|}
@@ -33,8 +33,8 @@ let man =
   ; var "NAME" "the name of the project (from the dune-project file)"
   ; var "VERSION" "output of $(b,git describe --always --dirty)"
   ; var "VERSION_NUM"
-      ( "same as $(b," ^ literal_version
-      ^ ") but with a potential leading 'v' or 'V' dropped" )
+      ("same as $(b," ^ literal_version
+     ^ ") but with a potential leading 'v' or 'V' dropped")
   ; var "VCS_COMMIT_ID" "commit hash from the vcs"
   ; opam "maintainer"
   ; opam "authors"

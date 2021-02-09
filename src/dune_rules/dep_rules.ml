@@ -101,7 +101,7 @@ let rec deps_of cctx ~ml_kind (m : Modules.Sourced_module.t) =
       let m = Ml_kind.Dict.get impl_or_vlib ml_kind in
       match ml_kind with
       | Intf -> deps_of cctx ~ml_kind (Imported_from_vlib m)
-      | Impl -> deps_of cctx ~ml_kind (Normal m) )
+      | Impl -> deps_of cctx ~ml_kind (Normal m))
 
 let for_module cctx module_ =
   Ml_kind.Dict.of_func (fun ~ml_kind -> deps_of cctx ~ml_kind (Normal module_))

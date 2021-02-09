@@ -69,7 +69,7 @@ module List = struct
     | x :: l -> (
       match f x with
       | None -> filter_map l ~f
-      | Some x -> x :: filter_map l ~f )
+      | Some x -> x :: filter_map l ~f)
 end
 
 let ( ^/ ) = Filename.concat
@@ -238,7 +238,7 @@ let concurrency =
       | s -> (
         match int_of_string s with
         | exception _ -> 1
-        | n -> n )
+        | n -> n)
     else
       let commands =
         [ "nproc"; "getconf _NPROCESSORS_ONLN"; "getconf NPROCESSORS_ONLN" ]
@@ -251,7 +251,7 @@ let concurrency =
           | Some s -> (
             match int_of_string (String.trim s) with
             | n -> n
-            | exception _ -> loop rest ) )
+            | exception _ -> loop rest))
       in
       loop commands
 
@@ -391,7 +391,9 @@ end = struct
       at_exit (fun () ->
           let fns = !tmp_files in
           tmp_files := Files.empty;
-          Files.iter fns ~f:(fun fn -> try Sys.remove fn with _ -> ()))
+          Files.iter fns ~f:(fun fn ->
+              try Sys.remove fn with
+              | _ -> ()))
 
     let file prefix suffix =
       let fn = Filename.temp_file prefix suffix in
@@ -399,7 +401,8 @@ end = struct
       fn
 
     let destroy_file fn =
-      (try Sys.remove fn with _ -> ());
+      (try Sys.remove fn with
+      | _ -> ());
       tmp_files := Files.remove fn !tmp_files
   end
 
@@ -466,17 +469,17 @@ end = struct
         else
           (stdout_fn, stdout_fd)
       in
-      ( match cwd with
+      (match cwd with
       | Some x -> Sys.chdir x
-      | None -> () );
+      | None -> ());
       let pid =
         Unix.create_process prog
           (Array.of_list (prog :: args))
           Unix.stdin stdout_fd stderr_fd
       in
-      ( match cwd with
+      (match cwd with
       | Some _ -> Sys.chdir initial_cwd
-      | None -> () );
+      | None -> ());
       Unix.close stdout_fd;
       if split then Unix.close stderr_fd;
       let ivar = Ivar.create () in
@@ -591,7 +594,7 @@ end = struct
       | dir :: rest -> (
         match best_prog dir prog with
         | None -> search rest
-        | Some fn -> Some (dir, fn) )
+        | Some fn -> Some (dir, fn))
     in
     search path
 
@@ -614,7 +617,7 @@ end = struct
       | [ bin_dir ] -> (
         match best_prog bin_dir "ocamlc" with
         | None -> fatal "Failed to locate secondary ocamlc"
-        | Some x -> (bin_dir, x) )
+        | Some x -> (bin_dir, x))
     else
       match find_prog "ocamlc" with
       | None -> prog_not_found "ocamlc"
@@ -684,7 +687,7 @@ module Build_info = struct
           | line :: lines -> (
             match Scanf.sscanf line "(version %[^)])" (fun v -> v) with
             | exception _ -> loop lines
-            | v -> Some v )
+            | v -> Some v)
         in
         loop lines
     in
@@ -697,7 +700,7 @@ module Build_info = struct
         Process.try_run_and_capture "git" [ "describe"; "--always"; "--dirty" ]
         >>| function
         | Some s -> Some (String.trim s)
-        | None -> None )
+        | None -> None)
 
   let gen_data_module oc =
     let pr fmt = fprintf oc fmt in
@@ -715,9 +718,9 @@ module Build_info = struct
     in
     get_version () >>| fun version ->
     pr "let version = %s\n"
-      ( match version with
+      (match version with
       | None -> "None"
-      | Some v -> sprintf "Some %S" v );
+      | Some v -> sprintf "Some %S" v);
     pr "\n";
     let libs =
       List.map task.local_libraries ~f:(fun (name, _, _, _) ->
@@ -746,7 +749,10 @@ module Library = struct
     let analyse fn =
       let dn = Filename.dirname fn in
       let fn = Filename.basename fn in
-      let i = try String.index fn '.' with Not_found -> String.length fn in
+      let i =
+        try String.index fn '.' with
+        | Not_found -> String.length fn
+      in
       match String.sub fn ~pos:i ~len:(String.length fn - i) with
       | ".c" -> Some C
       | ".ml" -> Some Ml
@@ -800,7 +806,7 @@ module Library = struct
           if String.capitalize_ascii base = t.toplevel_module then
             base ^ ext
           else
-            String.uncapitalize_ascii t.toplevel_module ^ "__" ^ base ^ ext )
+            String.uncapitalize_ascii t.toplevel_module ^ "__" ^ base ^ ext)
 
     let header t =
       match t with
@@ -1054,9 +1060,9 @@ let sort_files dependencies ~main =
 let common_build_args name ~external_includes ~external_libraries =
   List.concat
     [ [ "-o"; Filename.concat ".." (name ^ ".exe"); "-g" ]
-    ; ( match Config.mode with
+    ; (match Config.mode with
       | Byte -> [ Config.output_complete_obj_arg ]
-      | Native -> [] )
+      | Native -> [])
     ; external_includes
     ; external_libraries
     ]
@@ -1064,7 +1070,8 @@ let common_build_args name ~external_includes ~external_libraries =
 let build ~ocaml_config ~dependencies ~c_files
     { target = name, main; external_libraries; _ } =
   let ext_obj =
-    try StringMap.find "ext_obj" ocaml_config with Not_found -> ".o"
+    try StringMap.find "ext_obj" ocaml_config with
+    | Not_found -> ".o"
   in
   let external_libraries, external_includes =
     resolve_externals external_libraries

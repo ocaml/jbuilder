@@ -52,9 +52,9 @@ let rec of_dyn : Dyn.t -> t = function
   | Float f -> Atom (string_of_float f)
   | Option o ->
     List
-      ( match o with
+      (match o with
       | None -> []
-      | Some x -> [ of_dyn x ] )
+      | Some x -> [ of_dyn x ])
   | List l -> List (List.map l ~f:of_dyn)
   | Array a -> List (Array.to_list a |> List.map ~f:of_dyn)
   | Map xs -> List (List.map xs ~f:(fun (k, v) -> List [ of_dyn k; of_dyn v ]))

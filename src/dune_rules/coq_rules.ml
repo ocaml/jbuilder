@@ -75,7 +75,7 @@ module Bootstrap = struct
       in
       match init with
       | false -> Bootstrap lib
-      | true -> Bootstrap_prelude )
+      | true -> Bootstrap_prelude)
 
   let flags =
     let open Command in
@@ -312,7 +312,7 @@ let parse_coqdep ~dir ~(boot_type : Bootstrap.t) ~coq_module
       deps
     | Bootstrap lib ->
       Path.relative (Path.build (Coq_lib.src_root lib)) "Init/Prelude.vo"
-      :: deps )
+      :: deps)
 
 let deps_of ~dir ~boot_type coq_module =
   let stdout_to = Coq_module.dep_file ~obj_dir:dir coq_module in

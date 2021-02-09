@@ -6,9 +6,9 @@ let int_of_string ?where s =
   | None ->
     Result.Error
       (Printf.sprintf "invalid integer%s: %s"
-         ( match where with
+         (match where with
          | Some l -> " in " ^ l
-         | None -> "" )
+         | None -> "")
          s)
 
 let int64_of_string ?where s =
@@ -17,7 +17,7 @@ let int64_of_string ?where s =
   | exception _exn ->
     Result.Error
       (Printf.sprintf "invalid 64-bit integer%s: %s"
-         ( match where with
+         (match where with
          | Some l -> " in " ^ l
-         | None -> "" )
+         | None -> "")
          s)

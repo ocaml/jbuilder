@@ -124,7 +124,7 @@ module Sanitizer = struct
           | None -> (
             match (var, Configurator.ocaml_config_var config "system") with
             | "ext_exe", Some "Win32" -> Some (".exe", var)
-            | _ -> None ))
+            | _ -> None))
     in
     let re =
       Re.(

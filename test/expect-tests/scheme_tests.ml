@@ -72,11 +72,11 @@ module Scheme = struct
       | Approximation (dirs, t) -> (
         match Dune_engine.Dir_set.mem dirs dir with
         | true -> go t ~dir
-        | false -> Directory_rules.empty )
+        | false -> Directory_rules.empty)
       | Finite rules -> (
         match Path.Build.Map.find rules dir with
         | None -> Directory_rules.empty
-        | Some rule -> rule )
+        | Some rule -> rule)
       | Thunk f -> go (f ()) ~dir
     in
     go
@@ -96,10 +96,10 @@ module Path = struct
 
   let of_string str =
     L.relative root
-      ( match String.split str ~on:'/' with
+      (match String.split str ~on:'/' with
       | [ "" ] -> []
       | [ "." ] -> []
-      | other -> other )
+      | other -> other)
 end
 
 let record_calls scheme ~f =

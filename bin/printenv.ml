@@ -54,7 +54,7 @@ let term =
       let checked = Util.check_path setup.workspace.contexts dir in
       let request =
         Action_builder.all
-          ( match checked with
+          (match checked with
           | In_build_dir (ctx, _) ->
             let sctx =
               Dune_engine.Context_name.Map.find_exn setup.scontexts ctx.name
@@ -73,7 +73,7 @@ let term =
               [ Pp.text "Environment is not defined for external paths" ]
           | In_install_dir _ ->
             User_error.raise
-              [ Pp.text "Environment is not defined in install dirs" ] )
+              [ Pp.text "Environment is not defined in install dirs" ])
       in
       Memo.Build.run (Build_system.do_build ~request) >>| function
       | [ (_, env) ] -> Format.printf "%a" (pp ~fields) env

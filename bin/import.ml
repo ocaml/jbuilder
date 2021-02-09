@@ -59,7 +59,7 @@ let make_cache (config : Config.t) =
       Cache.make_caching (module Cache.Client) cache
   in
   Fiber.return
-    ( match config.cache_mode with
+    (match config.cache_mode with
     | Config.Caching.Mode.Enabled ->
       Some
         { Build_system.cache = make_cache ()
@@ -67,7 +67,7 @@ let make_cache (config : Config.t) =
         }
     | Config.Caching.Mode.Disabled ->
       Log.info [ Pp.text "disable binary cache" ];
-      None )
+      None)
 
 module Main = struct
   include Dune_rules.Main
@@ -102,8 +102,8 @@ module Main = struct
                   ~hints:
                     (User_message.did_you_mean pkg_name
                        ~candidates:
-                         ( Package.Name.Map.keys workspace.conf.packages
-                         |> List.map ~f:Package.Name.to_string )));
+                         (Package.Name.Map.keys workspace.conf.packages
+                         |> List.map ~f:Package.Name.to_string)));
           Package.Name.Map.filter workspace.conf.packages ~f:(fun pkg ->
               let vendored =
                 let dir = Package.dir pkg in

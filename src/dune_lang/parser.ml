@@ -22,7 +22,7 @@ let rec cst_of_encoded_ast (x : Ast.t) : Cst.t =
     match s.[0] with
     | '\000' -> Comment (loc, Lines (String.drop s 1 |> String.split ~on:'\n'))
     | '\001' -> Comment (loc, Legacy)
-    | _ -> Atom (loc, atom) )
+    | _ -> Atom (loc, atom))
 
 module Mode = struct
   type 'a t =
@@ -45,7 +45,7 @@ module Mode = struct
       | [ sexp ] -> sexp
       | [] -> error (Loc.of_lexbuf lexbuf) "no s-expression found in input"
       | _ :: sexp :: _ ->
-        error (Ast.loc sexp) "too many s-expressions found in input" )
+        error (Ast.loc sexp) "too many s-expressions found in input")
     | Many -> sexps
     | Many_as_one -> (
       match sexps with
@@ -53,7 +53,7 @@ module Mode = struct
       | x :: l ->
         let last = List.fold_left l ~init:x ~f:(fun _ x -> x) in
         let loc = { (Ast.loc x) with stop = (Ast.loc last).stop } in
-        List (loc, x :: l) )
+        List (loc, x :: l))
     | Cst -> List.map sexps ~f:cst_of_encoded_ast
 end
 
@@ -135,11 +135,11 @@ let insert_comments csts comments =
       | Eq
       | Lt ->
         reconciliate (tok1 :: acc) rest1 tokens2
-      | Gt -> reconciliate (tok2 :: acc) tokens1 rest2 )
+      | Gt -> reconciliate (tok2 :: acc) tokens1 rest2)
   in
   let tokens =
     reconciliate [] (Cst.tokenize csts)
-      ( List.sort comments ~compare
+      (List.sort comments ~compare
       |> List.map ~f:(fun (loc, comment) -> (loc, Lexer.Token.Comment comment))
       )
   in

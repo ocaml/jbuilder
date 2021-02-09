@@ -34,12 +34,12 @@ let resolve_package_install setup pkg =
       ~hints:
         (User_message.did_you_mean pkg
            ~candidates:
-             ( Package.Name.Map.keys setup.conf.packages
-             |> List.map ~f:Package.Name.to_string ))
+             (Package.Name.Map.keys setup.conf.packages
+             |> List.map ~f:Package.Name.to_string))
 
 let print_unix_error f =
-  try f ()
-  with Unix.Unix_error (e, _, _) ->
+  try f () with
+  | Unix.Unix_error (e, _, _) ->
     User_message.prerr (User_error.make [ Pp.text (Unix.error_message e) ])
 
 module Special_file = struct
@@ -138,7 +138,7 @@ module File_ops_real (W : Workspace) : File_operations = struct
         let+ version = Memo.Build.run (Dune_engine.Vcs.describe vcs) in
         let ppf = Format.formatter_of_out_channel oc in
         print ppf ~version;
-        Format.pp_print_flush ppf () )
+        Format.pp_print_flush ppf ())
 
   let process_meta ic =
     let lb = Lexing.from_channel ic in
@@ -152,7 +152,8 @@ module File_ops_real (W : Workspace) : File_operations = struct
               raise_notrace Exit)
         in
         false
-      with Exit -> true
+      with
+      | Exit -> true
     in
     if not need_more_versions then
       No_version_needed
@@ -308,9 +309,9 @@ let file_operations ~dry_run ~workspace : (module File_operations) =
   if dry_run then
     (module File_ops_dry_run)
   else
-    ( module File_ops_real (struct
+    (module File_ops_real (struct
       let workspace = workspace
-    end) )
+    end))
 
 let package_is_vendored (pkg : Dune_engine.Package.t) =
   let dir = Package.dir pkg in
@@ -418,9 +419,9 @@ let install_uninstall ~what =
                   Pp.text (Path.to_string p))
             ]
             ~hints:[ Pp.text "try running: dune build @install" ];
-        ( match
-            (contexts, prefix_from_command_line, libdir_from_command_line)
-          with
+        (match
+           (contexts, prefix_from_command_line, libdir_from_command_line)
+         with
         | _ :: _ :: _, Some _, _
         | _ :: _ :: _, _, Some _ ->
           User_error.raise
@@ -428,7 +429,7 @@ let install_uninstall ~what =
                 "Cannot specify --prefix or --libdir when installing into \
                  multiple contexts!"
             ]
-        | _ -> () );
+        | _ -> ());
         let module CMap = Map.Make (Context) in
         let install_files_by_context =
           CMap.of_list_multi install_files
@@ -466,9 +467,9 @@ let install_uninstall ~what =
         let+ () =
           let mandir =
             Option.map ~f:Path.of_string
-              ( match mandir with
+              (match mandir with
               | Some _ -> mandir
-              | None -> Dune_rules.Setup.mandir )
+              | None -> Dune_rules.Setup.mandir)
           in
           Fiber.sequential_iter install_files_by_context
             ~f:(fun (context, entries_per_package) ->

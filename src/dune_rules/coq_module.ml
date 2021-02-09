@@ -42,7 +42,7 @@ let build_vo_dir ~obj_dir x =
 
 let cmxs_of_mod ~wrapper_name x =
   let native_base =
-    "N" ^ String.concat ~sep:"_" ((wrapper_name :: x.prefix) @ [ x.name ])
+    "N" ^ String.concat ~sep:"_" (wrapper_name :: x.prefix @ [ x.name ])
   in
   [ native_base ^ ".cmi"; native_base ^ ".cmxs" ]
 

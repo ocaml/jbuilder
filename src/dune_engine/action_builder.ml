@@ -236,12 +236,12 @@ module With_targets = struct
 
   let of_result_map res ~f ~targets =
     add ~targets
-      ( match res with
+      (match res with
       | Ok x -> f x
       | Error e ->
         { build = Fail { fail = (fun () -> raise e) }
         ; targets = Path.Build.Set.empty
-        } )
+        })
 
   let memoize name t = { build = memoize name t.build; targets = t.targets }
 end
@@ -487,7 +487,7 @@ struct
         in
         match res with
         | Ok r -> r
-        | Error r -> (r, Dep.Set.empty) )
+        | Error r -> (r, Dep.Set.empty))
       | Memo m -> Poly_memo.eval m
       | Memo_build f ->
         let+ f = f in

@@ -42,12 +42,12 @@ let file_with_stats p (stats : Unix.stats) =
     (* We follow the digest scheme used by Jenga. *)
     let string_and_bool ~digest_hex ~bool =
       D.string
-        ( digest_hex
+        (digest_hex
         ^
         if bool then
           "\001"
         else
-          "\000" )
+          "\000")
     in
     let content_digest = file p in
     let executable = stats.st_perm land 0o100 <> 0 in

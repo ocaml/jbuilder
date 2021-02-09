@@ -31,9 +31,9 @@ let rec pp = function
   | List l ->
     let open Pp.O in
     Pp.box ~indent:1
-      ( Pp.char '('
+      (Pp.char '('
       ++ Pp.hvbox (Pp.concat_map l ~sep:Pp.space ~f:pp)
-      ++ Pp.char ')' )
+      ++ Pp.char ')')
   | Template t -> Template.pp t
 
 module Deprecated = struct
@@ -117,9 +117,9 @@ module Deprecated = struct
       ; out_spaces =
           (fun n ->
             ofuncs.out_spaces
-              ( match !state with
+              (match !state with
               | In_atom :: _ -> max 0 (n - 2)
-              | _ -> n ))
+              | _ -> n))
       }
 end
 

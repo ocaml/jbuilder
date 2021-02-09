@@ -68,7 +68,7 @@ module Local = struct
             in
             loop false 0
     end) :
-      Stringlike_intf.S with type t := t )
+      Stringlike_intf.S with type t := t)
 
   let mangled_path_under_package local_name =
     [ private_key; to_string local_name ]
@@ -142,8 +142,8 @@ end
 
 let package_name t =
   Package.Name.of_string
-    ( match String.lsplit2 t ~on:'.' with
+    (match String.lsplit2 t ~on:'.' with
     | None -> t
-    | Some (p, _) -> p )
+    | Some (p, _) -> p)
 
 let nest x y = sprintf "%s.%s" x y

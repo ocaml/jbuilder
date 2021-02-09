@@ -33,11 +33,11 @@ let run (vcs : Vcs.t) args =
         , match args with
           | [ "tag"; s; "-u"; _ ] -> [ "tag"; "-a"; s; "-m"; s ]
           | [ "commit"; "-m"; msg; "-u"; _ ] -> [ "commit"; "-m"; msg ]
-          | _ -> args ) )
+          | _ -> args ))
   in
   printf "$ %s\n"
-    ( List.map (prog_str :: args) ~f:String.quote_for_shell
-    |> String.concat ~sep:" " );
+    (List.map (prog_str :: args) ~f:String.quote_for_shell
+    |> String.concat ~sep:" ");
   Process.run Strict (Lazy.force prog) real_args
     ~env:
       ((* One of the reasons to set GIT_DIR to override any GIT_DIR set by the
@@ -62,16 +62,16 @@ let run_action (vcs : Vcs.t) action =
   | Commit -> (
     match vcs.kind with
     | Git -> run vcs [ "commit"; "-m"; "commit message" ]
-    | Hg -> run vcs [ "commit"; "-m"; "commit message"; "-u"; "toto" ] )
+    | Hg -> run vcs [ "commit"; "-m"; "commit message"; "-u"; "toto" ])
   | Write (fn, s) ->
     printf "$ echo %S > %s\n" s fn;
     Io.write_file (Path.relative (Lazy.force temp_dir) fn) s;
     Fiber.return ()
   | Describe expected ->
     printf "$ %s describe [...]\n"
-      ( match vcs.kind with
+      (match vcs.kind with
       | Git -> "git"
-      | Hg -> "hg" );
+      | Hg -> "hg");
     Memo.reset ();
     let vcs =
       match vcs.kind with
@@ -109,7 +109,7 @@ let run_action (vcs : Vcs.t) action =
   | Tag s -> (
     match vcs.kind with
     | Git -> run vcs [ "tag"; "-a"; s; "-m"; s ]
-    | Hg -> run vcs [ "tag"; s; "-u"; "toto" ] )
+    | Hg -> run vcs [ "tag"; s; "-u"; "toto" ])
 
 let run kind script =
   let (lazy temp_dir) = temp_dir in

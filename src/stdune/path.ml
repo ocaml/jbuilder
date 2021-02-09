@@ -156,7 +156,7 @@ end = struct
 
       let compare = compare
     end) :
-      Comparator.OPS with type t := t )
+      Comparator.OPS with type t := t)
 
   let to_string_maybe_quoted t = String.maybe_quoted (to_string t)
 
@@ -276,7 +276,7 @@ end = struct
           else
             match parent t with
             | None -> Error ()
-            | Some parent -> loop parent rest )
+            | Some parent -> loop parent rest)
         | fn :: rest ->
           if is_root t then
             loop (make fn) rest
@@ -390,7 +390,7 @@ end = struct
       | _ -> (
         match List.fold_left from ~init:t ~f:(fun acc _ -> ".." :: acc) with
         | [] -> "."
-        | l -> String.concat l ~sep:"/" )
+        | l -> String.concat l ~sep:"/")
     in
     loop (to_list t) (to_list from)
 
@@ -524,7 +524,7 @@ end = struct
     Local_gen :
       module type of Local_gen
         with type 'a t := 'a Local_gen.t
-        with module Prefix := Local_gen.Prefix )
+        with module Prefix := Local_gen.Prefix)
 
   type nonrec t = w Local_gen.t
 
@@ -542,7 +542,7 @@ end = struct
 
       let compare = Local_gen.compare
     end) :
-      Comparator.OPS with type t := t )
+      Comparator.OPS with type t := t)
 
   let of_local t = t
 
@@ -573,10 +573,10 @@ let abs_root, set_root =
   in
   let abs_root =
     lazy
-      ( match !root_dir with
+      (match !root_dir with
       | None ->
         Code_error.raise "root_dir: cannot use root dir before it's set" []
-      | Some root_dir -> root_dir )
+      | Some root_dir -> root_dir)
   in
   (abs_root, set_root)
 
@@ -651,7 +651,7 @@ module Build = struct
       match split_first_component t with
       | Some (sandbox_name, t) ->
         (Some (of_string (".sandbox" ^ "/" ^ sandbox_name)), t)
-      | None -> (None, t_original) )
+      | None -> (None, t_original))
     | Some _
     | None ->
       (None, t_original)
@@ -694,7 +694,7 @@ module Build = struct
 
   let set_build_dir (new_build_dir : Kind.t) =
     let new_build_dir_prefix =
-      ( match new_build_dir with
+      (match new_build_dir with
       | External _ -> ()
       | In_source_dir p ->
         if Local.is_root p || Local.parent_exn p <> Local.root then
@@ -704,7 +704,7 @@ module Build = struct
             ; Pp.text
                 "The build directory must be an absolute path or a \
                  sub-directory of the root of the workspace."
-            ] );
+            ]);
       match new_build_dir with
       | In_source_dir p -> Local.Prefix.make p
       | External _ -> Local.Prefix.invalid
@@ -833,7 +833,7 @@ let relative ?error_loc t fn =
     match t with
     | In_source_tree p -> make_local_path (Local.relative p fn ?error_loc)
     | In_build_dir p -> in_build_dir (Local.relative p fn ?error_loc)
-    | External s -> external_ (External.relative s fn) )
+    | External s -> external_ (External.relative s fn))
 
 let parse_string_exn ~loc s =
   match s with
@@ -857,10 +857,10 @@ let to_dyn =
 
 let of_filename_relative_to_initial_cwd fn =
   external_
-    ( if Filename.is_relative fn then
+    (if Filename.is_relative fn then
       External.relative External.initial_cwd fn
     else
-      External.of_string fn )
+      External.of_string fn)
 
 let to_absolute_filename t = Kind.to_absolute_filename (kind t)
 
@@ -879,16 +879,16 @@ let reach t ~from =
   | In_source_tree t, In_build_dir from -> (
     match Fdecl.get Build.build_dir with
     | In_source_dir b -> Local.reach t ~from:(Local.append b from)
-    | External _ -> external_of_in_source_tree t )
+    | External _ -> external_of_in_source_tree t)
   | In_build_dir t, In_source_tree from -> (
     match Fdecl.get Build.build_dir with
     | In_source_dir b -> Local.reach (Local.append b t) ~from
-    | External b -> external_of_local t ~root:b )
+    | External b -> external_of_local t ~root:b)
   | In_source_tree t, External _ -> external_of_in_source_tree t
   | In_build_dir t, External _ -> (
     match Fdecl.get Build.build_dir with
     | In_source_dir b -> external_of_in_source_tree (Local.append b t)
-    | External b -> external_of_local t ~root:b )
+    | External b -> external_of_local t ~root:b)
 
 let reach_for_running ?(from = root) t =
   let fn = reach t ~from in
@@ -1019,7 +1019,7 @@ let drop_optional_sandbox_root = function
   | (In_source_tree _ | External _) as x -> x
   | In_build_dir t -> (
     match Build.split_sandbox_root t with
-    | _sandbox_root, t -> (In_build_dir t : t) )
+    | _sandbox_root, t -> (In_build_dir t : t))
 
 let extract_build_context_dir_exn t =
   match extract_build_context_dir t with
@@ -1055,7 +1055,7 @@ let drop_optional_build_context_src_exn t =
     | None ->
       Code_error.raise
         "drop_optional_build_context_src_exn called on a build directory itself"
-        [] )
+        [])
   | In_source_tree p -> p
 
 let split_first_component t =
@@ -1076,7 +1076,9 @@ let explode_exn t =
   | Some s -> s
   | None -> Code_error.raise "Path.explode_exn" [ ("path", to_dyn t) ]
 
-let exists t = try Sys.file_exists (to_string t) with Sys_error _ -> false
+let exists t =
+  try Sys.file_exists (to_string t) with
+  | Sys_error _ -> false
 
 let readdir_unsorted t = Dune_filesystem_stubs.read_directory (to_string t)
 
@@ -1084,7 +1086,8 @@ let readdir_unsorted_with_kinds t =
   Dune_filesystem_stubs.read_directory_with_kinds (to_string t)
 
 let is_directory t =
-  try Sys.is_directory (to_string t) with Sys_error _ -> false
+  try Sys.is_directory (to_string t) with
+  | Sys_error _ -> false
 
 let is_directory_with_error t =
   match Sys.is_directory (to_string t) with
@@ -1096,13 +1099,14 @@ let is_file t = not (is_directory t)
 let rmdir t = Unix.rmdir (to_string t)
 
 let win32_unlink fn =
-  try Unix.unlink fn
-  with Unix.Unix_error (Unix.EACCES, _, _) as e -> (
+  try Unix.unlink fn with
+  | Unix.Unix_error (Unix.EACCES, _, _) as e -> (
     try
       (* Try removing the read-only attribute *)
       Unix.chmod fn 0o666;
       Unix.unlink fn
-    with _ -> raise e )
+    with
+    | _ -> raise e)
 
 let unlink_operation =
   if Sys.win32 then
@@ -1114,7 +1118,9 @@ let unlink t = unlink_operation (to_string t)
 
 let link x y = Unix.link (to_string x) (to_string y)
 
-let unlink_no_err t = try unlink t with _ -> ()
+let unlink_no_err t =
+  try unlink t with
+  | _ -> ()
 
 let build_dir_exists () = is_directory build_dir
 
@@ -1132,7 +1138,7 @@ let ensure_build_dir_exists () =
             "Cannot create external build directory %s. Make sure that the \
              parent dir %s exists."
             p (Filename.dirname p)
-        ] )
+        ])
 
 let extend_basename t ~suffix =
   match t with
@@ -1195,8 +1201,8 @@ let touch ?(create = true) p =
     | In_build_dir k ->
       Kind.to_string (Kind.append_local (Fdecl.get Build.build_dir) k)
   in
-  try Unix.utimes p 0.0 0.0
-  with Unix.Unix_error (Unix.ENOENT, _, _) ->
+  try Unix.utimes p 0.0 0.0 with
+  | Unix.Unix_error (Unix.ENOENT, _, _) ->
     if create then Unix.close (Unix.openfile p [ Unix.O_CREAT ] 0o777)
 
 let compare x y =
