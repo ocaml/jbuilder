@@ -15,7 +15,7 @@ let resolve_link ~dir path file =
     User_error.raise
       [ Pp.textf "Unable to resolve symlink %s" (Path.to_string path) ]
 
-let print ?(skip_trailing_cr = Sys.win32) path1 path2 =
+let print_aux ?(skip_trailing_cr = Sys.win32) path1 path2 =
   let dir, file1, file2 =
     match
       ( Path.extract_build_context_dir_maybe_sandboxed path1
@@ -102,3 +102,31 @@ let print ?(skip_trailing_cr = Sys.win32) path1 path2 =
         in
         (* Use "diff" if "patdiff" reported no differences *)
         normal_diff () )
+
+let print ?skip_trailing_cr path1 path2 =
+  match Path.exists path1, Path.exists path2 with
+  | true, true -> print_aux ?skip_trailing_cr path1 path2
+  | false, false ->
+    let loc = Loc.in_file path1 in
+    User_error.raise ~loc
+      [ Pp.textf "Files %s and %s doesn't exists."
+          (Path.to_string_maybe_quoted (Path.drop_optional_sandbox_root path1))
+          (Path.to_string_maybe_quoted (Path.drop_optional_sandbox_root path2))
+      ]
+  | e1, _ ->
+    Printf.printf
+      "%s--- %s\n+++ %s\n%s"
+      Ansi_color.Style.(escape_sequence [bg_green])
+      (Path.to_string path1)
+      (Path.to_string path2)
+      Ansi_color.Style.(escape_sequence [bg_blue]);
+    let print_prefix pre path =
+      List.iter
+        ~f:(Printf.printf "%s%s" pre)
+        (Io.lines_of_file path)
+    in
+    if e1 then print_prefix "-" path1
+    else print_prefix "+" path2;
+    Printf.printf "%s" (Ansi_color.Style.escape_sequence []);
+    let loc = Loc.in_file path1 in
+    User_error.raise ~loc  [ ]

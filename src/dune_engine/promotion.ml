@@ -57,11 +57,13 @@ module File = struct
                 Format.sprintf "staging file (%s)"
                   (Path.to_string_maybe_quoted (Path.build staging)) ) )
       ];
-    if correction_exists then
+    if correction_exists then begin
+      Path.mkdir_p (Path.source (Path.Source.parent_exn dst));
       let chmod perms = perms lor 0o200 in
       Io.copy_file ~chmod
         ~src:(Path.build correction_file)
         ~dst:(Path.source dst) ()
+    end
 end
 
 let clear_cache () = File.db := []
