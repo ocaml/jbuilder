@@ -1,6 +1,9 @@
 open! Dune_engine
 open! Stdune
 
+(* This file is used in the continuous integration as hash key. Because if
+   dune_package change we need to recompile libraries used for testing. *)
+
 module Vfile = Dune_lang.Versioned_file.Make (struct
   type t = unit
 end)

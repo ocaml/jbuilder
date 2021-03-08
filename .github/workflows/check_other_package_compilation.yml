@@ -1,8 +1,9 @@
-name: Main workflow
+name: Check compilation of other packages
 
 on:
-  - push
-  - pull_request
+  schedule:
+    - cron: '42 4 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,11 +17,11 @@ jobs:
         # Please keep the list in sync with the minimal version of OCaml in
         # dune-project, dune.opam.template and bootstrap.ml
         ocaml-version:
-          - 4.11.1
+          - 4.10.0
         skip_test:
           - false
         include:
-          - ocaml-version: 4.10.0
+          - ocaml-version: 4.11.0
             os: ubuntu-latest
             skip_test: true
           - ocaml-version: 4.09.1
@@ -29,9 +30,10 @@ jobs:
           - ocaml-version: 4.08.1
             os: ubuntu-latest
             skip_test: true
-          - ocaml-version: 4.04.2
+          - ocaml-version: 4.03.0
             os: ubuntu-latest
             skip_test: true
+            configurator: true
           - ocaml-version: 4.02.3
             os: ubuntu-latest
             skip_test: true
@@ -49,34 +51,14 @@ jobs:
       SKIP_TEST: ${{ matrix.skip_test }}
       OCAML_VERSION: ${{ matrix.ocaml-version }}
       OS: ${{ matrix.os }}
-      TEST_DEPS: false
+      CONFIGURATOR: ${{ matrix.configurator }}
+      TEST_DEPS: true
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
-      - name: Cache Opam directory for windows
-        if: matrix.os == 'windows-latest'
-        uses: actions/cache@v2
-        env:
-          cache-name: cache-opam
-        with:
-          # opam cache files are stored in `~/.opam` on Linux/macOS
-          path: C:\cygwin\home\runneradmin\.opam
-          key: ${{ runner.os }}-${{ matrix.ocaml-version }}-build-${{ env.cache-name }}-${{ hashFiles('*.opam','.github/workflows/ci.ml','.github/workflows/workflow.yml','src/dune_rules/dune_package.ml') }}
-
-      - name: Cache Opam directory for ubuntu or mac-os
-        if: matrix.os != 'windows-latest'
-        uses: actions/cache@v2
-        env:
-          cache-name: cache-opam
-        with:
-          # opam cache files are stored in `~/.opam` on Linux/macOS
-          path: ~/.opam
-          key: ${{ runner.os }}-${{ matrix.ocaml-version }}-build-${{ env.cache-name }}-${{ hashFiles('*.opam','.github/workflows/ci.ml','.github/workflows/workflow.yml','src/dune_rules/dune_package.ml') }}
-
 
       - name: Use OCaml ${{ matrix.ocaml-version }}
         uses: avsm/setup-ocaml@v1
@@ -93,12 +75,17 @@ jobs:
           git config --global user.name github-actions
           git config --global user.email github-actions-bot@users.noreply.github.com
 
+      - name: Pin used packages to local directory
+        run: opam exec -- ocaml .github/workflows/ci.ml pin
+
       # Install ocamlfind-secondary and ocaml-secondary-compiler, if needed
-      - run: opam exec -- ocaml .github/workflows/ci.ml install-deps-of-dune
+      - name: install dune dependencies
+        run: opam exec -- ocaml .github/workflows/ci.ml install-deps-of-dune
 
       # dune doesn't have any additional dependencies so we can build it right
       # away this makes it possible to see build errors as soon as possible
-      - run: opam exec -- make dune.exe
+      - name: compile dune
+        run: opam exec -- make dune.exe
 
       - name: install deps of test suite
         run: opam exec -- ocaml .github/workflows/ci.ml install-deps-of-test
@@ -108,10 +95,6 @@ jobs:
         run: opam exec -- ocaml .github/workflows/ci.ml test
         if: env.SKIP_TEST != 'true'
 
-      - name: test source is well formatted
-        run: opam exec -- make fmt
-        if: env.OCAML_VERSION == '4.11.1' && env.OS == 'ubuntu-latest'
-
-      - name: remove the tar command from cygwin so that it is not used by action/cache
-        run: rm c:\cygwin\bin\tar.exe
-        if: matrix.os == 'windows-latest'
+      - name: build configurator
+        run: opam install ./dune-configurator.opam
+        if: env.CONFIGURATOR == 'true'
