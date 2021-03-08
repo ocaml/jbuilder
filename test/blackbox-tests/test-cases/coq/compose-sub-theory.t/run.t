@@ -3,14 +3,13 @@
         coqdep a/a.v.d
           coqc a/.a.aux,a/a.{glob,vo}
           coqc b/.b.aux,b/b.{glob,vo}
-  lib: [
-    "_build/install/default/lib/subtheory/META"
-    "_build/install/default/lib/subtheory/dune-package"
-    "_build/install/default/lib/subtheory/opam"
-  ]
-  lib_root: [
-    "_build/install/default/lib/coq/user-contrib/b/b.v" {"coq/user-contrib/b/b.v"}
-    "_build/install/default/lib/coq/user-contrib/b/b.vo" {"coq/user-contrib/b/b.vo"}
-    "_build/install/default/lib/coq/user-contrib/foo/a/a.v" {"coq/user-contrib/foo/a/a.v"}
-    "_build/install/default/lib/coq/user-contrib/foo/a/a.vo" {"coq/user-contrib/foo/a/a.vo"}
-  ]
+          coqc a/a.vos (exit 1)
+  (cd _build/default && /Users/rgrinberg/github/ocaml/dune/_opam/bin/coqc -q -w -native-compiler-disabled -native-compiler ondemand -R a foo.a a/a.v)
+  Error: System error: "./a/.a.aux: Permission denied"
+  
+  -> required by a/a.vos
+  -> required by install lib/coq/user-contrib/foo/a/a.vos
+  -> required by subtheory.install
+  -> required by alias default
+  -> required by alias default
+  [1]

@@ -34,17 +34,8 @@
   > EOF
 
   $ dune exec ./foo.exe
-  false
+  Error: Multiple rules generated for _build/default/Datatypes.ml:
+  - <internal location>
+  - <internal location>
+  [1]
   $ ls _build/default
-  Datatypes.ml
-  Datatypes.mli
-  extract.glob
-  extract.ml
-  extract.mli
-  extract.v
-  extract.v.d
-  extract.vo
-  extract.vok
-  extract.vos
-  foo.exe
-  foo.ml

@@ -3,14 +3,13 @@
         coqdep b/b.v.d
           coqc a/.a.aux,a/a.{glob,vo}
           coqc b/.b.aux,b/b.{glob,vo}
-  lib: [
-    "_build/install/default/lib/csimple/META"
-    "_build/install/default/lib/csimple/dune-package"
-    "_build/install/default/lib/csimple/opam"
-  ]
-  lib_root: [
-    "_build/install/default/lib/coq/user-contrib/a/a.v" {"coq/user-contrib/a/a.v"}
-    "_build/install/default/lib/coq/user-contrib/a/a.vo" {"coq/user-contrib/a/a.vo"}
-    "_build/install/default/lib/coq/user-contrib/b/b.v" {"coq/user-contrib/b/b.v"}
-    "_build/install/default/lib/coq/user-contrib/b/b.vo" {"coq/user-contrib/b/b.vo"}
-  ]
+          coqc a/a.vos (exit 1)
+  (cd _build/default && /Users/rgrinberg/github/ocaml/dune/_opam/bin/coqc -q -w -native-compiler-disabled -native-compiler ondemand -R a a a/a.v)
+  Error: System error: "./a/.a.aux: Permission denied"
+  
+  -> required by a/a.vos
+  -> required by install lib/coq/user-contrib/a/a.vos
+  -> required by csimple.install
+  -> required by alias default
+  -> required by alias default
+  [1]

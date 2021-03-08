@@ -40,10 +40,14 @@ val name : t -> Name.t
 
 val dep_file : t -> obj_dir:Path.Build.t -> Path.Build.t
 
+type target =
+  | Vo
+  | Vos
+
 (** Some of the object files should not be installed, we control this with the
     following parameter *)
 type obj_files_mode =
-  | Build
+  | Build of target
   | Install
 
 (** This returns a list of pairs [(obj_file, install_path)] due to native files

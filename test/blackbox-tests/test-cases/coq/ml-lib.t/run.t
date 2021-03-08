@@ -23,3 +23,4 @@
       ocamlopt src_a/ml_plugin_a.cmxs
       ocamlopt src_b/ml_plugin_b.cmxs
           coqc theories/.a.aux,theories/a.{glob,vo}
+          coqc theories/a.vos

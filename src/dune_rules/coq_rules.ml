@@ -265,71 +265,82 @@ module Context = struct
     { t with boot_type }
 end
 
-let parse_coqdep ~dir ~(boot_type : Bootstrap.t) ~coq_module
-    (lines : string list) =
+let parse_coqdep ~dir ~(boot_type : Bootstrap.t) ~coq_module contents =
   if coq_debug then Format.eprintf "Parsing coqdep @\n%!";
   let source = Coq_module.source coq_module in
-  let invalid phase =
+  let invalid err =
     User_error.raise
-      [ Pp.textf "coqdep returned invalid output for %s / [phase: %s]"
+      [ Pp.textf "coqdep returned invalid output for %s."
           (Path.Build.to_string_maybe_quoted source)
-          phase
-      ; Pp.verbatim (String.concat ~sep:"\n" lines)
+      ; Pp.textf "error: %s" err
+      ; Pp.verbatim (String.concat ~sep:"\n" contents)
       ]
   in
-  let line =
-    match lines with
-    | []
-    | _ :: _ :: _ :: _ ->
-      invalid "line"
-    | [ line ] -> line
-    | [ l1; _l2 ] ->
-      (* .vo is produced before .vio, this is fragile tho *)
-      l1
+  let deps =
+    List.map contents ~f:(fun line ->
+        match String.lsplit2 line ~on:':' with
+        | None -> invalid "unable to parse targets"
+        | Some (targets, deps) ->
+          ( String.extract_blank_separated_words targets
+          , String.extract_blank_separated_words deps ))
   in
-  match String.lsplit2 line ~on:':' with
-  | None -> invalid "split"
-  | Some (basename, deps) -> (
-    let ff = List.hd @@ String.extract_blank_separated_words basename in
-    let depname, _ = Filename.split_extension ff in
-    let modname =
-      String.concat ~sep:"/"
-        Coq_module.(
-          prefix coq_module @ [ Coq_module.Name.to_string (name coq_module) ])
-    in
-    if coq_debug then
-      Format.eprintf "depname / modname: %s / %s@\n%!" depname modname;
-    if depname <> modname then invalid "basename";
-    let deps = String.extract_blank_separated_words deps in
-    if coq_debug then
-      Format.eprintf "deps for %s: %a@\n%!"
-        (Path.Build.to_string source)
-        (Format.pp_print_list Format.pp_print_string)
-        deps;
-    (* Add prelude deps for when stdlib is in scope and we are not actually
-       compiling the prelude *)
-    let deps = List.map ~f:(Path.relative (Path.build dir)) deps in
-    match boot_type with
-    | No_boot
-    | Bootstrap_prelude ->
-      deps
-    | Bootstrap lib ->
-      Path.relative (Path.build (Coq_lib.src_root lib)) "Init/Prelude.vo"
-      :: deps )
+  let for_ ext =
+    match
+      List.find_map deps ~f:(fun (targets, deps) ->
+          List.find_map targets ~f:(fun t ->
+              if Filename.check_suffix t ext then
+                Some (t, deps)
+              else
+                None))
+    with
+    | None -> invalid ".vo not found"
+    | Some (basename, deps) -> (
+      let ff = List.hd @@ String.extract_blank_separated_words basename in
+      let depname, _ = Filename.split_extension ff in
+      let modname =
+        String.concat ~sep:"/"
+          Coq_module.(
+            prefix coq_module @ [ Coq_module.Name.to_string (name coq_module) ])
+      in
+      if coq_debug then
+        Format.eprintf "depname / modname: %s / %s@\n%!" depname modname;
+      if depname <> modname then invalid "basename";
+      if coq_debug then
+        Format.eprintf "deps for %s: %a@\n%!"
+          (Path.Build.to_string source)
+          (Format.pp_print_list Format.pp_print_string)
+          deps;
+      (* Add prelude deps for when stdlib is in scope and we are not actually
+         compiling the prelude *)
+      let deps = List.map ~f:(Path.relative (Path.build dir)) deps in
+      match boot_type with
+      | No_boot
+      | Bootstrap_prelude ->
+        deps
+      | Bootstrap lib ->
+        Path.relative (Path.build (Coq_lib.src_root lib)) ("Init/Prelude" ^ ext)
+        :: deps )
+  in
+  (for_ ".vo", for_ ".vos")
 
 let deps_of ~dir ~boot_type coq_module =
   let stdout_to = Coq_module.dep_file ~obj_dir:dir coq_module in
-  Action_builder.dyn_paths_unit
-    (Action_builder.map
-       (Action_builder.lines_of (Path.build stdout_to))
-       ~f:(parse_coqdep ~dir ~boot_type ~coq_module))
+  let deps =
+    Action_builder.memoize
+      (Path.Build.to_string stdout_to)
+      (Action_builder.map
+         (Action_builder.lines_of (Path.build stdout_to))
+         ~f:(parse_coqdep ~dir ~boot_type ~coq_module))
+  in
+  let deps f = Action_builder.map deps ~f |> Action_builder.dyn_paths_unit in
+  (deps fst, deps snd)
 
 let coqdep_rule (cctx : _ Context.t) ~source_rule ~file_flags coq_module =
   (* coqdep needs the full source + plugin's mlpack to be present :( *)
   let source = Coq_module.source coq_module in
   let file_flags =
     [ Command.Args.S file_flags
-    ; As [ "-dyndep"; "opt" ]
+    ; As [ "-dyndep"; "opt"; "-vos" ]
     ; Dep (Path.build source)
     ]
   in
@@ -340,13 +351,13 @@ let coqdep_rule (cctx : _ Context.t) ~source_rule ~file_flags coq_module =
   >>> Action_builder.with_no_targets source_rule
   >>> Command.run ~dir:(Path.build cctx.dir) ~stdout_to cctx.coqdep file_flags
 
-let coqc_rule (cctx : _ Context.t) ~file_flags coq_module =
+let coqc_rule (cctx : _ Context.t) ~file_flags ~obj_files_mode coq_module =
   let source = Coq_module.source coq_module in
   let file_flags =
     let wrapper_name, mode = (cctx.wrapper_name, cctx.mode) in
     let objects_to =
-      Coq_module.obj_files ~wrapper_name ~mode ~obj_dir:cctx.dir
-        ~obj_files_mode:Coq_module.Build coq_module
+      Coq_module.obj_files ~wrapper_name ~mode ~obj_dir:cctx.dir ~obj_files_mode
+        coq_module
       |> List.map ~f:fst
     in
     let native_flags = Context.coqc_native_flags cctx in
@@ -356,24 +367,32 @@ let coqc_rule (cctx : _ Context.t) ~file_flags coq_module =
     ; Command.Args.Dep (Path.build source)
     ]
   in
-  let open Action_builder.With_targets.O in
-  (* The way we handle the transitive dependencies of .vo files is not safe for
-     sandboxing *)
-  Action_builder.with_no_targets
-    (Action_builder.dep (Dep.sandbox_config Sandbox_config.no_sandboxing))
-  >>>
   let coq_flags = Context.coq_flags cctx in
   Context.coqc cctx (Command.Args.dyn coq_flags :: file_flags)
+
+let coqc_rules (cctx : _ Context.t) ~deps_of ~file_flags coq_module =
+  let vo_deps, vos_deps = deps_of in
+  [ (vo_deps, coqc_rule cctx ~file_flags ~obj_files_mode:(Build Vo) coq_module)
+  ; (vos_deps, coqc_rule cctx ~file_flags ~obj_files_mode:(Build Vos) coq_module)
+  ]
+  |> List.map ~f:(fun (deps, rule) ->
+         let open Action_builder.With_targets.O in
+         (* The way we handle the transitive dependencies of .vo files is not
+            safe for sandboxing *)
+         Action_builder.with_no_targets deps
+         >>> Action_builder.with_no_targets
+               (Action_builder.dep
+                  (Dep.sandbox_config Sandbox_config.no_sandboxing))
+         >>> rule)
 
 module Module_rule = struct
   type t =
     { coqdep : Action.t Action_builder.With_targets.t
-    ; coqc : Action.t Action_builder.With_targets.t
+    ; coqc : Action.t Action_builder.With_targets.t list
     }
 end
 
 let setup_rule cctx ~source_rule coq_module =
-  let open Action_builder.With_targets.O in
   if coq_debug then
     Format.eprintf "gen_rule coq_module: %a@\n%!" Pp.to_fmt
       (Dyn.pp (Coq_module.to_dyn coq_module));
@@ -387,9 +406,7 @@ let setup_rule cctx ~source_rule coq_module =
 
   (* Rules for the files *)
   { Module_rule.coqdep = coqdep_rule
-  ; coqc =
-      Action_builder.with_no_targets deps_of
-      >>> coqc_rule cctx ~file_flags coq_module
+  ; coqc = coqc_rules cctx ~deps_of ~file_flags coq_module
   }
 
 let coq_modules_of_theory ~sctx lib =
@@ -439,7 +456,7 @@ let setup_rules ~sctx ~dir ~dir_contents (s : Theory.t) =
   List.concat_map coq_modules ~f:(fun m ->
       let cctx = Context.for_module cctx m in
       let { Module_rule.coqc; coqdep } = setup_rule cctx ~source_rule m in
-      [ coqc; coqdep ])
+      coqdep :: coqc)
 
 (******************************************************************************)
 (* Install rules *)
@@ -563,5 +580,7 @@ let extraction_rules ~sctx ~dir ~dir_contents (s : Extraction.t) =
     theories >>> Action_builder.path (Path.build (Coq_module.source coq_module))
   in
   let { Module_rule.coqc; coqdep } = setup_rule cctx ~source_rule coq_module in
-  let coqc = Action_builder.With_targets.add coqc ~targets:ml_targets in
-  [ coqdep; coqc ]
+  let coqc =
+    List.map coqc ~f:(Action_builder.With_targets.add ~targets:ml_targets)
+  in
+  coqdep :: coqc
