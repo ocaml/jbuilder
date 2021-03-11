@@ -23,7 +23,7 @@ module Scheduler : sig
 
   val run : t -> 'a Fiber.t -> 'a
 
-  val for_csexp : t -> Csexp_rpc.Scheduler.t
+  val for_csexp : t -> Task_queue.Scheduler.t
 
   val push_event : t -> event -> unit
 end = struct
@@ -78,7 +78,7 @@ end = struct
       register_pending_ivar t;
       (ivar, fill)
     in
-    { Csexp_rpc.Scheduler.create_thread_safe_ivar; spawn_thread }
+    { Task_queue.Scheduler.create_thread_safe_ivar; spawn_thread }
 
   let var : t Fiber.Var.t = Fiber.Var.create ()
 

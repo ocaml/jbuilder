@@ -1,0 +1,4 @@
+(library
+ (name task_queue)
+ (synopsis "task queue backed by a thread")
+ (libraries stdune fiber threads.posix))

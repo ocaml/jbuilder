@@ -19,6 +19,7 @@
   dune_glob
   ocaml_config
   catapult
+  task_queue
   jbuild_support
   dune_action_plugin
   dune_util
@@ -26,6 +27,7 @@
   dune_section
   dune_rpc_private
   dune_rpc_server
+  jobserver
   csexp_rpc)
  (synopsis "Internal Dune library, do not use!"))
 

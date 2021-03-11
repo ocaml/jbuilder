@@ -1,50 +1,9 @@
 open Stdune
 open Fiber.O
 
-module Scheduler = struct
-  type t =
-    { create_thread_safe_ivar : 'a. unit -> 'a Fiber.Ivar.t * ('a -> unit)
-    ; spawn_thread : (unit -> unit) -> unit
-    }
-end
-
-module Async : sig
-  type t
-
-  val create : Scheduler.t -> t
-
-  val task : t -> f:(unit -> 'a) -> 'a Or_exn.t Fiber.t
-
-  val task_exn : t -> f:(unit -> 'a) -> 'a Fiber.t
-
-  val stop : t -> unit
-end = struct
-  type t =
-    { worker : Worker.t
-    ; scheduler : Scheduler.t
-    }
-
-  let stop t = Worker.stop t.worker
-
-  let create (scheduler : Scheduler.t) =
-    let worker = Worker.create ~spawn_thread:scheduler.spawn_thread in
-    { worker; scheduler }
-
-  let task (t : t) ~f =
-    let ivar, fill = t.scheduler.create_thread_safe_ivar () in
-    let f () = fill (Result.try_with f) in
-    match Worker.add_work t.worker ~f with
-    | Ok () -> Fiber.Ivar.read ivar
-    | Error `Stopped -> Code_error.raise "worker stopped" []
-
-  let task_exn t ~f =
-    let+ res = task t ~f in
-    match res with
-    | Ok s -> s
-    | Error e -> raise e
-end
-
 module Session_id = Id.Make ()
+
+module Scheduler = Task_queue.Scheduler
 
 let debug = Option.is_some (Env.get Env.initial "DUNE_RPC_DEBUG")
 
@@ -59,8 +18,8 @@ module Session = struct
     { out_channel : out_channel
     ; in_channel : in_channel
     ; id : Id.t
-    ; writer : Async.t
-    ; reader : Async.t
+    ; writer : Task_queue.t
+    ; reader : Task_queue.t
     ; scheduler : Scheduler.t
     ; kind : kind
     }
@@ -73,8 +32,8 @@ module Session = struct
       { in_channel
       ; out_channel
       ; id
-      ; reader = Async.create scheduler
-      ; writer = Async.create scheduler
+      ; reader = Task_queue.create scheduler
+      ; writer = Task_queue.create scheduler
       ; scheduler
       ; kind
       }
@@ -97,18 +56,18 @@ module Session = struct
       | Sys_blocked_io -> read ()
       | e -> reraise e
     in
-    let+ res = Async.task t.reader ~f:read in
+    let+ res = Task_queue.task t.reader ~f:read in
     let res =
       match res with
       | Error exn ->
-        Async.stop t.reader;
+        Task_queue.stop t.reader;
         raise exn
       | Ok res -> (
         match res with
         | Ok (Some _ as s) -> s
         | Error _
         | Ok None ->
-          Async.stop t.reader;
+          Task_queue.stop t.reader;
           None)
     in
     if debug then Format.eprintf "<< %s@." (string_of_packet res);
@@ -116,7 +75,7 @@ module Session = struct
 
   let write t sexp =
     if debug then Format.eprintf ">> %s@." (string_of_packet sexp);
-    Async.task_exn t.writer
+    Task_queue.task_exn t.writer
       ~f:
         (match sexp with
         | Some sexp ->
@@ -207,14 +166,14 @@ module Server = struct
     { sockaddr; backlog; scheduler; transport = None }
 
   let serve (t : t) =
-    let async = Async.create t.scheduler in
+    let async = Task_queue.create t.scheduler in
     let+ transport =
-      Async.task_exn async ~f:(fun () ->
+      Task_queue.task_exn async ~f:(fun () ->
           Transport.create t.sockaddr ~backlog:t.backlog)
     in
     t.transport <- Some transport;
     let accept () =
-      Async.task async ~f:(fun () ->
+      Task_queue.task async ~f:(fun () ->
           Transport.accept transport
           |> Option.map ~f:(fun client ->
                  let in_ = Unix.in_channel_of_descr client in
@@ -266,17 +225,17 @@ module Client = struct
 
   type t =
     { mutable transport : Transport.t option
-    ; async : Async.t
+    ; async : Task_queue.t
     ; scheduler : Scheduler.t
     ; sockaddr : Unix.sockaddr
     }
 
   let create sockaddr scheduler =
-    let async = Async.create scheduler in
+    let async = Task_queue.create scheduler in
     { sockaddr; scheduler; async; transport = None }
 
   let connect t =
-    Async.task_exn t.async ~f:(fun () ->
+    Task_queue.task_exn t.async ~f:(fun () ->
         let transport = Transport.create t.sockaddr in
         t.transport <- Some transport;
         let client = Transport.connect transport in

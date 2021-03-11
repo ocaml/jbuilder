@@ -1,4 +1,4 @@
 (library
  (name csexp_rpc)
  (synopsis "Threaded client & server that uses csexp for communication")
- (libraries stdune csexp fiber threads.posix))
+ (libraries stdune task_queue csexp fiber))
