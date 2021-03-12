@@ -1,0 +1,12 @@
+(env (_ (flags -w -33)))
+
+(library
+ (public_name plugin1.plugin1_impl)
+ (name plugin1_impl)
+ (modules plugin1_impl)
+ (libraries app.MyControls app.register threads))
+
+(plugin
+ (name plugin1)
+ (libraries threads plugin1.plugin1_impl)
+ (site (app plugins)))
