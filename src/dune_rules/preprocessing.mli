@@ -27,7 +27,18 @@ val get_ppx_driver :
   -> (Loc.t * Lib_name.t) list
   -> (Path.Build.t * string list) Or_exn.t
 
-val gen_rules : Super_context.t -> string list -> unit Memo.Build.t
+val get_camlp5_driver :
+     Super_context.t
+  -> loc:Loc.t
+  -> expander:Expander.t
+  -> scope:Scope.t
+  -> lib_name:Lib_name.Local.t option
+  -> flags:String_with_vars.t list
+  -> (Loc.t * Lib_name.t) list
+  -> (Path.Build.t * string list) Or_exn.t
+
+val gen_rules_ppx : Super_context.t -> string list -> unit Memo.Build.t
+val gen_rules_camlp5 : Super_context.t -> string list -> unit Memo.Build.t
 
 val chdir : Action_unexpanded.t -> Action_unexpanded.t
 
@@ -40,4 +51,7 @@ val action_for_pp :
   -> Action.t Action_builder.With_targets.t
 
 val ppx_exe :
+  Super_context.t -> scope:Scope.t -> Lib_name.t -> Path.Build.t Or_exn.t
+
+val camlp5_exe :
   Super_context.t -> scope:Scope.t -> Lib_name.t -> Path.Build.t Or_exn.t

@@ -1,0 +1,5 @@
+(executables
+ (names test1)
+ (preprocess
+  (action
+   (run %{project_root}/rewriter1/rewriter1.exe))))

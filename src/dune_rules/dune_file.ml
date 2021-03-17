@@ -130,6 +130,7 @@ let preprocess_fields =
         Module_name.Per_item.exists preprocess ~f:(fun p ->
             match (p : _ Preprocess.t) with
             | Action _
+            | Camlp5 _
             | Pps _ ->
               true
             | No_preprocessing
@@ -1870,6 +1871,7 @@ module Toplevel = struct
        in
        match pps with
        | Preprocess.Pps _
+       | Camlp5 _
        | No_preprocessing ->
          { name; libraries; loc; pps }
        | Action (loc, _)

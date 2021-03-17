@@ -64,3 +64,8 @@ val exe_path :
   -> program:Program.t
   -> linkage:Linkage.t
   -> Path.Build.t
+
+val link_camlp5_rewriter: program:Program.t
+  -> libs: Lib.t list
+  -> Compilation_context.t
+  -> unit Memo.Build.t

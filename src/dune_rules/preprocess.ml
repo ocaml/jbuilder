@@ -62,11 +62,13 @@ type 'a t =
   | No_preprocessing
   | Action of Loc.t * Action_dune_lang.t
   | Pps of 'a Pps.t
+  | Camlp5 of 'a Pps.t
   | Future_syntax of Loc.t
 
 let map t ~f =
   match t with
   | Pps t -> Pps { t with pps = List.map t.pps ~f }
+  | Camlp5 t -> Camlp5 { t with pps = List.map t.pps ~f }
   | (No_preprocessing | Action _ | Future_syntax _) as t -> t
 
 let filter_map t ~f =
@@ -77,11 +79,18 @@ let filter_map t ~f =
       No_preprocessing
     else
       Pps { t with pps }
+  | Camlp5 t ->
+    let pps = List.filter_map t.pps ~f in
+    if pps = [] then
+      No_preprocessing
+    else
+      Camlp5 { t with pps }
   | (No_preprocessing | Action _ | Future_syntax _) as t -> t
 
 let fold t ~init ~f =
   match t with
-  | Pps t -> List.fold_left t.pps ~init ~f
+  | Pps t
+  | Camlp5 t -> List.fold_left t.pps ~init ~f
   | No_preprocessing
   | Action _
   | Future_syntax _ ->
@@ -121,6 +130,11 @@ let decode =
         and+ loc = loc
         and+ pps, flags = Pps_and_flags.decode in
         Pps { loc; pps; flags; staged = true } )
+    ; ( "camlp5"
+      , let+ () = Dune_lang.Syntax.since Stanza.syntax (1, 1)
+        and+ loc = loc
+        and+ pps, flags = Pps_and_flags.decode in
+        Camlp5 { loc; pps; flags; staged = true } )
     ; ( "future_syntax"
       , let+ () = Dune_lang.Syntax.since Stanza.syntax (1, 8)
         and+ loc = loc in
@@ -131,6 +145,7 @@ let loc = function
   | No_preprocessing -> None
   | Action (loc, _)
   | Pps { loc; _ }
+  | Camlp5 { loc; _ }
   | Future_syntax loc ->
     Some loc
 
@@ -143,6 +158,7 @@ module Without_future_syntax = struct
     | No_preprocessing
     | Action of Loc.t * Action_dune_lang.t
     | Pps of 'a Pps.t
+    | Camlp5 of 'a Pps.t
 end
 
 module Pp_flag_consumer = struct
@@ -158,7 +174,9 @@ let remove_future_syntax (t : 'a t) ~(for_ : Pp_flag_consumer.t) v :
   match t with
   | No_preprocessing -> No_preprocessing
   | Action (loc, action) -> Action (loc, action)
+  | Camlp5 pps -> Camlp5 pps
   | Pps pps -> Pps pps
+
   | Future_syntax loc ->
     if Ocaml_version.supports_let_syntax v then
       No_preprocessing
@@ -222,6 +240,7 @@ module Per_module = struct
           in
           let staged = false in
           Pps { loc; pps; flags = flags'; staged }
+        | Camlp5 _ -> failwith "Instrumentalization for Camlp5 is not implemented."
         | Pps { loc; pps; flags; staged } ->
           let pps =
             With_instrumentation.Instrumentation_backend (libname, deps) :: pps

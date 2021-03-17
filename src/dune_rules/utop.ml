@@ -61,6 +61,8 @@ let libs_and_ppx_under_dir sctx ~db ~dir =
                 | Ppx_deriver _ ->
                   (lib :: acc, (Lib_info.loc info, Lib_info.name info) :: pps)
                 | Normal -> (lib :: acc, pps)
+                | Camlp5_rewriter ->
+                  failwith (Printf.sprintf "Loading Camlp5 packages to toplevel is not yet implemented %s %d" __FILE__ __LINE__)
               else
                 (acc, pps)
               (* external lib with a name matching our private name *))

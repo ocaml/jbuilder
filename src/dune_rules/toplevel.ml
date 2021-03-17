@@ -92,6 +92,7 @@ let pp_flags t =
       ++ Pp.verbatim ";" ++ Pp.newline
       ++ Pp.verbatim "Compenv.first_ppx :="
       ++ Pp.cut ++ Dyn.pp ppx ++ Pp.verbatim ";" ++ Pp.newline)
+  | Camlp5 _ -> failwith "Loading Camlp5 packages to toplevel is not yet implemented"
   | Action _
   | Future_syntax _ ->
     assert false (* Error in parsing *)
@@ -152,6 +153,7 @@ module Stanza = struct
     let pps =
       match toplevel.pps with
       | Preprocess.Pps pps -> pps.pps
+      | Camlp5 _ -> failwith "Loading Camlp5 packages to toplevel is not yet implemented"
       | Action _
       | Future_syntax _ ->
         assert false (* Error in parsing *)

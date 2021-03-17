@@ -1,0 +1,18 @@
+(library
+ (public_name proj1.pa1)
+ (synopsis "Syntax extension number 1")
+ (name librewriter2)
+ (kind camlp5_rewriter)
+ (modules extension)
+ (libraries camlp5)
+ (flags (:standard -w -27))
+ (preprocess
+  (camlp5 camlp5 camlp5.pa_o camlp5.pr_o camlp5.extend camlp5.extfold camlp5.quotations )))
+
+(library
+ (public_name proj1.lib2)
+ (synopsis "A library which uses proj1.pa1 to compile itself")
+ (name lib2)
+ (modules lib2)
+ (preprocess
+  (camlp5 camlp5 camlp5.pa_r camlp5.pr_dump librewriter2)))

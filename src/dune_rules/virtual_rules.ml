@@ -19,6 +19,9 @@ end = struct
         match Preprocess.remove_future_syntax ~for_:Compiler pp v with
         | No_preprocessing -> Module.ml_source
         | Action (_, _) -> fun m -> Module.ml_source (Module.pped m)
+        | Camlp5 _ ->
+          (* FIXME: no idea how virtual modules should interact with Camlp5 *)
+          Module.ml_source
         | Pps { loc = _; pps = _; flags = _; staged } ->
           if staged then
             Module.ml_source

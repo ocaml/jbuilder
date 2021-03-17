@@ -16,6 +16,7 @@ type 'a t =
   | No_preprocessing
   | Action of Loc.t * Action_dune_lang.t
   | Pps of 'a Pps.t
+  | Camlp5 of 'a Pps.t
   | Future_syntax of Loc.t
 
 val map : 'a t -> f:('a -> 'b) -> 'b t
@@ -39,6 +40,7 @@ module Without_future_syntax : sig
     | No_preprocessing
     | Action of Loc.t * Action_dune_lang.t
     | Pps of 'a Pps.t
+    | Camlp5 of 'a Pps.t
 end
 
 val loc : _ t -> Loc.t option

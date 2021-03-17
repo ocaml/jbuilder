@@ -57,6 +57,7 @@ type t =
   | Normal
   | Ppx_deriver of Ppx_args.t
   | Ppx_rewriter of Ppx_args.t
+  | Camlp5_rewriter
 
 let to_dyn x =
   let open Dyn.Encoder in
@@ -64,6 +65,7 @@ let to_dyn x =
   | Normal -> constr "Normal" []
   | Ppx_deriver args -> constr "Ppx_deriver" [ Ppx_args.to_dyn args ]
   | Ppx_rewriter args -> constr "Ppx_rewriter" [ Ppx_args.to_dyn args ]
+  | Camlp5_rewriter -> constr "Camlp5_rewriter" [ ]
 
 let decode =
   let open Dune_lang.Decoder in
@@ -75,6 +77,8 @@ let decode =
     ; ( "ppx_rewriter"
       , let+ args = Ppx_args.decode in
         Ppx_rewriter args )
+    ; ( "camlp5_rewriter"
+      , return (Camlp5_rewriter) )
     ]
 
 let encode t =
@@ -84,6 +88,7 @@ let encode t =
     | Ppx_deriver x -> List (Dune_lang.atom "ppx_deriver" :: Ppx_args.encode x)
     | Ppx_rewriter x ->
       List (Dune_lang.atom "ppx_rewriter" :: Ppx_args.encode x)
+    | Camlp5_rewriter ->  Dune_lang.atom "camlp5_rewriter"
   with
   | List [ x ] -> x
   | x -> x

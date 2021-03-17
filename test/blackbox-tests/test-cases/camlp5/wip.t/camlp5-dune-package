@@ -1,0 +1,204 @@
+(lang dune 2.8)
+;(use_meta)
+(name camlp5)
+(version 8.00.1)
+
+(library
+ (name camlp5)
+ (kind normal)
+ (archives (byte camlp5.cma) (native camlp5.cmxa))
+ (plugins (byte camlp5.cma) (native camlp5.cmxs))
+ (native_archives camlp5.a)
+ ;(requires base ppxlib ppx_compare.expander)
+ ;(main_module_name Ppx_compare)
+ (modes byte native)
+ (modules
+  (unwrapped
+    ((name PCaml)
+     (obj_name base__Applicative)
+     (visibility public)
+     (impl)
+     (intf))
+    ((name Applicative_intf)
+     (obj_name base__Applicative_intf)
+     (visibility public)
+     (impl))
+    ))
+ (camlp5.driver)
+)
+
+
+(library
+ (name camlp5.pa_r)
+ (kind camlp5_rewriter)
+ (archives
+  (byte pa_r.cma)
+  (native pa_r.cmxa))
+ (plugins
+  (byte pa_r.cma)
+  (native pa_r.cmxs))
+
+ (native_archives pa_r.a)
+ (modes byte native)
+ (modules
+  (singleton
+     (name Pa_r)
+     (obj_name Pa_r)
+     (visibility public)
+     (impl)
+     (intf)
+  ) ) )
+
+(library
+ (name camlp5.pa_o)
+ (kind camlp5_rewriter)
+ (archives
+  (byte pa_o.cma)
+  (native pa_o.cmxa))
+ (plugins
+  (byte pa_o.cma)
+  (native pa_o.cmxs))
+
+ (native_archives pa_o.a)
+ (modes byte native)
+ (modules
+  (singleton
+     (name Pa_o)
+     (obj_name Pa_o)
+     (visibility public)
+     (impl)
+     (intf)
+  ) ) )
+
+(library
+ (name camlp5.extend)
+ (kind camlp5_rewriter)
+ (archives
+  (byte pa_extend.cmo)
+  (native pa_extend.cmx))
+ ;(plugins
+ ; (byte pa_extend.cma)
+ ; (native pa_extend.cmxs))
+
+ (native_archives pa_extend.o)
+ (modes byte native)
+ (modules
+  (singleton
+     (name Pa_extend)
+     (obj_name Pa_extend)
+     (visibility public)
+     (impl)
+     (intf)
+  ) ) )
+
+(library
+ (name camlp5.quotations)
+ (kind camlp5_rewriter)
+ (archives
+  (byte q_MLast.cmo)
+  (native q_MLast.cmx))
+ ;(plugins
+ ; (byte pa_extend.cma)
+ ; (native pa_extend.cmxs))
+
+ (native_archives q_MLast.o)
+ (modes byte native)
+ (modules
+  (singleton
+     (name Q_MLast)
+     (obj_name Q_MLast)
+     (visibility public)
+     (impl)
+     (intf)
+  ) ) )
+
+(library
+ (name camlp5.extfold)
+ (kind camlp5_rewriter)
+ (archives
+  (byte pa_extfold.cmo)
+  (native pa_extfold.cmx))
+ ;(plugins
+ ; (byte pa_extend.cma)
+ ; (native pa_extend.cmxs))
+
+ (native_archives pa_extfold.o)
+ (modes byte native)
+ (modules
+  (singleton
+     (name pa_extfold)
+     (obj_name pa_extfold)
+     (visibility public)
+     (impl)
+     (intf)
+  ) ) )
+
+
+(library
+ (name camlp5.pr_r)
+ (kind camlp5_rewriter) ; TODO: change?
+ (archives
+  (byte pr_r.cma)
+  (native pr_r.cmxa))
+ (plugins
+  (byte pr_r.cma)
+  (native pr_r.cmxs))
+
+ (native_archives pr_r.a)
+ (modes byte native)
+ (modules
+  (singleton
+     (name Pr_r)
+     (obj_name Pr_r)
+     (visibility public)
+     (impl)
+     (intf)
+  )
+ )
+)
+
+(library
+ (name camlp5.pr_o)
+ (kind camlp5_rewriter) ; TODO: change?
+ (archives
+  (byte pr_o.cma)
+  (native pr_o.cmxa))
+ (plugins
+  (byte pr_o.cma)
+  (native pr_o.cmxs))
+
+ (native_archives pr_o.a)
+ (modes byte native)
+ (modules
+  (singleton
+     (name Pr_o)
+     (obj_name Pr_o)
+     (visibility public)
+     (impl)
+     (intf)
+  )
+ )
+)
+
+(library
+ (name camlp5.pr_dump)
+ (kind camlp5_rewriter) ; TODO: change?
+ (archives
+  (byte pr_dump.cma)
+  (native pr_dump.cmxa))
+ (plugins
+  (byte pr_dump.cma)
+  (native pr_dump.cmxs))
+
+ (native_archives pr_dump.a)
+ (modes byte native)
+ (modules
+  (singleton
+     (name Pr_dump)
+     (obj_name Pr_dump)
+     (visibility public)
+     (impl)
+     (intf)
+  )
+ )
+)

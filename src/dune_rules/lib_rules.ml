@@ -67,6 +67,7 @@ let build_lib (lib : Library.t) ~native_archives ~sctx ~expander ~flags ~dir
               ; As
                   (match lib.kind with
                   | Normal -> []
+                  | Camlp5_rewriter
                   | Ppx_deriver _
                   | Ppx_rewriter _ ->
                     [ "-linkall" ])

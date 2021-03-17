@@ -48,8 +48,14 @@ end = struct
 
     let of_libs libs =
       let pps =
-        (let compare a b = Lib_name.compare (Lib.name a) (Lib.name b) in
-         List.sort libs ~compare)
+        (* FIXME: Tricky place.
+          For camlp5 order of ocamlfind package matters, even more: the same package can be loaded
+          twice and sometimes  it is a preferred way to go. There I disabled autosorting
+          of packages because it breaks everything. No idea what consiquences are...
+        *)
+        libs
+        (* |> (let compare a b = Lib_name.compare (Lib.name a) (Lib.name b) in
+            List.sort ~compare)  *)
         |> List.map ~f:Lib.name
       in
       let project =
@@ -289,9 +295,149 @@ module Driver = struct
     | Error (Other exn) -> Error exn
 end
 
+
+
+module DriverP5 = struct
+  module M5 = struct
+    module Info = struct
+      let name = Sub_system_name.make "camlp5.driver"
+
+      type t =
+        { loc : Loc.t
+        }
+
+      type Sub_system_info.t += T of t
+
+      let loc t = t.loc
+
+      (* The syntax of the driver sub-system is part of the main dune syntax, so
+         we simply don't create a new one.
+
+         If we wanted to make the ppx system an extension, then we would create
+         a new one. *)
+      let syntax = Stanza.syntax
+
+      open Dune_lang.Decoder
+
+      let decode =
+        fields
+          (let+ loc = loc
+           in
+           { loc })
+
+      let encode _ =
+        let open Dune_lang.Encoder in
+        ( (1, 0)
+        , record_fields [])
+    end
+
+    type t =
+      { info : Info.t
+      ; lib : Lib.t
+      ; replaces : t list Or_exn.t
+      }
+
+    let desc ~plural =
+      "camlp5 driver"
+      ^
+      if plural then
+        "s"
+      else
+        ""
+
+    let desc_article = "a"
+
+    let lib t = t.lib
+
+    let replaces t = t.replaces
+
+    let instantiate ~resolve:_ ~get:_ lib (info : Info.t) : t Memo.Build.t =
+      Memo.Build.return
+      { info
+      ; lib
+      ; replaces = Result.ok []
+      }
+
+    let public_info t =
+      (
+      let open Result.O in
+      let+ _replaces = t.replaces in
+      { Info.loc = t.info.loc
+      }
+      ) |> (fun x ->
+        assert (Result.is_ok x); x)
+  end
+
+  include M5
+  include Sub_system.Register_backend (M5)
+
+  (* Where are we called from? *)
+  type loc =
+    | User_file of Loc.t * (Loc.t * Lib_name.t) list
+    | Dot_ppx of Path.Build.t * Lib_name.t list
+
+  let make_error loc msg =
+    match loc with
+    | User_file (loc, _) ->
+      Error (User_error.E (User_error.make ~loc [ Pp.text msg ]))
+    | Dot_ppx (path, pps) ->
+      Error
+        (User_error.E
+           (User_error.make
+              ~loc:(Loc.in_file (Path.build path))
+              [ Pp.textf "Failed to create on-demand camlp5 rewriter for %s; %s"
+                  (String.enumerate_and (List.map pps ~f:Lib_name.to_string))
+                  (String.uncapitalize msg)
+              ]))
+
+  let select libs ~loc =
+    let open Memo.Build.O in
+    select_replaceable_backend libs ~replaces >>| function
+    | Ok _ as x -> x
+    | Error No_backend_found ->
+      let msg =
+        match
+          List.filter_map libs ~f:(fun lib ->
+              match Lib_name.to_string (Lib.name lib) with
+              | ("ocaml-migrate-parsetree" | "ppxlib" | "ppx_driver") as s ->
+                Some s
+              | _ -> None)
+        with
+        | [] ->
+          let pps =
+            match loc with
+            | User_file (_, pps) -> List.map pps ~f:snd
+            | Dot_ppx (_, pps) -> pps
+          in
+          sprintf
+            "No camlp5 driver were found. It seems that %s %s not compatible with \
+             Dune. Examples of ppx rewriters that are compatible with Dune are \
+             ones using ocaml-migrate-parsetree, ppxlib or ppx_driver."
+            (String.enumerate_and (List.map pps ~f:Lib_name.to_string))
+            ( match pps with
+            | [ _ ] -> "is"
+            | _ -> "are" )
+        | names ->
+          sprintf
+            "No camlp5 driver were found.\nHint: Try upgrading or reinstalling %s."
+            (String.enumerate_and names)
+      in
+      make_error loc msg
+    | Error (Too_many_backends ts) ->
+      make_error loc
+        (sprintf "Too many incompatible ppx drivers were found: %s."
+           (String.enumerate_and
+              (List.map ts ~f:(fun t -> Lib_name.to_string (Lib.name (lib t))))))
+    | Error (Other exn) -> Error exn
+end
+
 let ppx_exe sctx ~key =
   let build_dir = (Super_context.context sctx).build_dir in
   Path.Build.relative build_dir (".ppx/" ^ key ^ "/ppx.exe")
+
+let camlp5_exe sctx ~key =
+  let build_dir = (Super_context.context sctx).build_dir in
+  Path.Build.relative build_dir (".camlp5/" ^ key ^ "/rewriter.exe")
 
 let build_ppx_driver sctx ~scope ~target ~pps ~pp_names =
   let open Memo.Build.O in
@@ -346,6 +492,56 @@ let build_ppx_driver sctx ~scope ~target ~pps ~pp_names =
   in
   Exe.build_and_link ~program ~linkages cctx ~promote:None
 
+
+
+let build_camlp5_driver sctx ~scope ~target ~pps ~pp_names =
+  let open Memo.Build.O in
+  let _ctx = SC.context sctx in
+  let* driver_and_libs =
+    (match Result.bind pps ~f:(Lib.closure ~linking:true) with
+    | Error _ as err -> Memo.Build.return err
+    | Ok pps ->
+      Memo.Build.map
+        (DriverP5.select pps ~loc:(Dot_ppx (target, pp_names)))
+        ~f:(fun driver -> Result.map driver ~f:(fun driver -> (driver, pps))))
+    >>| function
+    | Ok _ as ok -> ok
+    | Error e ->
+      (* Extend the dependency stack as we don't have locations at this point *)
+      Error (Dep_path.prepend_exn e (Preprocess pp_names))
+  in
+  (* CR-someday diml: what we should do is build the .cmx/.cmo once and for all
+     at the point where the driver is defined. *)
+  let dir = Path.Build.parent_exn target in
+  let main_module_name =
+    Module_name.of_string_allow_invalid (Loc.none, "_ppx")
+  in
+  let module_ = Module.generated ~src_dir:(Path.build dir) main_module_name in
+
+  let program : Exe.Program.t =
+    { name = Filename.remove_extension (Path.Build.basename target)
+    ; main_module_name
+    ; loc = Loc.none
+    }
+  in
+  let obj_dir = Obj_dir.for_pp ~dir in
+  let cctx =
+    let expander = Super_context.expander sctx ~dir in
+    let requires_compile = Result.map driver_and_libs ~f:snd in
+    let requires_link = lazy requires_compile in
+    let flags = Ocaml_flags.of_list [  ] in
+    let opaque = Compilation_context.Explicit false in
+    let modules = Modules.singleton_exe module_ in
+      (* FIXME: at the moment we do not need main module for camlp5 because
+          external executable `mkcamlp5` cares about that.
+          But for now I don't understand how to create modules of empty list
+      *)
+    Compilation_context.create ~super_context:sctx ~scope ~expander ~obj_dir
+      ~modules ~flags ~requires_compile ~requires_link ~opaque ~js_of_ocaml:None
+      ~package:None ~bin_annot:false ()
+  in
+  Exe.link_camlp5_rewriter ~program ~libs:(Result.value ~default:[] pps) cctx
+
 let get_rules sctx key =
   let exe = ppx_exe sctx ~key in
   let pp_names, scope =
@@ -374,9 +570,42 @@ let get_rules sctx key =
   in
   build_ppx_driver sctx ~scope ~pps ~pp_names ~target:exe
 
-let gen_rules sctx components =
+let get_rules_camlp5 sctx key =
+  let exe = camlp5_exe sctx ~key in
+  let pp_names, scope =
+    match Digest.from_hex key with
+    | None ->
+      User_error.raise
+        [ Pp.textf "invalid ppx key for %s"
+            (Path.Build.to_string_maybe_quoted exe)
+        ]
+    | Some key ->
+      let { Key.Decoded.pps; project_root } = Key.decode key in
+      let scope =
+        let dir =
+          match project_root with
+          | None -> (Super_context.context sctx).build_dir
+          | Some dir ->
+            Path.Build.append_source (Super_context.context sctx).build_dir dir
+        in
+        Super_context.find_scope_by_dir sctx dir
+      in
+      (pps, scope)
+  in
+  let pps =
+    let lib_db = Scope.libs scope in
+    List.map pp_names ~f:(fun x -> (Loc.none, x)) |> Lib.DB.resolve_pps lib_db
+  in
+  build_camlp5_driver sctx ~scope ~pps ~pp_names ~target:exe
+
+let gen_rules_ppx sctx components =
   match components with
   | [ key ] -> get_rules sctx key
+  | _ -> Memo.Build.return ()
+
+let gen_rules_camlp5 sctx components =
+  match components with
+  | [ key ] -> get_rules_camlp5 sctx key
   | _ -> Memo.Build.return ()
 
 let ppx_driver_exe sctx libs =
@@ -385,6 +614,11 @@ let ppx_driver_exe sctx libs =
      #3698 *)
   let sctx = SC.host sctx in
   ppx_exe sctx ~key
+
+let camlp5_driver_exe sctx libs =
+  let key = Digest.to_string (Key.Decoded.of_libs libs |> Key.encode) in
+  let sctx = SC.host sctx in
+  camlp5_exe sctx ~key
 
 let get_cookies ~loc ~expander ~lib_name libs =
   let expander, library_name_cookie =
@@ -404,6 +638,10 @@ let get_cookies ~loc ~expander ~lib_name libs =
           let info = Lib.info t in
           let kind = Lib_info.kind info in
           match kind with
+          | Camlp5_rewriter ->
+            Format.printf "Camlp5_rewriter gotten with lib-name=%s \n%!"
+              (Dyn.to_string @@ Lib_name.to_dyn @@  Lib_info.name info);
+              []
           | Normal -> []
           | Ppx_rewriter { cookies }
           | Ppx_deriver { cookies } ->
@@ -441,6 +679,16 @@ let ppx_driver_and_flags_internal sctx ~loc ~expander ~lib_name ~flags libs =
   let sctx = SC.host sctx in
   (ppx_driver_exe sctx libs, flags @ cookies)
 
+let camlp5_driver_and_flags_internal sctx ~loc ~expander ~lib_name ~flags libs =
+  let _ = loc in
+  let _ = lib_name in
+  let open Result.O in
+  let flags = List.map ~f:(Expander.Static.expand_str expander) flags in
+  let+ cookies = Result.return [] in
+  let sctx = SC.host sctx in
+  (camlp5_driver_exe sctx libs, flags @ cookies)
+
+
 let ppx_driver_and_flags sctx ~lib_name ~expander ~scope ~loc ~flags pps =
   Action_builder.memo_build
     (let open Memo.Build.O in
@@ -455,6 +703,18 @@ let ppx_driver_and_flags sctx ~lib_name ~expander ~scope ~loc ~flags pps =
 
 let workspace_root_var =
   String_with_vars.virt_pform __POS__ (Var Workspace_root)
+
+let camlp5_driver_and_flags sctx ~lib_name ~expander ~scope ~loc ~flags pps =
+  Action_builder.memo_build
+    (let open Memo.Build.O in
+    let libs = Result.ok_exn (Lib.DB.resolve_pps (Scope.libs scope) pps) in
+    let exe, flags =
+      Result.ok_exn
+        (camlp5_driver_and_flags_internal sctx ~loc ~expander ~lib_name ~flags libs)
+    in
+    let libs = Result.ok_exn (Lib.closure libs ~linking:true) in
+    let+ driver = DriverP5.select libs ~loc:(DriverP5.User_file (loc, pps)) in
+    (exe, Result.ok_exn driver, flags))
 
 let promote_correction fn build ~suffix =
   Action_builder.progn
@@ -533,6 +793,7 @@ let lint_module sctx ~dir ~expander ~lint ~lib_name ~scope =
                  let src = Path.as_in_build_dir_exn src.path in
                  add_alias src ~loc:(Some loc)
                    (action_for_pp ~loc ~expander ~action ~src ~target:None))
+         | Camlp5 _ -> failwith "not implemented"
          | Pps { loc; pps; flags; staged } ->
            if staged then
              User_error.raise ~loc
@@ -611,8 +872,7 @@ let make sctx ~dir ~expander ~lint ~preprocess ~preprocessor_deps
           in
           if lint then lint_module ~ast ~source:m;
           ast
-      | Pps { loc; pps; flags; staged } ->
-        if not staged then (
+      | Pps { loc; pps; flags; staged } when not staged ->
           let corrected_suffix = ".ppx-corrected" in
           let driver_and_flags =
             Action_builder.memoize "ppx driver and flags"
@@ -652,7 +912,37 @@ let make sctx ~dir ~expander ~lint ~preprocess ~preprocessor_deps
                               ; Dep (Path.build src)
                               ; As flags
                               ]))))
-        ) else
+        | Camlp5 { loc; pps; flags; _ } ->
+          (* Copypasintg staged implementation for now *)
+          let dash_ppx_flag =
+            Action_builder.memoize "camlp5 command"
+              (let* () = Action_builder.return () in
+              let* exe, _driver, flags =
+                camlp5_driver_and_flags sctx ~expander ~loc ~scope ~flags
+                   ~lib_name pps
+              in
+              let+ () = Action_builder.path (Path.build exe)
+              and+ () = preprocessor_deps
+              in
+              let command =
+                List.map
+                  (List.concat
+                      [ [ Path.reach (Path.build exe)
+                            ~from:(Path.build (SC.context sctx).build_dir)
+                        ]
+                      ; flags
+                      ])
+                  ~f:String.quote_for_shell
+                |> String.concat ~sep:" "
+              in
+              [ "-pp"; command ])
+          in
+          let pp = Some dash_ppx_flag in
+          fun m ~lint:_ ->
+            let ast = setup_dialect_rules sctx ~dir ~expander m in
+            Module.set_pp ast pp
+
+        | Pps { loc; pps; flags; _ }  -> (
           let dash_ppx_flag =
             Action_builder.memoize "ppx command"
               (let* () = Action_builder.return () in
@@ -685,14 +975,25 @@ let make sctx ~dir ~expander ~lint ~preprocess ~preprocessor_deps
             let ast = setup_dialect_rules sctx ~dir ~expander m in
             if lint then lint_module ~ast ~source:m;
             Module.set_pp ast pp)
-  |> Pp_spec.make
+  ) |> Pp_spec.make
 
 let get_ppx_driver sctx ~loc ~expander ~scope ~lib_name ~flags pps =
   let open Result.O in
   let* libs = Lib.DB.resolve_pps (Scope.libs scope) pps in
   ppx_driver_and_flags_internal sctx ~loc ~expander ~lib_name ~flags libs
 
+
 let ppx_exe sctx ~scope pp =
   let open Result.O in
   let+ libs = Lib.DB.resolve_pps (Scope.libs scope) [ (Loc.none, pp) ] in
   ppx_driver_exe sctx libs
+
+let get_camlp5_driver sctx ~loc ~expander ~scope ~lib_name ~flags pps =
+  let open Result.O in
+  let* libs = Lib.DB.resolve_pps (Scope.libs scope) pps in
+  camlp5_driver_and_flags_internal sctx ~loc ~expander ~lib_name ~flags libs
+
+let camlp5_exe sctx ~scope pp =
+  let open Result.O in
+  let+ libs = Lib.DB.resolve_pps (Scope.libs scope) [ (Loc.none, pp) ] in
+  camlp5_driver_exe sctx libs

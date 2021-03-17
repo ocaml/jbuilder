@@ -314,6 +314,11 @@ module Unprocessed = struct
     | Action (loc, (action : Action_dune_lang.t)) ->
       pp_flag_of_action ~expander ~loc ~action
     | No_preprocessing -> Action_builder.With_targets.return None
+    | Camlp5 _ ->
+        (* We could put compiled rewriter to .merlin file (or whatever it is nowadays)
+         but until https://github.com/ocaml/merlin/issues/1246 is open
+         it is probably not worth trying      *)
+        Action_builder.With_targets.return None
     | Pps { loc; pps; flags; staged = _ } -> (
       match
         Preprocessing.get_ppx_driver sctx ~loc ~expander ~lib_name:libname

@@ -1,0 +1,41 @@
+(library
+ (name librewriter1)
+ (modules extension)
+ (libraries camlp5)
+ (preprocess
+  (action
+   (run %{project_root}/rewriter1/pp5+dump.byte %{input-file})))
+ (flags
+  (:standard -warn-error -A -rectypes)))
+
+(rule
+ (targets rewriter1.exe)
+ (deps librewriter1.cmxa)
+ (action
+  (run
+   mkcamlp5.opt
+   -package
+   camlp5,camlp5.pa_o,camlp5.pr_o,camlp5.extend,camlp5.quotations,base,logger,ppxlib,GT.common,ocamlgraph
+   %{deps}
+   -o
+   %{targets})))
+
+(rule
+ (targets pp5+dump.byte)
+ (action
+  (run
+   mkcamlp5
+   -package
+   camlp5,camlp5.pa_o,camlp5.extend,camlp5.quotations,camlp5.extfold,camlp5.pr_dump
+   -o
+   %{targets})))
+
+(rule
+ (targets pp5+o.byte)
+ (action
+  (run
+   mkcamlp5
+   -package
+   camlp5,camlp5.pa_o,camlp5.extend,camlp5.quotations,camlp5.extfold,camlp5.pr_o
+   -o
+   %{targets})))

@@ -321,7 +321,12 @@ let gen_rules ~sctx ~dir components =
       | [] -> S.All
       | _ -> S.These String.Set.empty)
     | ".ppx" :: rest -> (
-      let+ () = Preprocessing.gen_rules sctx rest in
+      let+ () = Preprocessing.gen_rules_ppx sctx rest in
+      match rest with
+      | [] -> S.All
+      | _ -> S.These String.Set.empty )
+    | ".camlp5" :: rest -> (
+      let+ () = Preprocessing.gen_rules_camlp5 sctx rest in
       match rest with
       | [] -> S.All
       | _ -> S.These String.Set.empty)
@@ -372,7 +377,7 @@ let gen_rules ~sctx ~dir components =
     match components with
     | [] ->
       Build_system.Subdir_set.These
-        (String.Set.of_list [ ".js"; "_doc"; ".ppx"; ".dune" ])
+        (String.Set.of_list [ ".js"; "_doc"; ".ppx"; ".camlp5"; ".dune" ])
     | _ -> These String.Set.empty
   in
   Build_system.Subdir_set.union_all

@@ -42,8 +42,10 @@ end = struct
   let lib_ppxs sctx ~scope ~(lib : Dune_file.Library.t) =
     match lib.kind with
     | Normal
-    | Ppx_deriver _ ->
-      []
+    | Ppx_deriver _ -> []
+    | Camlp5_rewriter ->
+        let name = Dune_file.Library.best_name lib in
+        [ Preprocessing.camlp5_exe sctx ~scope name |> Result.ok_exn ]
     | Ppx_rewriter _ ->
       let name = Dune_file.Library.best_name lib in
       [ Preprocessing.ppx_exe sctx ~scope name |> Result.ok_exn ]
