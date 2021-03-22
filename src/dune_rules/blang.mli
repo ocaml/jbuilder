@@ -23,6 +23,12 @@ val true_ : t
 
 val eval : t -> dir:Path.t -> f:Value.t list String_with_vars.expander -> bool
 
+val eval_partial :
+     t
+  -> dir:Path.t
+  -> f:Value.t list Action_builder.t String_with_vars.expander
+  -> bool Action_builder.t
+
 val to_dyn : t -> Dyn.t
 
 val decode : t Dune_lang.Decoder.t

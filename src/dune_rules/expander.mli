@@ -129,6 +129,8 @@ val expand_and_eval_set :
 
 val eval_blang : t -> Blang.t -> bool
 
+val eval_blang_partial : t -> Blang.t -> bool Action_builder.t
+
 val map_exe : t -> Path.t -> Path.t
 
 val artifacts : t -> Artifacts.Bin.t

@@ -39,23 +39,96 @@ type t =
 
 let true_ = Const true
 
-let rec eval t ~dir ~f =
-  match t with
-  | Const x -> x
-  | Expr sw -> (
-    match String_with_vars.expand sw ~mode:Single ~dir ~f with
-    | String "true" -> true
-    | String "false" -> false
-    | _ ->
+let of_expansion_exn loc = function
+  | Value.String "true" -> true
+  | String "false" -> false
+  | String s ->
+    User_error.raise ~loc
+      [ Pp.text "This value must be either true or false got:"
+      ; Pp.verbatim (Printf.sprintf "%S" s)
+      ]
+  | _ ->
+    User_error.raise ~loc
+      [ Pp.text "This value must be a string not true or false not a path" ]
+
+module type Expander = sig
+  type 'a app
+
+  val expand :
+    t -> dir:Path.t -> f:Value.t list app String_with_vars.expander -> bool app
+end
+
+module Make_expander (A : sig
+  include Applicative_intf.S1
+
+  val static_eval : 'a t -> ('a * unit t) option
+end)
+(Expander : String_with_vars.Expander with type 'a app := 'a A.t) :
+  Expander with type 'a app := 'a A.t = struct
+  open A.O
+
+  let rec expand t ~dir ~f =
+    let reduce ~neutral xs =
+      let rec aux acc = function
+        | [] -> (
+          match acc with
+          | [] -> A.return neutral
+          | acc ->
+            let+ acc = A.all (List.rev acc) in
+            if List.for_all ~f:(fun x -> Bool.equal x neutral) acc then
+              neutral
+            else
+              not neutral)
+        | a :: l -> (
+          let a = expand a ~dir ~f in
+          match A.static_eval a with
+          | None -> aux (a :: acc) l
+          | Some (a, deps) ->
+            deps
+            >>>
+            if Bool.equal a neutral then
+              aux acc l
+            else
+              A.return a)
+      in
+      aux [] xs
+    in
+    match t with
+    | Const x -> A.return x
+    | Expr sw ->
+      let+ e = Expander.expand sw ~mode:Single ~dir ~f in
       let loc = String_with_vars.loc sw in
-      User_error.raise ~loc
-        [ Pp.text "This value must be either true or false" ])
-  | And xs -> List.for_all ~f:(eval ~f ~dir) xs
-  | Or xs -> List.exists ~f:(eval ~f ~dir) xs
-  | Compare (op, x, y) ->
-    let x = String_with_vars.expand x ~mode:Many ~dir ~f
-    and y = String_with_vars.expand y ~mode:Many ~dir ~f in
-    Op.eval op (Value.L.compare_vals ~dir x y)
+      of_expansion_exn loc e
+    | And xs -> reduce ~neutral:true xs
+    | Or xs -> reduce ~neutral:false xs
+    | Compare (op, x, y) -> (
+      let x = Expander.expand x ~mode:Many ~dir ~f
+      and y = Expander.expand y ~mode:Many ~dir ~f in
+      match (A.static_eval x, A.static_eval y) with
+      | Some (x, depsx), Some (y, depsy) ->
+        depsx >>> depsy
+        >>> A.return (Op.eval op (Value.L.compare_vals ~dir x y))
+      | _ ->
+        let+ x = x
+        and+ y = y in
+        Op.eval op (Value.L.compare_vals ~dir x y))
+end
+
+let eval =
+  let module E =
+    Make_expander
+      (struct
+        include Applicative.Id
+
+        let static_eval x = Some (x, ())
+      end)
+      (String_with_vars)
+  in
+  E.expand
+
+let eval_partial =
+  let module E = Make_expander (Action_builder) (Action_builder.Expander) in
+  E.expand
 
 let rec to_dyn =
   let open Dyn.Encoder in

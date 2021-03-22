@@ -223,18 +223,68 @@ let alias sctx ?extra_bindings ~dir ~expander (alias_conf : Alias_conf.t) =
     Alias_rules.stamp ~deps:alias_conf.deps ~extra_bindings ~action
   in
   let loc = Some alias_conf.loc in
-  match Expander.eval_blang expander alias_conf.enabled_if with
-  | false -> Alias_rules.add_empty sctx ~loc ~alias ~stamp
-  | true -> (
+  let check_before_2_9 () =
+    if
+      Dune_project.dune_version @@ Scope.project @@ Expander.scope expander
+      < (2, 9)
+    then
+      try ignore (Expander.eval_blang expander alias_conf.enabled_if) with
+      | User_error.E _ ->
+        User_error.raise ?loc
+          [ Pp.textf
+              "Extended enabled_if is not compatible with dune lang < (2, 9)."
+          ]
+  in
+  let enabled_if = Expander.eval_blang_partial expander alias_conf.enabled_if in
+  let locks = interpret_locks ~expander alias_conf.locks in
+  match Action_builder.static_eval enabled_if with
+  | Some (false, deps) ->
+    check_before_2_9 ();
+    let action =
+      let open Action_builder.With_targets.O in
+      let+ () = Action_builder.with_no_targets deps in
+      Action.empty
+    in
+    Alias_rules.add sctx ~loc ~stamp ~locks:[] action ~alias
+  | None -> (
+    check_before_2_9 ();
+    match alias_conf.action with
+    | None ->
+      let builder, _expander = Dep_conf_eval.named ~expander alias_conf.deps in
+      let builder =
+        let open Action_builder.O in
+        let+ b = enabled_if in
+        if b then
+          builder
+        else
+          Action_builder.return ()
+      in
+      let builder = Action_builder.Expert.action_builder builder in
+      Rules.Produce.Alias.add_deps alias ?loc builder
+    | Some (action_loc, _) ->
+      let action =
+        Action_builder.fail
+          { fail =
+              User_error.raise ~loc:action_loc
+                [ Pp.textf
+                    "Extended enabled_if is not compatible with deprecrated \
+                     action field."
+                ]
+          }
+      in
+      let action = Action_builder.with_no_targets action in
+      Alias_rules.add sctx ~loc ~stamp ~locks action ~alias)
+  | Some (true, deps) -> (
+    check_before_2_9 ();
     match alias_conf.action with
     | None ->
       let builder, _expander = Dep_conf_eval.named ~expander alias_conf.deps in
       Rules.Produce.Alias.add_deps alias ?loc builder;
       Memo.Build.return ()
     | Some (action_loc, action) ->
-      let locks = interpret_locks ~expander alias_conf.locks in
       let action =
         let builder, expander = Dep_conf_eval.named ~expander alias_conf.deps in
+        let builder = Action_builder.O.( >>> ) deps builder in
         let open Action_builder.With_targets.O in
         let+ () = Action_builder.with_no_targets builder
         and+ action =

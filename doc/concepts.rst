@@ -185,7 +185,8 @@ Dune supports the following variables:
   For example, ``%{env:BIN=/usr/bin}``.
   Available since dune 1.4.0.
 
-In addition, ``(action ...)`` fields support the following special variables:
+In addition, ``(action ...)`` fields of any stanza and ``(enabled_if ...)``
+fields of ``alias`` stanza support the following special variables:
 
 - ``target`` expands to the one target
 - ``targets`` expands to the list of target

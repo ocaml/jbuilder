@@ -629,4 +629,9 @@ let eval_blang t = function
   | Blang.Const x -> x (* common case *)
   | blang -> Blang.eval blang ~dir:(Path.build t.dir) ~f:(Static.expand_pform t)
 
+let eval_blang_partial t = function
+  | Blang.Const x -> Action_builder.return x (* common case *)
+  | blang ->
+    Blang.eval_partial blang ~dir:(Path.build t.dir) ~f:(expand_pform t)
+
 let find_package t pkg = t.find_package pkg
