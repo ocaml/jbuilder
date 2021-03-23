@@ -230,7 +230,11 @@ struct
   open A.O
 
   let expand :
-        'a.    t -> mode:'a Mode.t -> dir:Path.t -> f:Value.t list A.t expander
+        'a.
+           t
+        -> mode:'a Mode.t
+        -> dir:Path.t
+        -> f:Value.t list A.t expander
         -> 'a A.t =
    fun t ~mode ~dir ~f ->
     match t.parts with
