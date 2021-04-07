@@ -1218,6 +1218,7 @@ The following sections are available:
 - ``share`` installs to ``<prefix>/share/<pkgname>/``
 - ``share_root`` installs to ``<prefix>/share/``
 - ``etc`` installs to ``<prefix>/etc/<pkgname>/``
+- ``etc_root`` installs to ``<prefix>/etc/``
 - ``doc`` installs to ``<prefix>/doc/<pkgname>/``
 - ``stublibs`` installs to ``<prefix>/lib/stublibs/`` with the
   executable bit set
@@ -1236,7 +1237,7 @@ Normally, Dune uses the basename of the file to install to determine
 the name of the file once installed.  However, you can change that
 fact by using the form ``(<filename> as <destination>)`` in the
 ``files`` field. For instance, to install a file ``mylib.el`` as
-``<prefix>/emacs/site-lisp/mylib.el`` you must write the following:
+``<prefix>/share/emacs/site-lisp/mylib.el`` you must write the following:
 
 .. code:: scheme
 

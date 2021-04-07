@@ -296,6 +296,8 @@ Unreleased
   and populates the `:standard` set of flags with common default values when
   building CXX stubs. (#3875, #3802, fix #3718 and #3528, @voodoos)
 
+- Add support for `etc_root` in `install` directives (#4077, @toots)
+
 2.7.1 (2/09/2020)
 -----------------
 

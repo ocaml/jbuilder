@@ -138,6 +138,7 @@ module Section = struct
       ; share : Path.t
       ; share_root : Path.t
       ; etc : Path.t
+      ; etc_root : Path.t
       ; doc : Path.t
       ; stublibs : Path.t
       ; man : Path.t
@@ -151,7 +152,8 @@ module Section = struct
       let share_root = Path.relative destdir "share" in
       let etc_root = Path.relative destdir "etc" in
       let doc_root = Path.relative destdir "doc" in
-      { lib_root
+      { etc_root
+      ; lib_root
       ; libexec_root
       ; share_root
       ; bin = Path.relative destdir "bin"
@@ -178,6 +180,7 @@ module Section = struct
       | Share -> t.share
       | Share_root -> t.share_root
       | Etc -> t.etc
+      | Etc_root -> t.etc_root
       | Doc -> t.doc
       | Stublibs -> t.stublibs
       | Man -> t.man
@@ -288,6 +291,7 @@ module Entry = struct
         | Libexec -> (Libexec_root, dst_with_pkg_prefix)
         | Share -> (Share_root, dst_with_pkg_prefix)
         | Etc
+        | Etc_root
         | Doc ->
           User_error.raise
             [ Pp.textf "Can't have site in etc and doc for opam" ]

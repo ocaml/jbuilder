@@ -42,6 +42,7 @@ let should_set_executable_bit = function
   | Share
   | Share_root
   | Etc
+  | Etc_root
   | Doc
   | Man
   | Misc ->

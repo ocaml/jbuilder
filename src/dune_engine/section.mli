@@ -11,6 +11,7 @@ type t =
   | Share
   | Share_root
   | Etc
+  | Etc_root
   | Doc
   | Stublibs
   | Man

@@ -9,6 +9,7 @@ type t =
   | Share
   | Share_root
   | Etc
+  | Etc_root
   | Doc
   | Stublibs
   | Man
@@ -25,6 +26,7 @@ let all =
   ; (Share, "share")
   ; (Share_root, "share_root")
   ; (Etc, "etc")
+  ; (Etc_root, "etc_root")
   ; (Doc, "doc")
   ; (Stublibs, "stublibs")
   ; (Man, "man")
