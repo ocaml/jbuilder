@@ -998,20 +998,20 @@ module With_implicit_output = struct
     match typ with
     | Function.Type.Sync ->
       let memo =
-        create name ?doc ~input ~visibility ~output Sync (fun i ->
+        create name ?doc ~input ~visibility ~output Sync (fun (i : i) ->
             Implicit_output.collect_sync implicit_output (fun () -> impl i))
       in
       ( fun input ->
-          let res, output = exec memo input in
+          let res, output = exec memo (input : i) in
           Implicit_output.produce_opt implicit_output output;
           res
         : f )
     | Function.Type.Async ->
       let memo =
-        create name ?doc ~input ~visibility ~output Async (fun i ->
+        create name ?doc ~input ~visibility ~output Async (fun (i : i) ->
             Implicit_output.collect_async implicit_output (fun () -> impl i))
       in
-      ( fun input ->
+      ( fun (input : i) ->
           Fiber.map (exec memo input) ~f:(fun (res, output) ->
               Implicit_output.produce_opt implicit_output output;
               res)

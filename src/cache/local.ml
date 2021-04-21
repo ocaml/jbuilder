@@ -187,8 +187,7 @@ let deduplicate cache (file : File.t) =
       Path.unlink_no_err tmpname;
       Path.link path_in_cache tmpname;
       Path.rename tmpname path
-    with
-    | Unix.Unix_error (e, syscall, _) ->
+    with Unix.Unix_error (e, syscall, _) ->
       Path.unlink_no_err tmpname;
       cache.warn
         [ Pp.textf "error handling dune-cache command: %s: %s" syscall
@@ -208,7 +207,7 @@ let promote_sync cache paths key metadata ~repository ~duplication =
     | Some idx -> (
       match List.nth cache.repositories idx with
       | None -> Result.Error (Printf.sprintf "repository out of range: %i" idx)
-      | repo -> Result.Ok repo)
+      | repo -> Result.Ok repo )
   in
   let metadata =
     apply
@@ -279,7 +278,7 @@ let promote_sync cache paths key metadata ~repository ~duplication =
             (* Remove write permissions, making the cache entry immutable. We
                assume that users do not modify the files in the cache. *)
             Path.chmod in_the_cache ~mode:(stat.st_perm land 0o555);
-            Result.Ok (Promoted { path; digest = effective_digest })))
+            Result.Ok (Promoted { path; digest = effective_digest }) ))
   in
   let+ promoted = Result.List.map ~f:promote paths in
   let metadata_path = metadata_path cache key

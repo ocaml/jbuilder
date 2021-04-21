@@ -1,3 +1,8 @@
+Unreleased
+----------
+
+- Fix compatibility with ocaml/ocaml#10277 (#4508, @dra27)
+
 2.8.5 (28/03/2021)
 ------------------
 
