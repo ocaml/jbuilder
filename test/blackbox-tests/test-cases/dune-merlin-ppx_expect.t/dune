@@ -1,0 +1,7 @@
+(subdir
+ lib
+ (library
+  (inline_tests)
+  (name testlib)
+  (preprocess
+   (pps ppx_inline_test ppx_expect))))

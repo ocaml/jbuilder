@@ -12,6 +12,7 @@ TEST_DEPS := \
 lwt \
 bisect_ppx \
 cinaps \
+conf-jq \
 coq-native \
 "coq>=8.12.1" \
 core_bench \
