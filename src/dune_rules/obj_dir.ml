@@ -395,6 +395,13 @@ module Module = struct
     let basename = Module_name.Unique.artifact_filename obj_name ~ext:".odoc" in
     relative t (odoc_dir t) basename
 
+  let odocl t m =
+    let obj_name = Module.obj_name m in
+    let basename =
+      Module_name.Unique.artifact_filename obj_name ~ext:".odocl"
+    in
+    relative t (odoc_dir t) basename
+
   module Dep = struct
     type t =
       | Immediate of Module.File.t

@@ -116,6 +116,8 @@ module Module : sig
 
   val odoc : 'path t -> Module.t -> 'path
 
+  val odocl : 'path t -> Module.t -> 'path
+
   module L : sig
     val o_files : 'path t -> Module.t list -> ext_obj:string -> Path.t list
 
