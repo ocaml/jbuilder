@@ -34,7 +34,7 @@ module Make (S : Stringlike_intf.S_base) = struct
   let parse_string_exn (loc, s) =
     match of_string_user_error (loc, s) with
     | Ok s -> s
-    | Error err -> raise (User_error.E (err, []))
+    | Error err -> raise (User_error.E (err, User_error.Annotations.none))
 
   let conv =
     ( (fun s ->

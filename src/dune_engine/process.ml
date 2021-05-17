@@ -6,8 +6,10 @@ module Event = Chrome_trace.Event
 module Timestamp = Event.Timestamp
 module Action_output_on_success = Execution_parameters.Action_output_on_success
 
-module With_directory_annot = User_error.Annot.Make (struct
-  type payload = Path.t
+module With_directory_annot = User_error.Annotations.Entry.Make (struct
+  type t = Path.t
+
+  let name = "with_directory"
 
   let to_dyn = Path.to_dyn
 end)
@@ -378,10 +380,11 @@ module Exit_status = struct
       | None -> Path.of_string (Sys.getcwd ())
       | Some dir -> dir
     in
-    let annots = [ With_directory_annot.make dir ] in
+    let module A = User_error.Annotations in
+    let annots = A.singleton With_directory_annot.entry dir in
     let annots =
       if has_embedded_location then
-        User_error.Annot.Has_embedded_location.make () :: annots
+        A.annotate annots A.Has_embedded_location.entry ()
       else
         annots
     in

@@ -2,7 +2,8 @@
 
 open Import
 
-module With_directory_annot : User_error.Annot.S with type payload = Path.t
+module With_directory_annot :
+  User_error.Annotations.Entry.S with type payload = Path.t
 
 (** How to handle sub-process failures *)
 type ('a, 'b) failure_mode =

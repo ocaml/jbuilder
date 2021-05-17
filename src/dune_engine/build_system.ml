@@ -362,14 +362,12 @@ end
 module Error = struct
   type t = Exn_with_backtrace.t
 
-  let extract_dir annot =
-    Process.With_directory_annot.check annot
-      (fun dir -> Some dir)
-      (fun () -> None)
+  let extract_dir annots =
+    User_error.Annotations.lookup annots Process.With_directory_annot.entry
 
   let info (t : t) =
     match t.exn with
-    | User_error.E (msg, annots) -> (msg, List.find_map annots ~f:extract_dir)
+    | User_error.E (msg, annots) -> (msg, extract_dir annots)
     | e ->
       (* CR-someday jeremiedimino: Use [Report_error.get_user_message] here. *)
       (User_message.make [ Pp.text (Printexc.to_string e) ], None)

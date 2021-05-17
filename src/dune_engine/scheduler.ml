@@ -869,5 +869,4 @@ let shutdown () =
     | _ -> Fiber.return ()
   in
   t.status <- Shutting_down;
-  Process_watcher.killall t.process_watcher Sys.sigkill;
   fill_file_changes

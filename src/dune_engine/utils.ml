@@ -45,10 +45,16 @@ let program_not_found_message ?context ?hint ~loc prog =
     prog
 
 let program_not_found ?context ?hint ~loc prog =
-  raise (User_error.E (program_not_found_message ?context ?hint ~loc prog, []))
+  raise
+    (User_error.E
+       ( program_not_found_message ?context ?hint ~loc prog
+       , User_error.Annotations.none ))
 
 let library_not_found ?context ?hint lib =
-  raise (User_error.E (not_found "Library %s not found" ?context ?hint lib, []))
+  raise
+    (User_error.E
+       ( not_found "Library %s not found" ?context ?hint lib
+       , User_error.Annotations.none ))
 
 let install_file ~(package : Package.Name.t) ~findlib_toolchain =
   let package = Package.Name.to_string package in

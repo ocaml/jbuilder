@@ -45,7 +45,9 @@ module Pkg = struct
   let default_exn ~loc project stanza =
     match default project stanza with
     | Ok p -> p
-    | Error msg -> raise (User_error.E ({ msg with loc = Some loc }, []))
+    | Error msg ->
+      raise
+        (User_error.E ({ msg with loc = Some loc }, User_error.Annotations.none))
 
   let resolve (project : Dune_project.t) name =
     let packages = Dune_project.packages project in
@@ -88,7 +90,9 @@ module Pkg = struct
     and+ loc, name = located Package.Name.decode in
     match resolve p name with
     | Ok x -> x
-    | Error e -> raise (User_error.E ({ e with loc = Some loc }, []))
+    | Error e ->
+      raise
+        (User_error.E ({ e with loc = Some loc }, User_error.Annotations.none))
 
   let field ~stanza =
     map_validate

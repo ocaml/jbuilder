@@ -139,7 +139,10 @@ let isn't_allowed_in_this_position_message ~source =
     ]
 
 let isn't_allowed_in_this_position ~source =
-  raise (User_error.E (isn't_allowed_in_this_position_message ~source, []))
+  raise
+    (User_error.E
+       ( isn't_allowed_in_this_position_message ~source
+       , User_error.Annotations.none ))
 
 let expand_artifact ~source t a s =
   match t.lookup_artifacts with

@@ -435,7 +435,9 @@ let get_cookies ~loc ~expander ~lib_name libs =
            [ "--cookie"; sprintf "%s=%S" name value ])
   with
   | x -> Resolve.return x
-  | exception User_error.E (msg, []) -> Resolve.fail msg
+  | exception User_error.E (msg, annots)
+    when User_error.Annotations.is_empty annots ->
+    Resolve.fail msg
 
 let ppx_driver_and_flags_internal sctx ~loc ~expander ~lib_name ~flags libs =
   let open Resolve.O in

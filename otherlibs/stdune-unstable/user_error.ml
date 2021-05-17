@@ -1,48 +1,49 @@
-module Annot = struct
-  type t = ..
+module Annotations = struct
+  module Entry = struct
+    type 'a t = 'a Univ_map.Key.t
 
-  let format = ref (fun _ -> assert false)
+    module type S = sig
+      type payload
 
-  module type S = sig
-    type payload
+      val entry : payload t
+    end
 
-    val make : payload -> t
+    module Make (Payload : sig
+      type t
 
-    val check : t -> (payload -> 'a) -> (unit -> 'a) -> 'a
+      val name : string
+
+      val to_dyn : t -> Dyn.t
+    end) =
+    struct
+      type payload = Payload.t
+
+      let entry = Univ_map.Key.create ~name:Payload.name Payload.to_dyn
+    end
   end
 
-  module Make (M : sig
-    type payload
+  type t = Univ_map.t
 
-    val to_dyn : payload -> Dyn.t
-  end) : S with type payload = M.payload = struct
-    type payload = M.payload
+  let none = Univ_map.empty
 
-    type t += A of M.payload
+  let singleton = Univ_map.singleton
 
-    let make t = A t
+  let annotate = Univ_map.set
 
-    let check t on_match on_failure =
-      match t with
-      | A t -> on_match t
-      | _ -> on_failure ()
+  let lookup = Univ_map.find
 
-    let () =
-      let f = function
-        | A t -> Dyn.pp (M.to_dyn t)
-        | other -> !format other
-      in
-      format := f
-  end
+  let is_empty = Univ_map.is_empty
 
-  module Has_embedded_location = Make (struct
-    type payload = unit
+  module Has_embedded_location = Entry.Make (struct
+    type t = unit
+
+    let name = "embedded_location"
 
     let to_dyn = Unit.to_dyn
   end)
 end
 
-exception E of User_message.t * Annot.t list
+exception E of User_message.t * Annotations.t
 
 let prefix =
   Pp.seq (Pp.tag User_message.Style.Error (Pp.verbatim "Error")) (Pp.char ':')
@@ -50,7 +51,7 @@ let prefix =
 let make ?loc ?hints paragraphs =
   User_message.make ?loc ?hints paragraphs ~prefix
 
-let raise ?loc ?hints ?(annots = []) paragraphs =
+let raise ?loc ?hints ?(annots = Annotations.none) paragraphs =
   raise (E (make ?loc ?hints paragraphs, annots))
 
 let is_loc_none loc =
@@ -59,22 +60,21 @@ let is_loc_none loc =
   | Some loc -> loc = Loc0.none
 
 let has_embed_location annots =
-  List.exists annots ~f:(fun annot ->
-      Annot.Has_embedded_location.check annot (fun () -> true) (fun () -> false))
+  Option.is_some
+    (Annotations.lookup annots Annotations.Has_embedded_location.entry)
 
 let has_location (msg : User_message.t) annots =
   (not (is_loc_none msg.loc)) || has_embed_location annots
 
 let () =
   Printexc.register_printer (function
-    | E (t, []) -> Some (Format.asprintf "%a@?" Pp.to_fmt (User_message.pp t))
     | E (t, annots) ->
-      let open Pp.O in
-      let pp =
-        User_message.pp t
-        ++ Pp.vbox
-             (Pp.concat_map annots ~f:(fun annot ->
-                  Pp.box (!Annot.format annot) ++ Pp.cut))
-      in
-      Some (Format.asprintf "%a" Pp.to_fmt pp)
+      if Annotations.is_empty annots then
+        Some (Format.asprintf "%a@?" Pp.to_fmt (User_message.pp t))
+      else
+        let open Pp.O in
+        let pp =
+          User_message.pp t ++ Pp.vbox (Dyn.pp (Univ_map.to_dyn annots))
+        in
+        Some (Format.asprintf "%a" Pp.to_fmt pp)
     | _ -> None)

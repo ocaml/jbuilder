@@ -41,7 +41,9 @@ let package l = l.package
 
 module Error = struct
   let make ?loc ?hints paragraphs =
-    Error (User_error.E (User_error.make ?loc ?hints paragraphs, []))
+    Error
+      (User_error.E
+         (User_error.make ?loc ?hints paragraphs, User_error.Annotations.none))
 
   let duplicate_theory_name theory =
     let loc, name = theory.Coq_stanza.Theory.name in
