@@ -31,6 +31,58 @@ module Lib_deps : sig
   val decode : for_ -> t Dune_lang.Decoder.t
 end
 
+
+module Ctypes : sig
+
+  module Build_flags_resolver : sig
+    module Vendored : sig
+      type t =
+        { c_flags : Ordered_set_lang.Unexpanded.t
+        ; c_library_flags : Ordered_set_lang.Unexpanded.t }
+    end
+    type t =
+      | Pkg_config
+      | Vendored of Vendored.t
+  end
+
+  module Concurrency_policy : sig
+    type t =
+      | Sequential
+      | Unlocked
+      | Lwt_jobs
+      | Lwt_preemptive
+  end
+
+  module Headers : sig
+    type t =
+      | Include of string list
+      | Preamble of string
+  end
+
+  module Type_description : sig
+    type t =
+      { functor_ : Module_name.t
+      ; instance : Module_name.t }
+  end
+
+  module Function_description : sig
+    type t =
+      { concurrency : Concurrency_policy.t
+      ; functor_ : Module_name.t
+      ; instance : Module_name.t }
+  end
+
+  type t =
+    { external_library_name : string
+    ; build_flags_resolver : Build_flags_resolver.t
+    ; headers : Headers.t
+    ; type_description : Type_description.t
+    ; function_description : Function_description.t list
+    ; generated_types : Module_name.t
+    ; generated_entry_point : Module_name.t }
+  type Stanza.t += T of t
+end
+
 (** [preprocess] and [preprocessor_deps] fields *)
 val preprocess_fields :
   (Preprocess.Without_instrumentation.t Preprocess.Per_module.t
@@ -51,6 +103,7 @@ module Buildable : sig
     ; flags : Ocaml_flags.Spec.t
     ; js_of_ocaml : Js_of_ocaml.t
     ; allow_overlapping_dependencies : bool
+    ; ctypes : Ctypes.t option
     ; root_module : (Loc.t * Module_name.t) option
     }
 
@@ -71,6 +124,9 @@ module Public_lib : sig
 
   (** Package it is part of *)
   val package : t -> Package.t
+
+  val make : allow_deprecated_names:bool -> Dune_project.t ->
+    (Loc.t * Lib_name.t) -> (t, User_message.t) result
 end
 
 module Mode_conf : sig
@@ -100,7 +156,10 @@ module Mode_conf : sig
   end
 
   module Set : sig
+    type mode_conf = t
     type nonrec t = Kind.t option Map.t
+
+    val of_list : (mode_conf * Kind.t) list -> t
 
     val decode : t Dune_lang.Decoder.t
 
@@ -111,6 +170,7 @@ module Mode_conf : sig
     val eval_detailed : t -> has_native:bool -> Details.t Mode.Dict.t
 
     val eval : t -> has_native:bool -> Mode.Dict.Set.t
+
   end
 end
 
@@ -250,6 +310,8 @@ module Executables : sig
     ; forbidden_libraries : (Loc.t * Lib_name.t) list
     ; bootstrap_info : string option
     ; enabled_if : Blang.t
+    ; sub_systems : Sub_system_info.t Sub_system_name.Map.t
+    ; dune_version : Dune_lang.Syntax.Version.t
     }
 
   (** Check if the executables have any foreign stubs or archives. *)
