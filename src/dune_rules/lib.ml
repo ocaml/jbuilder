@@ -1129,6 +1129,7 @@ module rec Resolve_names : sig
     -> private_deps:private_deps
     -> pps:(Loc.t * Lib_name.t) list
     -> dune_version:Dune_lang.Syntax.Version.t option
+    -> check_dep_is_rewriter:bool
     -> stack:Dep_stack.t
     -> resolved
 
@@ -1232,8 +1233,14 @@ end = struct
         >>| Preprocess.Per_module.pps
       in
       let dune_version = Lib_info.dune_version info in
+      let check_dep_is_rewriter =
+        match Lib_info.skip_ppx_kind info with
+        | None | Some false -> true
+        | Some true -> false
+      in
       Lib_info.requires info
       |> resolve_deps_and_add_runtime_deps db ~private_deps ~dune_version ~pps
+          ~check_dep_is_rewriter
            ~stack
     in
     let requires =
@@ -1465,6 +1472,7 @@ end = struct
               lib :: acc_res
             in
             (acc_res, acc_selects, acc_re_exports)
+          | NonPP _ -> failwith (Format.sprintf "not implemented %s %d" __FILE__ __LINE__)
           | Select select ->
             let res, resolved_select = resolve_select select in
             let acc_res =
@@ -1483,7 +1491,7 @@ end = struct
     ; runtime_deps : t list Resolve.t
     }
 
-  let pp_deps db pps ~stack ~dune_version ~private_deps =
+  let pp_deps db pps ~stack ~dune_version ~check_dep_is_rewriter ~private_deps =
     let allow_only_ppx_deps =
       match dune_version with
       | Some version -> Dune_lang.Syntax.Version.Infix.(version >= (2, 2))
@@ -1512,7 +1520,10 @@ end = struct
               let* lib =
                 resolve_dep db (loc, name) ~private_deps:Allow_all ~stack
               in
-              match (allow_only_ppx_deps, Lib_info.kind lib.info) with
+              let should_we_check =
+                check_dep_is_rewriter && allow_only_ppx_deps
+              in
+              match (should_we_check, Lib_info.kind lib.info) with
               | true, Normal -> Error.only_ppx_deps_allowed ~loc lib.info
               | _ -> Resolve.return lib)
         in
@@ -1531,10 +1542,10 @@ end = struct
       in
       { runtime_deps = deps; pps }
 
-  let add_pp_runtime_deps db resolved ~private_deps ~pps ~dune_version ~stack :
-      resolved =
+  let add_pp_runtime_deps db resolved ~private_deps ~pps ~dune_version ~check_dep_is_rewriter
+      ~stack : resolved =
     let { runtime_deps; pps } =
-      pp_deps db pps ~stack ~dune_version ~private_deps
+      pp_deps db pps ~stack ~dune_version ~check_dep_is_rewriter ~private_deps
     in
     let deps =
       let* runtime_deps = runtime_deps in
@@ -1547,10 +1558,10 @@ end = struct
     ; re_exports = resolved.re_exports
     }
 
-  let resolve_deps_and_add_runtime_deps db deps ~private_deps ~pps ~dune_version
+  let resolve_deps_and_add_runtime_deps db deps ~private_deps ~pps ~dune_version ~check_dep_is_rewriter
       ~stack =
     resolve_complex_deps db ~private_deps ~stack deps
-    |> add_pp_runtime_deps db ~private_deps ~dune_version ~pps ~stack
+    |> add_pp_runtime_deps db ~private_deps ~dune_version ~pps ~check_dep_is_rewriter ~stack
 
   (* Compute transitive closure of libraries to figure which ones will trigger
      their default implementation.
@@ -1935,6 +1946,7 @@ module DB = struct
         } =
       Resolve_names.resolve_deps_and_add_runtime_deps t deps ~pps
         ~private_deps:Allow_all ~stack:Dep_stack.empty
+        ~check_dep_is_rewriter:false
         ~dune_version:(Some dune_version)
     in
     let requires_link =

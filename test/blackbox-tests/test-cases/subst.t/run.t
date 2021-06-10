@@ -27,9 +27,6 @@ Project with opam files
   let version = "1.0"
 
   $ cat dune-project
-  (lang dune 1.0)
-  (name foo)
-  (version 1.0)
 
   $ rm -rf .git
 

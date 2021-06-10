@@ -292,6 +292,7 @@ type 'path t =
   ; implements : (Loc.t * Lib_name.t) option
   ; default_implementation : (Loc.t * Lib_name.t) option
   ; wrapped : Wrapped.t Inherited.t option
+  ; skip_ppx_kind : bool option
   ; main_module_name : Main_module_name.t
   ; modes : Mode.Dict.Set.t
   ; special_builtin_support : Special_builtin_support.t option
@@ -353,6 +354,8 @@ let implements t = t.implements
 let synopsis t = t.synopsis
 
 let wrapped t = t.wrapped
+
+let skip_ppx_kind t = t.skip_ppx_kind
 
 let special_builtin_support t = t.special_builtin_support
 
@@ -420,7 +423,7 @@ let create ~loc ~path_kind ~name ~kind ~status ~src_dir ~orig_src_dir ~obj_dir
     ~plugins ~archives ~ppx_runtime_deps ~foreign_archives ~native_archives
     ~foreign_dll_files ~jsoo_runtime ~jsoo_archive ~preprocess ~enabled
     ~virtual_deps ~dune_version ~virtual_ ~entry_modules ~implements
-    ~default_implementation ~modes ~wrapped ~special_builtin_support
+    ~default_implementation ~modes ~wrapped ~skip_ppx_kind ~special_builtin_support
     ~exit_module ~instrumentation_backend =
   { loc
   ; name
@@ -453,6 +456,7 @@ let create ~loc ~path_kind ~name ~kind ~status ~src_dir ~orig_src_dir ~obj_dir
   ; default_implementation
   ; modes
   ; wrapped
+  ; skip_ppx_kind
   ; special_builtin_support
   ; exit_module
   ; instrumentation_backend
@@ -528,6 +532,7 @@ let to_dyn path
     ; default_implementation
     ; modes
     ; wrapped
+    ; skip_ppx_kind
     ; special_builtin_support
     ; exit_module
     ; instrumentation_backend
@@ -566,6 +571,7 @@ let to_dyn path
     ; ( "default_implementation"
       , option (snd Lib_name.to_dyn) default_implementation )
     ; ("wrapped", option (Inherited.to_dyn Wrapped.to_dyn) wrapped)
+    ; ("skip_ppx_kind", option bool skip_ppx_kind)
     ; ("main_module_name", Main_module_name.to_dyn main_module_name)
     ; ("modes", Mode.Dict.Set.to_dyn modes)
     ; ( "special_builtin_support"

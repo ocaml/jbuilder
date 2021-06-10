@@ -1,0 +1,4 @@
+(library
+ (name lib1)
+ (preprocess (pps GT.ppx GT.syntax.show))
+ )

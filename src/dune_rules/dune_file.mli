@@ -136,6 +136,7 @@ module Library : sig
     ; c_library_flags : Ordered_set_lang.Unexpanded.t
     ; virtual_deps : (Loc.t * Lib_name.t) list
     ; wrapped : Wrapped.t Lib_info.Inherited.t
+    ; skip_ppx_kind: bool option
     ; optional : bool
     ; buildable : Buildable.t
     ; dynlink : Dynlink_supported.t

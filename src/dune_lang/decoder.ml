@@ -740,3 +740,15 @@ let fields_mutually_exclusive ?on_dup ?default fields
   | _ :: _ :: _ as results ->
     let names = List.map ~f:fst results in
     fields_mutual_exclusion_violation loc names
+
+
+
+let hack keyword : (_, values) parser -> (_, values) parser -> (_, values) parser = fun left right (Values (_loc,_,_) as ctx) input  ->
+  match input with
+  | (Ast.List (_loc, (Atom (_,Atom.A h))::tl)) :: asttl when String.equal h keyword ->
+      begin
+        match right ctx tl with
+        | (ans,[]) -> (ans, asttl)
+        | (_,_) -> failwith "not all data is parsed"
+      end
+  | other -> left ctx other

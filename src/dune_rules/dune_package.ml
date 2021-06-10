@@ -199,7 +199,7 @@ module Lib = struct
            ~jsoo_runtime ~jsoo_archive ~preprocess ~enabled ~virtual_deps
            ~dune_version ~virtual_ ~entry_modules ~implements
            ~default_implementation ~modes ~wrapped ~special_builtin_support
-           ~exit_module:None ~instrumentation_backend
+           ~exit_module:None ~instrumentation_backend ~skip_ppx_kind:None
        in
        { info; main_module_name; modules = Some modules })
 

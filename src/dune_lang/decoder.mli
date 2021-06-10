@@ -263,3 +263,5 @@ val ( let* ) : ('a, 'k) parser -> ('a -> ('b, 'k) parser) -> ('b, 'k) parser
 val ( let+ ) : ('a, 'k) parser -> ('a -> 'b) -> ('b, 'k) parser
 
 val ( and+ ) : ('a, 'k) parser -> ('b, 'k) parser -> ('a * 'b, 'k) parser
+
+val hack : string  -> ('a, values) parser  -> ('a, values) parser -> ('a, values) parser

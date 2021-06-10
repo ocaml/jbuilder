@@ -145,6 +145,8 @@ val main_module_name : _ t -> Main_module_name.t
 
 val wrapped : _ t -> Wrapped.t Inherited.t option
 
+val skip_ppx_kind : _ t -> bool option
+
 val special_builtin_support : _ t -> Special_builtin_support.t option
 
 val modes : _ t -> Mode.Dict.Set.t
@@ -236,6 +238,7 @@ val create :
   -> default_implementation:(Loc.t * Lib_name.t) option
   -> modes:Mode.Dict.Set.t
   -> wrapped:Wrapped.t Inherited.t option
+  -> skip_ppx_kind:bool option
   -> special_builtin_support:Special_builtin_support.t option
   -> exit_module:Module_name.t option
   -> instrumentation_backend:(Loc.t * Lib_name.t) option

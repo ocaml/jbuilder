@@ -99,6 +99,7 @@ type t =
   | Direct of (Loc.t * Lib_name.t)
   | Re_export of (Loc.t * Lib_name.t)
   | Select of Select.t
+  | NonPP of Lib_name.t list
 
 let to_dyn =
   let open Dyn.Encoder in
@@ -106,10 +107,13 @@ let to_dyn =
   | Direct (_, name) -> Lib_name.to_dyn name
   | Re_export (_, name) -> constr "re_export" [ Lib_name.to_dyn name ]
   | Select s -> constr "select" [ Select.to_dyn s ]
+  | NonPP xs -> constr "non_ppx_plugins" @@ List.map ~f:Lib_name.to_dyn xs
 
 let direct x = Direct x
 
 let re_export x = Re_export x
+
+let non_pp xs = NonPP xs
 
 let decode ~allow_re_export =
   let open Dune_lang.Decoder in
@@ -123,6 +127,9 @@ let decode ~allow_re_export =
          ; ( "select"
            , let+ select = Select.decode in
              Select select )
+         ; ( "non_pp_plugins"
+           , let+ xs = repeat Lib_name.decode in
+             NonPP xs )
          ]
       <|> let+ loc, name = located Lib_name.decode in
           Direct (loc, name))
@@ -137,6 +144,7 @@ let encode =
   function
   | Direct (_, name) -> Lib_name.encode name
   | Re_export (_, name) -> constr "re_export" Lib_name.encode name
+  | NonPP xs -> constr "non_pp_plugins" (list Lib_name.encode) xs
   | Select select ->
     Code_error.raise "Lib_dep.encode: cannot encode select"
       [ ("select", Select.to_dyn select) ]

@@ -99,6 +99,7 @@ module Lib_deps = struct
            | Lib_dep.Re_export (_, s)
            | Lib_dep.Direct (_, s) ->
              add Required s acc
+           | NonPP _ -> failwith (Format.sprintf "not implemented %s %d" __FILE__ __LINE__)
            | Select { choices; _ } ->
              List.fold_left choices ~init:acc
                ~f:(fun acc (c : Lib_dep.Select.Choice.t) ->
@@ -555,6 +556,7 @@ module Library = struct
     ; c_library_flags : Ordered_set_lang.Unexpanded.t
     ; virtual_deps : (Loc.t * Lib_name.t) list
     ; wrapped : Wrapped.t Lib_info.Inherited.t
+    ; skip_ppx_kind : bool option
     ; optional : bool
     ; buildable : Buildable.t
     ; dynlink : Dynlink_supported.t
@@ -581,6 +583,7 @@ module Library = struct
        and+ public =
          field_o "public_name" (Public_lib.decode ~allow_deprecated_names:false)
        and+ synopsis = field_o "synopsis" string
+       and+ skip_ppx_kind = field_o "skip_ppx_kind" bool
        and+ install_c_headers =
          field "install_c_headers" (repeat string) ~default:[]
        and+ ppx_runtime_libraries =
@@ -721,6 +724,7 @@ module Library = struct
        ; c_library_flags
        ; virtual_deps
        ; wrapped
+       ; skip_ppx_kind
        ; optional
        ; buildable
        ; dynlink = Dynlink_supported.of_bool (not no_dynlink)
@@ -915,6 +919,7 @@ module Library = struct
     let implements = conf.implements in
     let default_implementation = conf.default_implementation in
     let wrapped = Some conf.wrapped in
+    let skip_ppx_kind = conf.skip_ppx_kind in
     let special_builtin_support = conf.special_builtin_support in
     let instrumentation_backend = conf.instrumentation_backend in
     let entry_modules = Lib_info.Source.Local in
@@ -924,6 +929,7 @@ module Library = struct
       ~foreign_archives ~native_archives ~foreign_dll_files ~jsoo_runtime
       ~jsoo_archive ~preprocess ~enabled ~virtual_deps ~dune_version ~virtual_
       ~entry_modules ~implements ~default_implementation ~modes ~wrapped
+      ~skip_ppx_kind
       ~special_builtin_support ~exit_module ~instrumentation_backend
 end
 

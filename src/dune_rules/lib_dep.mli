@@ -23,12 +23,15 @@ type t =
   | Direct of (Loc.t * Lib_name.t)
   | Re_export of (Loc.t * Lib_name.t)
   | Select of Select.t
+  | NonPP of Lib_name.t list
 
 val to_dyn : t -> Dyn.t
 
 val direct : Loc.t * Lib_name.t -> t
 
 val re_export : Loc.t * Lib_name.t -> t
+
+val non_pp : Lib_name.t list -> t
 
 val decode : allow_re_export:bool -> t Dune_lang.Decoder.t
 

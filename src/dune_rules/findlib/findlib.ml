@@ -337,6 +337,7 @@ end = struct
         let default_implementation = None in
         let wrapped = None in
         let dir_contents = Path.readdir_unsorted t.dir in
+        let skip_ppx_kind = None in
         let foreign_archives, native_archives =
           (* Here we scan [t.dir] and consider all files named [lib*.ext_lib] to
              be foreign archives, and all other files with the extension
@@ -420,6 +421,7 @@ end = struct
           ~jsoo_runtime ~jsoo_archive ~preprocess ~enabled ~virtual_deps
           ~dune_version ~virtual_ ~implements ~default_implementation ~modes
           ~wrapped ~special_builtin_support ~exit_module:None
+          ~skip_ppx_kind
           ~instrumentation_backend:None ~entry_modules
       in
       Dune_package.Lib.of_findlib info

@@ -162,6 +162,7 @@ end = struct
                    | Re_export _
                    | Direct _ ->
                      None
+                   | NonPP _ -> failwith (Format.sprintf "not implemented %s %d" __FILE__ __LINE__)
                    | Select s -> Some s.result_fn))
           | _ -> Memo.Build.return [])
       >>| fun l -> String.Set.of_list (List.concat l)

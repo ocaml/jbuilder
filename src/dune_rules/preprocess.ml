@@ -3,14 +3,34 @@ open Stdune
 open Dune_lang.Decoder
 
 module Pps_and_flags = struct
+  type hack = [ `NonPP of String_with_vars.t list | `Simple of String_with_vars.t ]
+
+  let dyn_of_hack x =
+    let open Dyn.Encoder in
+    match (x : hack) with
+    | `Simple s -> constr "simple" [ String_with_vars.to_dyn s ]
+    | `NonPP xs -> constr "non_pp_plugins" @@ List.map ~f:String_with_vars.to_dyn xs
+
   let decode =
     let+ loc = loc
     and+ l, flags =
-      until_keyword "--" ~before:String_with_vars.decode
+      let before =
+        (* (String_with_vars.decode >>| (fun x -> `Naive x)) <|>
+        (field "non_ppx_plugins" (repeat String_with_vars.decode) >>| (fun xs -> `NonPP xs)) *)
+        hack "no_pp_plugins" (String_with_vars.decode >>| fun x -> `Simple x)
+          (repeat String_with_vars.decode >>| fun x -> `NonPP x)
+      in
+      until_keyword "--" ~before
         ~after:(repeat String_with_vars.decode)
     and+ syntax_version = Dune_lang.Syntax.get_exn Stanza.syntax in
     let pps, more_flags =
+
+      Format.printf "%a\n%!" (Format.pp_print_list (fun ppf x -> x |> dyn_of_hack |> Dyn.pp |> Pp.to_fmt ppf )) l;
+
       List.partition_map l ~f:(fun s ->
+        match s with
+        | `NonPP xs -> Left (Loc.none, `NonPP xs)
+        | `Simple s ->
           match String_with_vars.is_prefix ~prefix:"-" s with
           | Yes -> Right s
           | No
@@ -20,7 +40,7 @@ module Pps_and_flags = struct
             | None ->
               User_error.raise ~loc
                 [ Pp.text "No variables allowed in ppx library names" ]
-            | Some txt -> Left (loc, Lib_name.parse_string_exn (loc, txt))))
+            | Some txt -> Left (loc, `Simple (Lib_name.parse_string_exn (loc, txt)))))
     in
     let all_flags = more_flags @ Option.value flags ~default:[] in
     if syntax_version < (1, 10) then
