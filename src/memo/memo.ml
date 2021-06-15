@@ -1000,6 +1000,15 @@ let report_and_collect_errors f =
       ({ exns = Exn_set.singleton exn; reproducible } : Collect_errors_monoid.t))
     f
 
+let compute_dep_node (node : (_, 'a) Dep_node.t) : 'a Value.t Fiber.t =
+  let+ res =
+    report_and_collect_errors (fun () ->
+        node.without_state.spec.f node.without_state.input)
+  in
+  match res with
+  | Ok res -> Value.Ok res
+  | Error errors -> Error errors
+
 let yield_if_there_are_pending_events = ref Fiber.return
 
 module Exec : sig
@@ -1108,15 +1117,7 @@ end = struct
     Deps_so_far.start_compute deps_so_far;
     let compute_value_and_deps_rev () =
       let* () = !yield_if_there_are_pending_events () in
-      let+ res =
-        report_and_collect_errors (fun () ->
-            dep_node.without_state.spec.f dep_node.without_state.input)
-      in
-      let value =
-        match res with
-        | Ok res -> Value.Ok res
-        | Error errors -> Error errors
-      in
+      let+ value = compute_dep_node dep_node in
       let deps_rev = Deps_so_far.get_compute_deps_rev deps_so_far in
       if !Counters.enabled then
         Counters.record_new_edge_traversals ~count:(List.length deps_rev);
@@ -1418,6 +1419,25 @@ module Lazy = struct
   let force f = f ()
 
   let map t ~f = create (fun () -> Fiber.map ~f (t ()))
+end
+
+module Volatile = struct
+  type 'a t = (unit, 'a) Dep_node.t
+
+  (* CR amokhov: Create a table instead of using lazy cells so that all volatile
+     cells can be cleared in one go if needed. *)
+  let create ~sample ~equal = lazy_cell ~cutoff:equal sample
+
+  let sample = Cell.read
+
+  let check (t : _ Dep_node.t) =
+    match t.last_cached_value with
+    | None -> Fiber.return (Invalidation.invalidate_node t)
+    | Some cached_value -> (
+      let+ current = compute_dep_node t in
+      match Cached_value.value_changed t cached_value.value current with
+      | true -> Invalidation.invalidate_node t
+      | false -> Invalidation.empty)
 end
 
 module Poly (Function : sig

@@ -196,6 +196,16 @@ module Invalidation : sig
   val to_dyn : t -> Dyn.t
 end
 
+module Volatile : sig
+  type 'a t
+
+  val create : sample:(unit -> 'a Fiber.t) -> equal:('a -> 'a -> bool) -> 'a t
+
+  val sample : 'a t -> 'a Build.t
+
+  val check : _ t -> Invalidation.t Fiber.t
+end
+
 (** Notify the memoization system that the build system has restarted. This
     removes the values specified by [Invalidation.t] from the memoization cache,
     and advances the current run. *)
