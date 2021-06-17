@@ -24,6 +24,7 @@ let coq_syntax =
     [ ((0, 1), `Since (1, 9))
     ; ((0, 2), `Since (2, 5))
     ; ((0, 3), `Since (2, 8))
+    ; ((0, 4), `Since (3, 0))
     ]
 
 module Buildable = struct
@@ -41,14 +42,20 @@ module Buildable = struct
     and+ mode =
       let* version = Dune_lang.Syntax.get_exn coq_syntax in
       let default =
-        if version < (0, 3) then
-          Coq_mode.Legacy
+        if version < (0, 4) then
+          if version < (0, 3) then
+            Coq_mode.Legacy
+          else
+            Coq_mode.VoOnly
         else
-          Coq_mode.VoOnly
+          Coq_mode.default
       in
       located
         (field "mode" ~default
-           (Dune_lang.Syntax.since coq_syntax (0, 3) >>> Coq_mode.decode))
+           (if version < (0, 4) then
+             Dune_lang.Syntax.since coq_syntax (0, 3) >>> Coq_mode.decode_v03
+           else
+             Dune_lang.Syntax.since coq_syntax (0, 4) >>> Coq_mode.decode_v04))
     and+ libraries =
       field "libraries" (repeat (located Lib_name.decode)) ~default:[]
     and+ theories =

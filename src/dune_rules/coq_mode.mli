@@ -10,5 +10,14 @@ type t =
   | Legacy
   | VoOnly
   | Native
+  | Split of
+      { package : string option
+      ; profile : string list
+      }
 
-val decode : t Dune_lang.Decoder.t
+val default : t
+
+(* We provide two different decoders depending on the Coq language syntax *)
+val decode_v03 : t Dune_lang.Decoder.t
+
+val decode_v04 : t Dune_lang.Decoder.t

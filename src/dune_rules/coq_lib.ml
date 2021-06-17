@@ -81,6 +81,7 @@ module DB = struct
   type nonrec t =
     { boot : (Loc.t * t) option
     ; libs : t Coq_lib_name.Map.t
+    ; obj_root_revmap : t Path.Build.Map.t
     }
 
   let boot_library { boot; _ } = boot
@@ -113,7 +114,12 @@ module DB = struct
       | _ :: (_, s2) :: _ ->
         Result.ok_exn (Error.duplicate_boot_lib ~loc:s2.buildable.loc s2)
     in
-    { boot; libs }
+    let obj_root_revmap =
+      Coq_lib_name.Map.fold libs ~init:Path.Build.Map.empty ~f:(fun lib rmap ->
+          let dir = obj_root lib in
+          Path.Build.Map.add_exn rmap dir lib)
+    in
+    { boot; libs; obj_root_revmap }
 
   let resolve ?(allow_private_deps = true) db (loc, name) =
     match Coq_lib_name.Map.find db.libs name with
@@ -165,4 +171,21 @@ module DB = struct
       top_closure db theories ~loc ~allow_private_deps:true
 
   let resolve db l = resolve db l
+
+  (* We traverse the file path recursively until we find a known root, we could
+     optimize this using a prefix-tree but for now this will do. *)
+  let module_of_source_file { obj_root_revmap; _ } file =
+    let name = Path.Build.basename file in
+    let dir = Path.Build.parent_exn file in
+    let rec aux acc_prefix dir =
+      match Path.Build.Map.find obj_root_revmap dir with
+      | None ->
+        let acc_prefix = Path.Build.basename dir :: acc_prefix in
+        let dir = Path.Build.parent_exn dir in
+        aux acc_prefix dir
+      | Some lib -> (lib, acc_prefix, name)
+      (* Note the prefix is already in the right order as we do the traversal in
+         reverse *)
+    in
+    aux [] dir
 end

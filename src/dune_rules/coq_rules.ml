@@ -91,10 +91,18 @@ let libs_of_coq_deps ~lib_db = Resolve.List.map ~f:(Lib.DB.resolve lib_db)
 
 let select_native_mode ~sctx ~(buildable : Buildable.t) =
   let profile = (SC.context sctx).profile in
-  if Profile.is_dev profile then
-    Coq_mode.VoOnly
-  else
-    snd buildable.mode
+  let profile_name = Profile.to_string profile in
+  match snd buildable.mode with
+  | Coq_mode.Split { profile; _ } as mode ->
+    if List.mem ~equal:String.equal profile profile_name then
+      mode
+    else
+      Coq_mode.VoOnly
+  | _ ->
+    if Profile.is_dev profile then
+      Coq_mode.VoOnly
+    else
+      snd buildable.mode
 
 let rec resolve_first lib_db = function
   | [] -> assert false
@@ -109,6 +117,7 @@ let rec resolve_first lib_db = function
 module Context = struct
   type 'a t =
     { coqdep : Action.Prog.t
+    ; coqnative : Action.Prog.t * Path.Build.t
     ; coqc : Action.Prog.t * Path.Build.t
     ; wrapper_name : string
     ; dir : Path.Build.t
@@ -129,6 +138,10 @@ module Context = struct
   let coqc ?stdout_to t args =
     let dir = Path.build (snd t.coqc) in
     Command.run ~dir ?stdout_to (fst t.coqc) args
+
+  let coqnative ?stdout_to t args =
+    let dir = Path.build (snd t.coqnative) in
+    Command.run ~dir ?stdout_to (fst t.coqnative) args
 
   let coq_flags t =
     let standard = t.profile_flags in
@@ -166,13 +179,15 @@ module Context = struct
   let coqc_native_flags cctx : _ Command.Args.t =
     match cctx.mode with
     | Coq_mode.Legacy -> Command.Args.As []
+    (* Split mode should be the same than only vo *)
+    | Coq_mode.Split _
     | Coq_mode.VoOnly ->
       Command.Args.As
         [ "-w"
         ; "-deprecated-native-compiler-option"
         ; "-w"
         ; "-native-compiler-disabled"
-        ; "-native-compiler"
+        ; "-native-compiler" (* XXX Should this be off or ondemand? *)
         ; "ondemand"
         ]
     | Coq_mode.Native ->
@@ -198,6 +213,26 @@ module Context = struct
           ]
       in
       Resolve.args args
+
+  let coqnative_flags cctx : _ Command.Args.t =
+    (let open Resolve.O in
+    let* native_includes = cctx.native_includes in
+    let include_ dir acc = Command.Args.Path dir :: A "-nI" :: acc in
+    let native_include_ml_args =
+      Path.Set.fold native_includes ~init:[] ~f:include_
+    in
+    let+ native_theory_includes = cctx.native_theory_includes in
+    let native_include_theory_output =
+      Path.Build.Set.fold native_theory_includes ~init:[] ~f:(fun dir acc ->
+          include_ (Path.build dir) acc)
+    in
+    (* This dir is relative to the file, by default [.coq-native/] *)
+    Command.Args.S
+      [ Command.Args.As [ "-native-output-dir"; "." ]
+      ; Command.Args.S (List.rev native_include_ml_args)
+      ; Command.Args.S (List.rev native_include_theory_output)
+      ])
+    |> Resolve.args
 
   (* compute include flags and mlpack rules *)
   let setup_ml_deps ~lib_db libs theories =
@@ -226,6 +261,8 @@ module Context = struct
   let setup_native_theory_includes ~sctx ~mode
       ~(theories_deps : Coq_lib.t list Resolve.t) ~theory_dirs =
     match mode with
+    (* In split mode, we do use the same includes than in legacy coqc mode *)
+    | Coq_mode.Split _
     | Coq_mode.Native ->
       Resolve.Build.bind theories_deps ~f:(fun theories_deps ->
           let+ l =
@@ -257,10 +294,12 @@ module Context = struct
     let+ native_theory_includes =
       setup_native_theory_includes ~sctx ~mode ~theories_deps ~theory_dirs
     and+ coqdep = rr "coqdep"
+    and+ coqnative = rr "coqnative"
     and+ coqc = rr "coqc"
     and+ profile_flags = Super_context.coq sctx ~dir in
     { coqdep
     ; coqc = (coqc, coqc_dir)
+    ; coqnative = (coqnative, coqc_dir)
     ; wrapper_name
     ; dir
     ; expander
@@ -286,7 +325,7 @@ module Context = struct
 end
 
 let parse_coqdep ~dir ~(boot_type : Bootstrap.t) ~coq_module
-    (lines : string list) =
+    (lines : string list) : Path.Build.t list =
   if coq_debug then Format.eprintf "Parsing coqdep @\n%!";
   let source = Coq_module.source coq_module in
   let invalid phase =
@@ -328,21 +367,53 @@ let parse_coqdep ~dir ~(boot_type : Bootstrap.t) ~coq_module
         deps;
     (* Add prelude deps for when stdlib is in scope and we are not actually
        compiling the prelude *)
-    let deps = List.map ~f:(Path.relative (Path.build dir)) deps in
+    let deps = List.map ~f:(Path.Build.relative dir) deps in
     match boot_type with
     | No_boot
     | Bootstrap_prelude ->
       deps
     | Bootstrap lib ->
-      Path.relative (Path.build (Coq_lib.src_root lib)) "Init/Prelude.vo"
-      :: deps)
+      Path.Build.relative (Coq_lib.src_root lib) "Init/Prelude.vo" :: deps)
 
 let deps_of ~dir ~boot_type coq_module =
   let stdout_to = Coq_module.dep_file ~obj_dir:dir coq_module in
-  Action_builder.dyn_paths_unit
-    (Action_builder.map
-       (Action_builder.lines_of (Path.build stdout_to))
-       ~f:(parse_coqdep ~dir ~boot_type ~coq_module))
+  Action_builder.map
+    (Action_builder.lines_of (Path.build stdout_to))
+    ~f:(fun line -> parse_coqdep ~dir ~boot_type ~coq_module line)
+
+(* Coqdep is not aware of dependencies of Coq native compilation at all, see
+   coq/coq#13035; hopefully the new coqnative setup will help us alleviate these
+   problems, but meanwhile we need to do a hack to transform deps into the right
+   native ones *)
+let amend_for_native ~coq_lib_db vofile =
+  (* FIXME: need to make this principled and link with the code in coq_module *)
+  let vfile = Path.Build.set_extension vofile ~ext:".v" in
+  let lib, prefix, name = Coq_lib.DB.module_of_source_file coq_lib_db vfile in
+  let obj_dir = Coq_lib.obj_root lib in
+  let wrapper_name = Coq_lib.wrapper lib in
+  let name, _ = Filename.split_extension name in
+  let mangle =
+    Coq_module.native_mangle_filename ~wrapper_name ~prefix ~name ~obj_dir
+  in
+  [ mangle ~ext:".cmi"; mangle ~ext:".cmxs" ]
+
+let deps_of_native ~coq_lib_db ~dir ~boot_type coq_module =
+  let open Action_builder.O in
+  deps_of ~dir ~boot_type coq_module
+  >>| List.filter ~f:(fun file ->
+          String.equal (Path.Build.extension file) ".vo")
+  >>| List.concat_map ~f:(amend_for_native ~coq_lib_db)
+
+(* Build a dep action from a list of build paths *)
+let mk_dep_action fs =
+  let open Action_builder.O in
+  Action_builder.dyn_paths_unit (fs >>| List.map ~f:Path.build)
+
+let deps_of_vo ~dir ~boot_type coq_module =
+  mk_dep_action (deps_of ~dir ~boot_type coq_module)
+
+let deps_of_native ~coq_lib_db ~dir ~boot_type coq_module =
+  mk_dep_action (deps_of_native ~coq_lib_db ~dir ~boot_type coq_module)
 
 let coqdep_rule (cctx : _ Context.t) ~source_rule ~file_flags coq_module =
   (* coqdep needs the full source + plugin's mlpack to be present :( *)
@@ -385,14 +456,38 @@ let coqc_rule (cctx : _ Context.t) ~file_flags coq_module =
   let coq_flags = Context.coq_flags cctx in
   Context.coqc cctx (Command.Args.dyn coq_flags :: file_flags)
 
+let coqnative_rule (cctx : _ Context.t) ~file_flags coq_module =
+  let obj_dir = cctx.dir in
+  let vo_source = Coq_module.vo_obj_file coq_module ~obj_dir in
+  let objects_to =
+    Coq_module.native_obj_files ~wrapper_name:cctx.wrapper_name ~obj_dir
+      coq_module
+    |> List.map ~f:fst
+  in
+  let native_flags = Context.coqnative_flags cctx in
+  let file_flags =
+    [ Command.Args.Hidden_targets objects_to
+    ; native_flags
+    ; S file_flags
+    ; Command.Args.Dep (Path.build vo_source)
+    ]
+  in
+  let open Action_builder.With_targets.O in
+  (* The way we handle the transitive dependencies of .vo files is not safe for
+     sandboxing *)
+  Action_builder.with_no_targets
+    (Action_builder.dep (Dep.sandbox_config Sandbox_config.no_sandboxing))
+  >>> Context.coqnative cctx file_flags
+
 module Module_rule = struct
   type t =
     { coqdep : Action.t Action_builder.With_targets.t
     ; coqc : Action.t Action_builder.With_targets.t
+    ; coqnative : Action.t Action_builder.With_targets.t option
     }
 end
 
-let setup_rule cctx ~source_rule coq_module =
+let setup_rule cctx ~coq_lib_db ~source_rule coq_module =
   let open Action_builder.With_targets.O in
   if coq_debug then
     Format.eprintf "gen_rule coq_module: %a@\n%!" Pp.to_fmt
@@ -400,12 +495,25 @@ let setup_rule cctx ~source_rule coq_module =
   let file_flags = Context.coqc_file_flags cctx in
   let coqdep_rule = coqdep_rule cctx ~source_rule ~file_flags coq_module in
   (* Process coqdep and generate rules *)
-  let deps_of = deps_of ~dir:cctx.dir ~boot_type:cctx.boot_type coq_module in
+  let deps_of_vo =
+    deps_of_vo ~dir:cctx.dir ~boot_type:cctx.boot_type coq_module
+  in
+  let deps_of_native =
+    deps_of_native ~coq_lib_db ~dir:cctx.dir ~boot_type:cctx.boot_type
+      coq_module
+  in
   (* Rules for the files *)
   { Module_rule.coqdep = coqdep_rule
   ; coqc =
-      Action_builder.with_no_targets deps_of
+      Action_builder.with_no_targets deps_of_vo
       >>> coqc_rule cctx ~file_flags coq_module
+  ; coqnative =
+      (match cctx.mode with
+      | Split _ ->
+        Some
+          (Action_builder.with_no_targets deps_of_native
+          >>> coqnative_rule cctx ~file_flags coq_module)
+      | _ -> None)
   }
 
 let coq_modules_of_theory ~sctx lib =
@@ -456,8 +564,10 @@ let setup_rules ~sctx ~dir ~dir_contents (s : Theory.t) =
   in
   List.concat_map coq_modules ~f:(fun m ->
       let cctx = Context.for_module cctx m in
-      let { Module_rule.coqc; coqdep } = setup_rule cctx ~source_rule m in
-      [ coqc; coqdep ])
+      let { Module_rule.coqc; coqdep; coqnative } =
+        setup_rule cctx ~coq_lib_db ~source_rule m
+      in
+      [ coqc; coqdep ] @ Option.to_list coqnative)
 
 (******************************************************************************)
 (* Install rules *)
@@ -521,21 +631,24 @@ let install_rules ~sctx ~dir s =
       else
         coq_plugins_install_rules ~scope ~package ~dst_dir s
     in
-    let wrapper_name = Coq_lib_name.wrapper name in
     let to_path f = Path.reach ~from:(Path.build dir) (Path.build f) in
     let to_dst f = Path.Local.to_string @@ Path.Local.relative dst_dir f in
     let make_entry (orig_file : Path.Build.t) (dst_file : string) =
       ( Some loc
-      , (* Entry.make Section.Lib_root ~dst:(to_dst (to_path dst_file))
-           orig_file) *)
-        Install.Entry.make Section.Lib_root ~dst:(to_dst dst_file) orig_file )
+      , Install.Entry.make Section.Lib_root ~dst:(to_dst dst_file) orig_file )
     in
+    let wrapper_name = Coq_lib_name.wrapper (snd s.name) in
     let+ coq_sources = Dir_contents.coq dir_contents in
     coq_sources |> Coq_sources.library ~name
     |> List.concat_map ~f:(fun (vfile : Coq_module.t) ->
+           (* FIXME: take into account the package override *)
            let obj_files =
-             Coq_module.obj_files ~wrapper_name ~mode ~obj_dir:dir
-               ~obj_files_mode:Coq_module.Install vfile
+             (match mode with
+             | Split _ ->
+               Coq_module.native_obj_files ~wrapper_name ~obj_dir:dir vfile
+             | _ -> [])
+             @ Coq_module.obj_files ~wrapper_name ~mode ~obj_dir:dir
+                 ~obj_files_mode:Coq_module.Install vfile
              |> List.map
                   ~f:(fun ((vo_file : Path.Build.t), (install_vo_file : string))
                      -> make_entry vo_file install_vo_file)
@@ -557,11 +670,11 @@ let coqpp_rules ~sctx ~dir (s : Coqpp.t) =
   List.map ~f:mlg_rule s.modules
 
 let extraction_rules ~sctx ~dir ~dir_contents (s : Extraction.t) =
+  let scope = SC.find_scope_by_dir sctx dir in
+  let coq_lib_db = Scope.coq_libs scope in
   let* cctx =
     let wrapper_name = "DuneExtraction" in
     let theories_deps =
-      let scope = SC.find_scope_by_dir sctx dir in
-      let coq_lib_db = Scope.coq_libs scope in
       Resolve.of_result
         (Coq_lib.DB.requires_for_user_written coq_lib_db s.buildable.theories)
     in
@@ -581,6 +694,8 @@ let extraction_rules ~sctx ~dir ~dir_contents (s : Extraction.t) =
     let open Action_builder.O in
     theories >>> Action_builder.path (Path.build (Coq_module.source coq_module))
   in
-  let { Module_rule.coqc; coqdep } = setup_rule cctx ~source_rule coq_module in
+  let { Module_rule.coqc; coqdep; coqnative = _ } =
+    setup_rule cctx ~coq_lib_db ~source_rule coq_module
+  in
   let coqc = Action_builder.With_targets.add coqc ~targets:ml_targets in
   [ coqdep; coqc ]

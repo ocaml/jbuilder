@@ -1,0 +1,5 @@
+(rule
+ (alias default)
+ (action (echo "%{read:base.install}")))
+
+(env (custom (coq (flags -type-in-type))))
