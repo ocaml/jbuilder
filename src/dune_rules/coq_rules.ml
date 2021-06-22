@@ -597,7 +597,9 @@ let coq_plugins_install_rules ~scope ~package ~dst_dir (s : Theory.t) =
              let dst =
                Path.Local.(to_string (relative dst_dir plugin_file_basename))
              in
-             (Some loc, Install.Entry.make Section.Lib_root ~dst plugin_file))
+             ( package
+             , (Some loc, Install.Entry.make Section.Lib_root ~dst plugin_file)
+             ))
     else
       []
   in
@@ -633,29 +635,37 @@ let install_rules ~sctx ~dir s =
     in
     let to_path f = Path.reach ~from:(Path.build dir) (Path.build f) in
     let to_dst f = Path.Local.to_string @@ Path.Local.relative dst_dir f in
-    let make_entry (orig_file : Path.Build.t) (dst_file : string) =
-      ( Some loc
-      , Install.Entry.make Section.Lib_root ~dst:(to_dst dst_file) orig_file )
+    let make_entry ~package (orig_file : Path.Build.t) (dst_file : string) =
+      ( package
+      , ( Some loc
+        , Install.Entry.make Section.Lib_root ~dst:(to_dst dst_file) orig_file
+        ) )
     in
+    let coq_file_spec_to_entry ~package (vo_file, install_vo_file) =
+      make_entry ~package vo_file install_vo_file
+    in
+
     let wrapper_name = Coq_lib_name.wrapper (snd s.name) in
     let+ coq_sources = Dir_contents.coq dir_contents in
     coq_sources |> Coq_sources.library ~name
     |> List.concat_map ~f:(fun (vfile : Coq_module.t) ->
-           (* FIXME: take into account the package override *)
-           let obj_files =
-             (match mode with
-             | Split _ ->
+           let native_obj_files =
+             match mode with
+             | Split { package = native_package; _ } ->
+               let package = Option.value ~default:package native_package in
                Coq_module.native_obj_files ~wrapper_name ~obj_dir:dir vfile
-             | _ -> [])
-             @ Coq_module.obj_files ~wrapper_name ~mode ~obj_dir:dir
-                 ~obj_files_mode:Coq_module.Install vfile
-             |> List.map
-                  ~f:(fun ((vo_file : Path.Build.t), (install_vo_file : string))
-                     -> make_entry vo_file install_vo_file)
+               |> List.map ~f:(coq_file_spec_to_entry ~package)
+             | _ -> []
+           in
+           let vo_obj_files =
+             Coq_module.obj_files ~wrapper_name ~mode ~obj_dir:dir
+               ~obj_files_mode:Coq_module.Install vfile
+             |> List.map ~f:(coq_file_spec_to_entry ~package)
            in
            let vfile = Coq_module.source vfile in
            let vfile_dst = to_path vfile in
-           make_entry vfile vfile_dst :: obj_files)
+           let source_entry = make_entry ~package vfile vfile_dst in
+           source_entry :: vo_obj_files @ native_obj_files)
     |> List.rev_append coq_plugins_install_rules
 
 let coqpp_rules ~sctx ~dir (s : Coqpp.t) =

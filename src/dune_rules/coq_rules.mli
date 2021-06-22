@@ -17,11 +17,14 @@ val setup_rules :
   -> Theory.t
   -> Action.t Action_builder.With_targets.t list Memo.Build.t
 
+(* We allos to override the install package for some files, for example, those
+   coming from the Coq native compiler *)
 val install_rules :
      sctx:Super_context.t
   -> dir:Path.Build.t
   -> Theory.t
-  -> (Loc.t option * Path.Build.t Install.Entry.t) list Memo.Build.t
+  -> (Package.t * (Loc.t option * Path.Build.t Install.Entry.t)) list
+     Memo.Build.t
 
 val coqpp_rules :
      sctx:Super_context.t

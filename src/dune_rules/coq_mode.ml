@@ -11,7 +11,7 @@ type t =
   | VoOnly
   | Native
   | Split of
-      { package : string option
+      { package : Dune_engine.Package.t option
       ; profile : string list
       }
 
@@ -25,7 +25,7 @@ let decode_v04 =
   let open Dune_lang.Decoder in
   let native =
     fields
-      (let+ package = field_o "package" string
+      (let+ package = field_o "package" Stanza_common.Pkg.decode
        and+ profile =
          field ~default:default_profile "profile" (repeat string)
        in

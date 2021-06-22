@@ -11,7 +11,7 @@ type t =
   | VoOnly
   | Native
   | Split of
-      { package : string option
+      { package : Dune_engine.Package.t option
       ; profile : string list
       }
 
