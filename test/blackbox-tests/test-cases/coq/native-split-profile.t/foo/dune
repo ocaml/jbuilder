@@ -1,0 +1,8 @@
+(coq.theory
+ (name foo)
+ (package base)
+ (mode
+  (native
+   (profile dev custom release)))
+ (modules :standard)
+ (synopsis "Test Coq library"))

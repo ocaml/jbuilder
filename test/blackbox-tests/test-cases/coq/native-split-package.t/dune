@@ -1,0 +1,6 @@
+(rule
+ (alias default)
+ (action
+  (progn
+   (echo "%{read:base.install}")
+   (echo "%{read:base-native.install}"))))

@@ -1691,6 +1691,8 @@ The supported Coq language versions are:
 - ``0.1``: basic Coq theory support,
 - ``0.2``: support for the ``theories`` field, and composition of theories in the same scope,
 - ``0.3``: support for ``(mode native)``, requires Coq >= 8.10 (and dune >= 2.9 for Coq >= 8.14).
+  This mode is deprecated and we strongly recommend native users to move to version ``0.4``
+- ``0.4``: reworked ``(mode native)`` using the standalone Coq native compiler, requires Coq >= 8.14 and dune >= 3.0.
 
 Guarantees with respect to stability are not provided yet,
 however, as implementation of features progresses, we hope to reach
@@ -1753,18 +1755,26 @@ The stanza will build all ``.v`` files on the given directory. The semantics of 
   composition with the Coq's standard library is supported, but in
   this case the ``Coq`` prefix will be made available in a qualified
   way. Since Coq's lang version ``0.2``.
-- you can enable the production of Coq's native compiler object files
-  by setting ``<coq_native_mode>`` to ``native``, this will pass
-  ``-native-compiler on`` to Coq and install the corresponding object
-  files under ``.coq-native`` when in ``release`` profile. The regular
-  ``dev`` profile will skip native compilation to make the build
-  faster. Since Coq's lang version ``0.3``. Note that the support for
-  native compute is **experimental**, and requires Coq >= 8.12.1;
-  moreover, depending libraries *must* be built with ``(mode native)``
-  too for this to work; also Coq must be configured to support native
-  compilation. Note that Dune will explicitly disable output of native
-  compilation objects when ``(mode vo)`` even if the default Coq's
-  configure flag enabled it. This will be improved in the future.
+
+- you can control the production of Coq's native compiler object files
+  by setting ``<coq_native_mode>`` to ``native`` [the default] or to
+  ``vo``, to disable the rules relative to Coq native objects.
+
+  By default, Dune uses the ``coqnative`` binary introduced in Coq
+  8.14 and will setup the rules for the compilation and install of
+  native objects when using the ``release`` Dune profile. This can be
+  tweaked using the ``profile`` field, to enable such rules for
+  different profiles, for example ``(mode (native (profile dev
+  release)))`` will enable the rules for the dev profile too.
+
+  Additionally, Dune provides support for installing the native object
+  files to a different package; by default, Dune will place the Coq
+  native object files in the main package for the corresponding
+  ``(coq.theory ...)`` stanza, but users can override that to provide
+  split compilation using the ``package`` field; example, using:
+  ``(mode (native (package coq-bar-native)))`` will allow users to use
+  ``dune -p coq-bar`` and ``dune -p coq-bar-native`` to build the
+  native files separately, if so desired.
 
 Recursive qualification of modules
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

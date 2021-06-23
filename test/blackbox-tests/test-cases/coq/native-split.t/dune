@@ -1,0 +1,3 @@
+(rule
+ (alias default)
+ (action (echo "%{read:base.install}")))

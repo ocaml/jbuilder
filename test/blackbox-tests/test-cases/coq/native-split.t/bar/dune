@@ -1,0 +1,7 @@
+(coq.theory
+ (name bar)
+ (package base)
+ (mode native)
+ (theories foo)
+ (modules :standard)
+ (synopsis "Test Coq library"))

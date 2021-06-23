@@ -10,5 +10,25 @@ type t =
   | Legacy
   | VoOnly
   | Native
+  | Split of
+      { package : Dune_engine.Package.t option
+      ; profile : string list
+      }
 
-let decode = Dune_lang.Decoder.(enum [ ("vo", VoOnly); ("native", Native) ])
+let default_profile = [ "release" ]
+
+let default = Split { package = None; profile = default_profile }
+
+let decode_v03 = Dune_lang.Decoder.(enum [ ("vo", VoOnly); ("native", Native) ])
+
+let decode_v04 =
+  let open Dune_lang.Decoder in
+  let native =
+    fields
+      (let+ package = field_o "package" Stanza_common.Pkg.decode
+       and+ profile =
+         field ~default:default_profile "profile" (repeat string)
+       in
+       Split { package; profile })
+  in
+  sum [ ("vo", return VoOnly); ("native", native) ]

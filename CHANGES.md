@@ -155,6 +155,9 @@ Unreleased
 
 - Display Coq profile flags in `dune printenv` (#4767, @ejgallego)
 
+- Support new Coq 8.14 standalone native compiler mode (#4750,
+  @ejgallego @ppedrot @Zimmi48)
+
 2.9.0 (unreleased)
 ------------------
 

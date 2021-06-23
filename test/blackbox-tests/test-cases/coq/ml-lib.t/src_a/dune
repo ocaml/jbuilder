@@ -2,6 +2,6 @@
  (public_name ml_lib.ml_plugin_a)
  (name ml_plugin_a)
  (flags :standard -rectypes)
- (libraries coq.plugins.ltac))
+ (libraries coq-core.plugins.ltac))
 
 (coq.pp (modules gram))

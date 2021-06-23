@@ -1,0 +1,6 @@
+(coq.theory
+ (name moo.baz)
+ (package base)
+ (theories foo bar))
+
+(include_subdirs qualified)

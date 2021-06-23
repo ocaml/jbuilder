@@ -1,0 +1,10 @@
+(lang dune 3.0)
+(using coq 0.4)
+
+(package
+ (name base))
+
+(package
+ (name base-native)
+ (depends
+  (base (= :version))))
