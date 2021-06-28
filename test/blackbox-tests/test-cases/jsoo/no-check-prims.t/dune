@@ -1,0 +1,11 @@
+(executable
+ (name foo)
+ (modes js)
+ (modules foo))
+
+(rule (copy# foo.ml bar.ml))
+
+(executable
+ (name bar)
+ (modes byte js)
+ (modules bar))

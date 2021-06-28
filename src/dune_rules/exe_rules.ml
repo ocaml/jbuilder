@@ -186,10 +186,21 @@ let executables_rules ~sctx ~dir ~expander ~dir_contents ~scope ~compile_info
     let link_args =
       let open Action_builder.O in
       let link_flags =
+        let standard =
+          let module L = Dune_file.Executables.Link_mode in
+          if
+            L.Map.mem exes.modes L.js
+            && L.Map.cardinal exes.modes = 1
+            && Dune_project.dune_version (Scope.project scope) >= (3, 0)
+          then
+            [ "-no-check-prims" ]
+          else
+            []
+        in
         let link_deps = Dep_conf_eval.unnamed ~expander exes.link_deps in
         link_deps
         >>> Expander.expand_and_eval_set expander exes.link_flags
-              ~standard:(Action_builder.return [])
+              ~standard:(Action_builder.return standard)
       in
       let+ flags = link_flags in
       Command.Args.S
