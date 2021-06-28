@@ -177,6 +177,12 @@ module V1 : sig
       | Build_progress
   end
 
+  module Sub : sig
+    type ('init, 'diff) t
+
+    val progress : (Progress.t, Progress.t) t
+  end
+
   module Message : sig
     type t
 
@@ -244,6 +250,22 @@ module V1 : sig
 
       val notification : t -> 'a Notification.t -> 'a -> unit fiber
 
+      module Subscription : sig
+        type t
+
+        val await : t -> unit fiber
+
+        val cancel : t -> unit fiber
+      end
+
+      val subscribe :
+           ?id:Id.t
+        -> t
+        -> ('a, 'b) Sub.t
+        -> on_init:('a -> Subscription.t -> 'res fiber)
+        -> on_next:('b -> 'res -> unit fiber)
+        -> unit fiber
+
       module Batch : sig
         type t
 
@@ -303,6 +325,8 @@ module V1 : sig
         val read : 'a t -> 'a fiber
 
         val fill : 'a t -> 'a -> unit fiber
+
+        val peek : 'a t -> 'a option fiber
       end
       with type 'a fiber := 'a t
     end) (Chan : sig

@@ -11,6 +11,7 @@ module V1 = struct
   module Build = Build
   module Progress = Progress
   module Subscribe = Subscribe
+  module Sub = Sub
   module Message = Message
   module Where = Where
   include Public
@@ -44,6 +45,22 @@ module V1 = struct
         -> ('b, Response.Error.t) result fiber
 
       val notification : t -> 'a Notification.t -> 'a -> unit fiber
+
+      module Subscription : sig
+        type t
+
+        val await : t -> unit fiber
+
+        val cancel : t -> unit fiber
+      end
+
+      val subscribe :
+           ?id:Id.t
+        -> t
+        -> ('a, 'b) Sub.t
+        -> on_init:('a -> Subscription.t -> 'res fiber)
+        -> on_next:('b -> 'res -> unit fiber)
+        -> unit fiber
 
       module Batch : sig
         type t

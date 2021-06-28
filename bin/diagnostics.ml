@@ -1,7 +1,7 @@
 open! Stdune
 open Import
 
-let on_notification _ = Fiber.return ()
+let on_notification _ _ = Fiber.return ()
 
 let format_diagnostic (err : Dune_rpc_private.Diagnostic.t) : User_message.t =
   let prefix =

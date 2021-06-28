@@ -29,6 +29,7 @@ module Id = struct
 
   module C = Comparable.Make (T)
   module Set = C.Set
+  module Map = C.Map
 end
 
 module Version = struct

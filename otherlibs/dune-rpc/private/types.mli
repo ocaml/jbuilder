@@ -20,6 +20,8 @@ module Id : sig
   val to_sexp : t -> Sexp.t
 
   module Set : Set.S with type elt = t
+
+  module Map : Stdune.Map.S with type key = t
 end
 
 module Version : sig

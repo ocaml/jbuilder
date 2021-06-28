@@ -424,6 +424,30 @@ module Message = struct
     iso (record (both payload message)) to_ from
 end
 
+module Sub = struct
+  type ('init, 'diff) t =
+    { init : 'init Conv.value
+    ; diff : 'diff Conv.value
+    ; name : string
+    }
+
+  let progress =
+    { init = Progress.sexp; diff = Progress.sexp; name = "progress" }
+
+  let server_subscribe =
+    Decl.request ~method_:"subscribe2" Conv.string Conv.sexp
+
+  (* TODO rename these methods once we remove the old subs *)
+  let subscribe t = { server_subscribe with resp = t.init }
+
+  (* send by the client to cancel a subscription *)
+  let cancel = Decl.notification ~method_:"cancelsub" Id.sexp
+
+  let sub_update =
+    Decl.notification ~method_:"subupdate"
+      (Conv.pair Id.sexp (Conv.option Conv.sexp))
+end
+
 module Subscribe = struct
   type t =
     | Diagnostics
@@ -468,6 +492,10 @@ module Server_notifications = struct
 
   let build_event =
     Decl.notification ~method_:"notify/build-event" Build.Event.sexp
+
+  let update_sub (s : _ Sub.t) =
+    let req = Conv.pair Id.sexp (Conv.option s.diff) in
+    { Sub.sub_update with req }
 end
 
 module Client = struct
@@ -486,6 +514,22 @@ module Client = struct
       -> ('b, Response.Error.t) result fiber
 
     val notification : t -> 'a Decl.notification -> 'a -> unit fiber
+
+    module Subscription : sig
+      type t
+
+      val await : t -> unit fiber
+
+      val cancel : t -> unit fiber
+    end
+
+    val subscribe :
+         ?id:Id.t
+      -> t
+      -> ('a, 'b) Sub.t
+      -> on_init:('a -> Subscription.t -> 'res fiber)
+      -> on_next:('b -> 'res -> unit fiber)
+      -> unit fiber
 
     module Batch : sig
       type t
@@ -523,7 +567,7 @@ module Client = struct
     val connect_raw :
          chan
       -> Initialize.Request.t
-      -> on_notification:(Call.t -> unit fiber)
+      -> on_notification:(t -> Call.t -> unit fiber)
       -> f:(t -> 'a fiber)
       -> 'a fiber
 
@@ -562,6 +606,8 @@ module Client = struct
       val read : 'a t -> 'a fiber
 
       val fill : 'a t -> 'a -> unit fiber
+
+      val peek : 'a t -> 'a option fiber
     end
     with type 'a fiber := 'a t
   end) (Chan : sig
@@ -621,11 +667,22 @@ module Client = struct
     type t =
       { chan : Chan.t
       ; requests : (Id.t, Response.t Fiber.Ivar.t) Table.t
-      ; on_notification : Call.t -> unit Fiber.t
+      ; on_notification : t -> Call.t -> unit Fiber.t
       ; initialize : Initialize.Request.t
+      ; subs : (Id.t, sub) Table.t
       ; mutable next_id : int
       ; mutable running : bool
       }
+
+    and ('a, 'init) subscription =
+      { id : Id.t
+      ; finished : unit Fiber.Ivar.t
+      ; init : 'init Fiber.Ivar.t
+      ; on_next : 'a -> 'init -> unit Fiber.t
+      ; client : t
+      }
+
+    and sub = Sub : ((_, 'a) Sub.t * ('a, _) subscription) -> sub
 
     (* When the client is terminated via this function, the session is
        considered to be dead without a way to recover. *)
@@ -682,12 +739,14 @@ module Client = struct
 
     let create ~chan ~initialize ~on_notification =
       let requests = Table.create (module Id) 16 in
+      let subs = Table.create (module Id) 16 in
       { chan
       ; requests
       ; on_notification
       ; next_id = 0
       ; initialize
       ; running = true
+      ; subs
       }
 
     let prepare_request t (id, req) =
@@ -760,6 +819,65 @@ module Client = struct
       make_notification t decl n (fun call ->
           send t (Some [ Notification call ]))
 
+    let cancel_subscription subscription =
+      let* res = Fiber.Ivar.peek subscription.finished in
+      match res with
+      | Some () -> Fiber.return ()
+      | None ->
+        Fiber.fork_and_join_unit (Fiber.Ivar.fill subscription.finished)
+          (fun () ->
+            if subscription.client.running then
+              notification subscription.client Sub.cancel subscription.id
+            else
+              Fiber.return ())
+
+    module Subscription = struct
+      type t = Subscription : ('a, 'i) subscription -> t
+
+      let await (Subscription t) = Fiber.Ivar.read t.finished
+
+      let cancel (Subscription t) =
+        let* res = Fiber.Ivar.peek t.finished in
+        match res with
+        | Some () -> Fiber.return ()
+        | None ->
+          Fiber.fork_and_join_unit (Fiber.Ivar.fill t.finished) (fun () ->
+              if t.client.running then
+                notification t.client Sub.cancel t.id
+              else
+                Fiber.return ())
+
+      let create id client on_next =
+        { id
+        ; on_next
+        ; client
+        ; finished = Fiber.Ivar.create ()
+        ; init = Fiber.Ivar.create ()
+        }
+    end
+
+    let subscribe ?id t sub ~on_init ~on_next =
+      (* XXX It is guaranteed that [on_init] will always be called before
+         [on_next], but it is not guaranteed that [on_init] needs to finish
+         before [on_next] is called. Is this confusing? *)
+      let id = gen_id t id in
+      let already_exists () =
+        Code_error.raise "subscription with this id already exists"
+          [ ("id", Id.to_dyn id) ]
+      in
+      let subscription = Subscription.create id t on_next in
+      match Table.add t.subs id (Sub (sub, subscription)) with
+      | Error _ -> already_exists ()
+      | Ok () -> (
+        let* res = request ~id t (Sub.subscribe sub) sub.name in
+        match res with
+        | Error e -> raise (Response.Error.E e)
+        | Ok a ->
+          let sub : Subscription.t = Subscription subscription in
+          let* init = on_init a sub in
+          let* () = Fiber.Ivar.fill subscription.init init in
+          Subscription.await sub)
+
     module Batch = struct
       type nonrec t =
         { client : t
@@ -795,7 +913,7 @@ module Client = struct
     let read_packets t packets =
       let* () =
         Fiber.parallel_iter packets ~f:(function
-          | Packet.Reply.Notification n -> t.on_notification n
+          | Packet.Reply.Notification n -> t.on_notification t n
           | Response (id, response) -> (
             match Table.find t.requests id with
             | Some ivar ->
@@ -809,7 +927,7 @@ module Client = struct
       terminate t
 
     module Handler = struct
-      type t =
+      type nonrec t =
         { log : Message.t -> unit Fiber.t
         ; abort : Message.t -> unit Fiber.t
         ; diagnostic : Diagnostic.Event.t list -> unit Fiber.t
@@ -817,12 +935,31 @@ module Client = struct
         ; build_progress : Progress.t -> unit Fiber.t
         }
 
+      let sub_update client (id, sexp) =
+        match Table.find client.subs id with
+        | None ->
+          terminate_with_error client "unexpected notification"
+            [ ("id", Id.to_dyn id) ]
+        | Some (Sub (sub, subscription)) -> (
+          match sexp with
+          | None ->
+            Table.remove client.subs id;
+            cancel_subscription subscription
+          | Some sexp -> (
+            match
+              Conv.of_sexp sub.diff ~version:client.initialize.version sexp
+            with
+            | Error _ -> failwith "invalid session"
+            | Ok s ->
+              let* init = Fiber.Ivar.read subscription.init in
+              subscription.on_next s init))
+
       let on_notification
           { log; abort; diagnostic; build_event; build_progress } ~version =
         let table = Table.create (module String) 16 in
-        let to_callback (decl : _ Decl.notification) f payload =
+        let to_callback (decl : _ Decl.notification) f client payload =
           match Conv.of_sexp decl.req payload ~version with
-          | Ok s -> f s
+          | Ok s -> f client s
           | Error error ->
             Code_error.raise "invalid notification"
               [ ("error", Conv.dyn_of_error error) ]
@@ -830,17 +967,19 @@ module Client = struct
         let add (decl : _ Decl.notification) f =
           Table.add_exn table decl.method_ (to_callback decl f)
         in
-        add Server_notifications.diagnostic diagnostic;
-        add Server_notifications.log log;
-        add Server_notifications.abort abort;
-        add Server_notifications.progress build_progress;
-        add Server_notifications.build_event build_event;
-        fun { Call.method_; params } ->
+        let no_client f _ x = f x in
+        add Server_notifications.diagnostic (no_client diagnostic);
+        add Server_notifications.log (no_client log);
+        add Server_notifications.abort (no_client abort);
+        add Server_notifications.progress (no_client build_progress);
+        add Server_notifications.build_event (no_client build_event);
+        add Sub.sub_update sub_update;
+        fun client { Call.method_; params } ->
           match Table.find table method_ with
           | None ->
             Code_error.raise "invalid method from server"
               [ ("method_", Dyn.Encoder.string method_) ]
-          | Some v -> v params
+          | Some v -> v client params
 
       let log { Message.payload; message } =
         (match payload with
@@ -912,12 +1051,9 @@ module Client = struct
         | Error e -> raise (Response.Error.E e)
         | Ok csexp ->
           let _resp = Conv.of_sexp Initialize.Response.sexp csexp in
-          let+ res =
-            Fiber.finalize
-              (fun () -> f client)
-              ~finally:(fun () -> Chan.write chan None)
-          in
-          res
+          Fiber.finalize
+            (fun () -> f client)
+            ~finally:(fun () -> Chan.write chan None)
       in
       Fiber.fork_and_join_unit (fun () -> read_packets client packets) run
 

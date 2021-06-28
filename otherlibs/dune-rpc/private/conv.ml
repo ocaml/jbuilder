@@ -211,6 +211,13 @@ let unit =
       | _ -> raise_of_sexp "expected empty list")
     , fun () -> List [] )
 
+let option x =
+  let none = constr "None" unit (fun () -> None) in
+  let some = constr "Some" x (fun x -> Some x) in
+  sum [ econstr none; econstr some ] (function
+    | None -> case () none
+    | Some s -> case s some)
+
 let char =
   Iso
     ( Sexp

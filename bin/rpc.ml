@@ -212,7 +212,7 @@ module Ping = struct
            [ Pp.text "Server appears to be responding normally" ])
     | Error e -> raise_rpc_error e
 
-  let on_notification _ = Fiber.return ()
+  let on_notification _ _ = Fiber.return ()
 
   let exec common =
     let where = wait_for_server common in

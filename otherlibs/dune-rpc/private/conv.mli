@@ -22,6 +22,8 @@ val list : ('a, values) t -> ('a list, values) t
 
 val pair : ('a, values) t -> ('b, values) t -> ('a * 'b, values) t
 
+val option : ('a, values) t -> ('a option, values) t
+
 val triple :
   ('a, values) t -> ('b, values) t -> ('c, values) t -> ('a * 'b * 'c, values) t
 

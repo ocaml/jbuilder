@@ -16,6 +16,8 @@ module Id : sig
   val to_sexp : t -> Csexp.t
 
   module Set : Stdune.Set.S with type elt = t
+
+  module Map : Stdune.Map.S with type key = t
 end
 
 module Call : sig
@@ -271,6 +273,22 @@ module Message : sig
   val message : t -> string
 end
 
+module Sub : sig
+  type ('init, 'diff) t =
+    { init : 'init Conv.value
+    ; diff : 'diff Conv.value
+    ; name : string
+    }
+
+  val server_subscribe : (string, Csexp.t) Decl.request
+
+  val progress : (Progress.t, Progress.t) t
+
+  val cancel : Id.t Decl.notification
+
+  val subscribe : ('a, _) t -> (string, 'a) Decl.request
+end
+
 module Subscribe : sig
   type t =
     | Diagnostics
@@ -293,6 +311,22 @@ module Client : sig
       -> ('b, Response.Error.t) result fiber
 
     val notification : t -> 'a Decl.notification -> 'a -> unit fiber
+
+    module Subscription : sig
+      type t
+
+      val await : t -> unit fiber
+
+      val cancel : t -> unit fiber
+    end
+
+    val subscribe :
+         ?id:Id.t
+      -> t
+      -> ('a, 'b) Sub.t
+      -> on_init:('a -> Subscription.t -> 'res fiber)
+      -> on_next:('b -> 'res -> unit fiber)
+      -> unit fiber
 
     module Batch : sig
       type t
@@ -330,7 +364,7 @@ module Client : sig
     val connect_raw :
          chan
       -> Initialize.Request.t
-      -> on_notification:(Call.t -> unit fiber)
+      -> on_notification:(t -> Call.t -> unit fiber)
       -> f:(t -> 'a fiber)
       -> 'a fiber
 
@@ -369,6 +403,8 @@ module Client : sig
       val read : 'a t -> 'a fiber
 
       val fill : 'a t -> 'a -> unit fiber
+
+      val peek : 'a t -> 'a option fiber
     end
     with type 'a fiber := 'a t
   end) (Chan : sig
@@ -440,4 +476,6 @@ module Server_notifications : sig
   val log : Message.t Decl.notification
 
   val abort : Message.t Decl.notification
+
+  val update_sub : (_, 'a) Sub.t -> (Id.t * 'a option) Decl.notification
 end

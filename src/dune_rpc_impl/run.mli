@@ -25,7 +25,7 @@ val run : Config.t -> Dune_stats.t option -> unit Fiber.t
 val client :
      Dune_rpc.Where.t
   -> Dune_rpc.Initialize.Request.t
-  -> on_notification:(Dune_rpc.Call.t -> unit Fiber.t)
+  -> on_notification:(Client.t -> Dune_rpc.Call.t -> unit Fiber.t)
   -> f:(Client.t -> 'a Fiber.t)
   -> 'a Fiber.t
 
@@ -33,7 +33,7 @@ val client :
 val client_with_session :
      Dune_rpc.Initialize.Request.t
   -> session:Csexp_rpc.Session.t
-  -> on_notification:(Dune_rpc.Call.t -> unit Fiber.t)
+  -> on_notification:(Client.t -> Dune_rpc.Call.t -> unit Fiber.t)
   -> f:(Client.t -> 'a Fiber.t)
   -> 'a Fiber.t
 

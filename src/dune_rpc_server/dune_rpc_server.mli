@@ -29,6 +29,28 @@ module Session : sig
   val to_dyn : ('a -> Dyn.t) -> 'a t -> Dyn.t
 end
 
+module Subscription : sig
+  (** Represents a live subscription for values of type ['a] *)
+
+  type 'a t
+
+  val compare : 'a t -> 'a t -> Ordering.t
+
+  (** Send the next value in the subscription *)
+  val update : 'a t -> 'a -> unit Fiber.t
+
+  (** Signal that this subscription is terminated. It is an error to call
+      [update] after [finish]. Subsequent calls to [finish ] do nothing. *)
+  val finish : _ t -> unit Fiber.t
+
+  (** Checks if the subscription is still active. A subscription can be
+      terminated either by calling [finish] or waiting for the client to
+      terminate it. It is illegal to call [update] if [is_alive] returns [false] *)
+  val active : _ t -> bool
+
+  val finished : _ t -> unit Fiber.t
+end
+
 module Handler : sig
   (** A handler defines everything necessary to serve a session. It contains
 
@@ -80,6 +102,14 @@ module Handler : sig
       [callback] as the implementation and [decl] as the metadata *)
   val notification :
     's t -> ('s, 'a, unit) callback -> 'a Decl.notification -> unit
+
+  val subscription :
+       's t
+    -> ('init, 'diff) Sub.t
+    -> on_subscribe:('s Session.t -> 'init Fiber.t)
+    -> subscription:
+         ('s Session.t -> 'init -> 'diff Subscription.t -> unit Fiber.t)
+    -> unit
 end
 
 type t

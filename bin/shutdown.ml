@@ -5,7 +5,7 @@ let send_shutdown cli =
   Dune_rpc_impl.Client.notification cli
     Dune_rpc_private.Public.Notification.shutdown ()
 
-let on_notification _ = Fiber.return ()
+let on_notification _ _ = Fiber.return ()
 
 let exec common =
   let where = Rpc.wait_for_server common in

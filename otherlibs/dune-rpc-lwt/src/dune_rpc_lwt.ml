@@ -31,6 +31,11 @@ module V1 = struct
         Lwt.wakeup u x;
         Lwt.return_unit
 
+      let peek (x, _) =
+        match Lwt.state x with
+        | Return a -> Lwt.return (Some a)
+        | _ -> Lwt.return_none
+
       let read (x, _) = x
     end
 

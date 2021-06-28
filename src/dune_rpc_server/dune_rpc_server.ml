@@ -1,5 +1,43 @@
 open Stdune
 open Dune_rpc_private
+open Fiber.O
+
+module Subscription = struct
+  module Id = Stdune.Id.Make ()
+
+  type 'a t =
+    { send : 'a option -> unit Fiber.t
+    ; finished : unit Fiber.Ivar.t
+    ; mutable active : bool
+    ; id : Id.t
+    }
+
+  type packed = E : 'a t -> packed
+
+  let compare x y = Id.compare x.id y.id
+
+  let finished t = Fiber.Ivar.read t.finished
+
+  let active t = t.active
+
+  let finish' t ~by_ =
+    match t.active with
+    | false -> Fiber.return ()
+    | true -> (
+      t.active <- false;
+      match by_ with
+      | `Client -> Fiber.Ivar.fill t.finished ()
+      | `Server ->
+        Fiber.fork_and_join_unit (Fiber.Ivar.fill t.finished) (fun () ->
+            t.send None))
+
+  let finish = finish' ~by_:`Server
+
+  let update t a =
+    if not t.active then
+      Code_error.raise "trying to update an inactive subscription" [];
+    t.send (Some a)
+end
 
 module Session = struct
   type 'a state =
@@ -16,7 +54,9 @@ module Session = struct
     { queries : Packet.Query.t Fiber.Stream.In.t
     ; id : Id.t
     ; send : Packet.Reply.t list option -> unit Fiber.t
+    ; pool : Fiber.Pool.t
     ; mutable state : 'a state
+    ; mutable subscriptions : Subscription.packed Dune_rpc_private.Id.Map.t
     }
 
   let set t state =
@@ -40,7 +80,13 @@ module Session = struct
     | Uninitialized -> Code_error.raise "initialize: request not available" []
 
   let create ~queries ~send =
-    { queries; send; state = Uninitialized; id = Id.gen () }
+    { queries
+    ; send
+    ; state = Uninitialized
+    ; id = Id.gen ()
+    ; subscriptions = Dune_rpc_private.Id.Map.empty
+    ; pool = Fiber.Pool.create ()
+    }
 
   let notification t (decl : _ Decl.notification) n =
     let call =
@@ -68,9 +114,25 @@ module Session = struct
       in
       constr "Initialized" [ record ]
 
-  let to_dyn f { id; state; queries = _; send = _ } =
+  let to_dyn f { id; state; subscriptions = _; queries = _; send = _; pool = _ }
+      =
     let open Dyn.Encoder in
     record [ ("id", Id.to_dyn id); ("state", dyn_of_state f state) ]
+
+  let create_subscription t client_id sub =
+    let decl = Server_notifications.update_sub sub in
+    let send v = notification t decl (client_id, v) in
+    let sub =
+      { Subscription.send
+      ; finished = Fiber.Ivar.create ()
+      ; active = true
+      ; id = Subscription.Id.gen ()
+      }
+    in
+    t.subscriptions <-
+      Dune_rpc_private.Id.Map.add_exn t.subscriptions client_id
+        (Subscription.E sub);
+    sub
 end
 
 type message_kind =
@@ -136,7 +198,6 @@ module H = struct
     }
 
   let abort ?payload session ~message =
-    let open Fiber.O in
     let* () =
       Session.notification session Server_notifications.abort
         { Message.message; payload }
@@ -144,7 +205,6 @@ module H = struct
     session.send None
 
   let handle (type a) (t : a t) stats (session : a Session.t) =
-    let open Fiber.O in
     let* query = Fiber.Stream.In.read session.queries in
     match query with
     | None -> session.send None
@@ -230,14 +290,16 @@ module H = struct
     let public ?until ~since () = Public { since; until }
 
     type ('state, 'req, 'resp) callback =
-      { info : info
-      ; f : 'state Session.t -> 'req -> 'resp Fiber.t
+      { info : info (* XXX for notifications, the id always null *)
+      ; f : 'state Session.t -> Id.t option -> 'req -> 'resp Fiber.t
       }
 
-    let callback' info f = { info; f }
+    let callback' info f =
+      let f session _id req = f session req in
+      { info; f }
 
     let callback info f =
-      let f _ x = f x in
+      let f _session _id x = f x in
       { info; f }
 
     type 's n_handler =
@@ -246,13 +308,63 @@ module H = struct
     type 's r_handler =
       | R : ('s, 'a, 'b) callback * ('a, 'b) Decl.request -> 's r_handler
 
+    type 's sub =
+      | Sub :
+          ('init, 'diff) Sub.t
+          * ('s Session.t -> 'init Fiber.t)
+          * ('s Session.t -> 'init -> 'diff Subscription.t -> unit Fiber.t)
+          -> 's sub
+
     type 's t =
       { mutable notification_handlers : 's n_handler list
       ; mutable request_handlers : 's r_handler list
+      ; mutable subscriptions : 's sub String.Map.t
       ; on_init : 's Session.t -> Initialize.Request.t -> 's Fiber.t
       ; on_terminate : 's Session.t -> unit Fiber.t
       ; version : int * int
       }
+
+    let on_subscribe_request subscriptions =
+      let callback =
+        let info = public ~since:(3, 0) () in
+        let f session req_id what =
+          let req_id = Option.value_exn req_id in
+          match String.Map.find subscriptions what with
+          | None ->
+            let err =
+              let payload = Sexp.record [ ("what", Sexp.Atom what) ] in
+              Response.Error.create ~kind:Invalid_request ~payload
+                ~message:"Unknown subscription" ()
+            in
+            raise (Response.Error.E err)
+          | Some (Sub (sub, on_subscribe, init_subscription)) ->
+            let* init = on_subscribe session in
+            let subscription = Session.create_subscription session req_id sub in
+            let+ () =
+              (* We need to send a response and proceed here. That's not
+                 possible until we change the session api a bit.*)
+              Fiber.Pool.task session.pool ~f:(fun () ->
+                  init_subscription session init subscription)
+            in
+            Conv.to_sexp sub.init init
+        in
+        { info; f }
+      in
+      R (callback, Sub.server_subscribe)
+
+    let on_unsubscribe_notification () =
+      let callback =
+        let info = public ~since:(3, 0) () in
+        let f (session : _ Session.t) _no_req_id sub_id =
+          match Id.Map.find session.subscriptions sub_id with
+          | None ->
+            (* TODO warn the user this is a no-op *)
+            Fiber.return ()
+          | Some (Subscription.E sub) -> Subscription.finish' sub ~by_:`Client
+        in
+        { info; f }
+      in
+      N (callback, Sub.cancel)
 
     let to_handler
         { on_init
@@ -260,13 +372,16 @@ module H = struct
         ; request_handlers
         ; version
         ; on_terminate
+        ; subscriptions
         } =
       let request_handlers, notification_handlers =
         let r = Table.create (module String) 16 in
         let n = Table.create (module String) 16 in
-        List.iter notification_handlers ~f:(fun (N (cb, decl)) ->
+        List.iter (on_unsubscribe_notification () :: notification_handlers)
+          ~f:(fun (N (cb, decl)) ->
             Table.Multi.cons n decl.method_ (N (cb, decl)));
-        List.iter request_handlers ~f:(fun (R (cb, decl)) ->
+        List.iter (on_subscribe_request subscriptions :: request_handlers)
+          ~f:(fun (R (cb, decl)) ->
             Table.Multi.cons r decl.method_ (R (cb, decl)));
         (* TODO This all needs proper validation. It shouldn't be possible for
            the same methods to overlap versions *)
@@ -302,14 +417,14 @@ module H = struct
               ~payload:(Sexp.record [ ("method", Atom n.method_) ])
           | Some (N (cb, v)) -> (
             match Conv.of_sexp v.req ~version n.params with
-            | Ok v -> cb.f session v
+            | Ok v -> cb.f session None v
             | Error _ ->
               abort session ~message:"Invalid notification payload"
                 ~payload:
                   (Sexp.record
                      [ ("method", Atom n.method_); ("payload", n.params) ])))
       in
-      let on_request session (_id, (n : Call.t)) =
+      let on_request session (id, (n : Call.t)) =
         let version = Initialize.Request.version (Session.initialize session) in
         match Table.find request_handlers n.method_ with
         | None ->
@@ -328,8 +443,9 @@ module H = struct
             match Conv.of_sexp decl.req ~version n.params with
             | Error e -> Fiber.return (Error (Response.Error.of_conv e))
             | Ok input -> (
-              let open Fiber.O in
-              let+ r = Fiber.collect_errors (fun () -> cb.f session input) in
+              let+ r =
+                Fiber.collect_errors (fun () -> cb.f session (Some id) input)
+              in
               match r with
               | Ok s -> Ok (Conv.to_sexp decl.resp s)
               | Error
@@ -356,6 +472,7 @@ module H = struct
       ; on_init
       ; version
       ; on_terminate
+      ; subscriptions = String.Map.empty
       }
 
     let request (t : _ t) cb decl =
@@ -363,12 +480,18 @@ module H = struct
 
     let notification (t : _ t) cb decl =
       t.notification_handlers <- N (cb, decl) :: t.notification_handlers
+
+    let subscription (t : _ t) (sub : (_, _) Sub.t) ~on_subscribe ~subscription
+        =
+      t.subscriptions <-
+        String.Map.add_exn t.subscriptions sub.name
+          (Sub (sub, on_subscribe, subscription))
   end
 end
 
 type t = Server : 'a H.t -> t
 
-let make h = Server (H.Builder.to_handler h)
+let make (type a) (h : a H.Builder.t) : t = Server (H.Builder.to_handler h)
 
 let version (Server h) = h.version
 
@@ -377,14 +500,18 @@ let new_session (Server handler) stats ~queries ~send =
   object
     method id = session.id
 
-    method start = H.handle handler stats session
+    method start =
+      Fiber.fork_and_join_unit
+        (fun () -> Fiber.Pool.run session.pool)
+        (fun () ->
+          let* () = H.handle handler stats session in
+          Fiber.Pool.stop session.pool)
   end
 
 exception Invalid_session of Conv.error
 
 let create_sequence f ~version conv =
   let read () =
-    let open Fiber.O in
     let+ read = f () in
     Option.map read ~f:(fun sexp ->
         match Conv.of_sexp conv ~version sexp with
