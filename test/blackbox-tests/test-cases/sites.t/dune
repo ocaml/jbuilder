@@ -1,0 +1,14 @@
+(executable
+ (public_name app)
+ (modules sites app)
+ (libraries app.register dune-site dune-site.plugins ))
+
+(library
+ (public_name app.register)
+ ;(libraries stdio)
+ (name registration)
+ (modules registration))
+
+(generate_sites_module
+ (module sites)
+ (plugins (app plugins)))
