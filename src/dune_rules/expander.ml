@@ -134,7 +134,7 @@ let expand_version { scope; _ } ~source s =
       (Dune_project.packages project)
       (Package.Name.of_string s)
   with
-  | Some p -> value_from_version p.version
+  | Some p -> Memo.Build.return (value_from_version p.version)
   | None when Dune_project.dune_version project < (2, 9) ->
     User_error.raise ~loc:source.Dune_lang.Template.Pform.loc
       [ Pp.textf "Package %S doesn't exist in the current project." s ]
@@ -153,7 +153,8 @@ let expand_version { scope; _ } ~source s =
             "Library names are not allowed in this position. Only package \
              names are allowed"
         ];
-    match Lib.DB.find (Scope.libs scope) libname with
+    let open Memo.Build.O in
+    Lib.DB.find (Scope.libs scope) libname >>| function
     | Some lib -> value_from_version (Lib_info.version (Lib.info lib))
     | None ->
       User_error.raise ~loc:source.Dune_lang.Template.Pform.loc
@@ -408,8 +409,7 @@ let expand_pform_gen ~(context : Context.t) ~bindings ~dir ~source
                   (Memo.Build.return
                      (string (Option.value ~default (Env.get t.env var))))))
       | Version ->
-        Need_full_expander
-          (fun t -> Without (Memo.Build.return (expand_version t ~source s)))
+        Need_full_expander (fun t -> Without (expand_version t ~source s))
       | Artifact a ->
         Need_full_expander (fun t -> With (expand_artifact ~source t a s))
       | Path_no_dep ->
@@ -451,7 +451,7 @@ let expand_pform_gen ~(context : Context.t) ~bindings ~dir ~source
                    t.scope
                in
                let p =
-                 let open Resolve.O in
+                 let open Resolve.Build.O in
                  if lib_private then
                    let* lib =
                      Lib.DB.resolve (Scope.libs scope)
@@ -465,10 +465,10 @@ let expand_pform_gen ~(context : Context.t) ~bindings ~dir ~source
                      Option.equal Dune_project.equal (Some current_project)
                        referenced_project
                    then
-                     Resolve.return
+                     Resolve.Build.return
                        (Path.relative (Lib_info.src_dir (Lib.info lib)) file)
                    else
-                     Resolve.fail
+                     Resolve.Build.fail
                        (User_error.make
                           ~loc:(Dune_lang.Template.Pform.loc source)
                           [ Pp.textf
@@ -500,42 +500,50 @@ let expand_pform_gen ~(context : Context.t) ~bindings ~dir ~source
                      ~loc:(Dune_lang.Template.Pform.loc source)
                      ~lib ~file
                in
-               match Resolve.peek p with
-               | Ok p ->
-                 if
-                   (not lib_exec) || (not Sys.win32)
-                   || Filename.extension s = ".exe"
-                 then
-                   dep p
-                 else
-                   let p_exe = Path.extend_basename p ~suffix:".exe" in
-                   Action_builder.if_file_exists p_exe ~then_:(dep p_exe)
-                     ~else_:(dep p)
-               | Error () ->
-                 let p =
-                   let open Resolve.O in
+               let p =
+                 let open Memo.Build.O in
+                 Resolve.Build.peek p >>| function
+                 | Ok p ->
                    if
-                     lib_private
-                     || not (Lib.DB.available (Scope.libs scope) lib)
+                     (not lib_exec) || (not Sys.win32)
+                     || Filename.extension s = ".exe"
                    then
-                     p >>| fun _ -> assert false
+                     dep p
                    else
-                     Resolve.fail
-                       (User_error.make
-                          ~loc:(Dune_lang.Template.Pform.loc source)
-                          [ Pp.textf
-                              "The library %S is not public. The variable \
-                               \"lib%s\" expands to the file's installation \
-                               path which is not defined for private \
-                               libraries."
-                              (Lib_name.to_string lib)
-                              (if lib_exec then
-                                "exec"
-                              else
-                                "")
-                          ])
-                 in
-                 Resolve.read p))
+                     let p_exe = Path.extend_basename p ~suffix:".exe" in
+                     Action_builder.if_file_exists p_exe ~then_:(dep p_exe)
+                       ~else_:(dep p)
+                 | Error () ->
+                   let p =
+                     if lib_private then
+                       Resolve.Build.map p ~f:(fun _ -> assert false)
+                     else
+                       let open Resolve.Build.O in
+                       let* available =
+                         Resolve.Build.lift_memo
+                           (Lib.DB.available (Scope.libs scope) lib)
+                       in
+                       match available with
+                       | false -> p >>| fun _ -> assert false
+                       | true ->
+                         Resolve.Build.fail
+                           (User_error.make
+                              ~loc:(Dune_lang.Template.Pform.loc source)
+                              [ Pp.textf
+                                  "The library %S is not public. The variable \
+                                   \"lib%s\" expands to the file's \
+                                   installation path which is not defined for \
+                                   private libraries."
+                                  (Lib_name.to_string lib)
+                                  (if lib_exec then
+                                    "exec"
+                                  else
+                                    "")
+                              ])
+                   in
+                   Resolve.Build.read p
+               in
+               Action_builder.memo_build_join p))
       | Lib_available ->
         Need_full_expander
           (fun t ->
@@ -544,9 +552,9 @@ let expand_pform_gen ~(context : Context.t) ~bindings ~dir ~source
                  Lib_name.parse_string_exn
                    (Dune_lang.Template.Pform.loc source, s)
                in
-               Memo.Build.return
-                 (Lib.DB.available (Scope.libs t.scope) lib
-                 |> string_of_bool |> string)))
+               let open Memo.Build.O in
+               let+ available = Lib.DB.available (Scope.libs t.scope) lib in
+               available |> string_of_bool |> string))
       | Read ->
         let path = relative ~source dir s in
         Direct

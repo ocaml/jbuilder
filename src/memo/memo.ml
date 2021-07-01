@@ -66,6 +66,8 @@ module Build0 = struct
   end
 
   module List = struct
+    include Monad.List (Fiber)
+
     let map = parallel_map
 
     let concat_map l ~f = map l ~f >>| List.concat
@@ -1667,11 +1669,7 @@ type 'a build = 'a Fiber.t
 module type Build = sig
   include Monad
 
-  module List : sig
-    val map : 'a list -> f:('a -> 'b t) -> 'b list t
-
-    val concat_map : 'a list -> f:('a -> 'b list t) -> 'b list t
-  end
+  module List : Monad_intf.List with type 'a t := 'a t
 
   val memo_build : 'a build -> 'a t
 end

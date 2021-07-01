@@ -13,43 +13,43 @@ let generate_and_compile_module cctx ~precompiled_cmi ~name ~lib ~code ~requires
   let sctx = CC.super_context cctx in
   let obj_dir = CC.obj_dir cctx in
   let dir = CC.dir cctx in
-  Resolve.Build.bind
-    (let open Resolve.O in
-    let* wrapped = Lib.wrapped lib in
-    let src_dir = Path.build (Obj_dir.obj_dir obj_dir) in
-    let gen_module = Module.generated ~src_dir name in
+  let open Resolve.Build.O in
+  let src_dir = Path.build (Obj_dir.obj_dir obj_dir) in
+  let gen_module = Module.generated ~src_dir name in
+  let* wrapped = Lib.wrapped lib in
+  let* module_ =
     match wrapped with
-    | None -> Resolve.return gen_module
+    | None -> Resolve.Build.return gen_module
     | Some (Yes_with_transition _) ->
       (* XXX this needs a comment. Why is this impossible? *)
       assert false
-    | Some (Simple false) -> Resolve.return gen_module
+    | Some (Simple false) -> Resolve.Build.return gen_module
     | Some (Simple true) ->
       let+ main_module_name = Lib.main_module_name lib in
       let main_module_name = Option.value_exn main_module_name in
       (* XXX this is fishy. We shouldn't be introducing a toplevel module into a
          wrapped library with a single module *)
-      Module.with_wrapper gen_module ~main_module_name)
-    ~f:(fun module_ ->
-      let open Memo.Build.O in
-      let* () =
-        SC.add_rule ~dir sctx
-          (let ml =
-             Module.file module_ ~ml_kind:Impl
-             |> Option.value_exn |> Path.as_in_build_dir_exn
-           in
-           Action_builder.write_file_dyn ml code)
-      in
-      let cctx =
-        Compilation_context.for_module_generated_at_link_time cctx ~requires
-          ~module_
-      in
-      let+ () =
-        Module_compilation.build_module
-          ~dep_graphs:(Dep_graph.Ml_kind.dummy module_)
-          ~precompiled_cmi cctx module_
-      in
-      Resolve.return module_)
+      Module.with_wrapper gen_module ~main_module_name
+  in
+  let open Memo.Build.O in
+  let* () =
+    SC.add_rule ~dir sctx
+      (let ml =
+         Module.file module_ ~ml_kind:Impl
+         |> Option.value_exn |> Path.as_in_build_dir_exn
+       in
+       Action_builder.write_file_dyn ml code)
+  in
+  let cctx =
+    Compilation_context.for_module_generated_at_link_time cctx ~requires
+      ~module_
+  in
+  let+ () =
+    Module_compilation.build_module
+      ~dep_graphs:(Dep_graph.Ml_kind.dummy module_)
+      ~precompiled_cmi cctx module_
+  in
+  Resolve.return module_
 
 let pr buf fmt = Printf.bprintf buf (fmt ^^ "\n")
 
@@ -233,89 +233,89 @@ let dune_site_plugins_code ~libs ~builtins =
   Buffer.contents buf
 
 let handle_special_libs cctx =
-  let ( let** ) m f = Memo.Build.bind m ~f:(fun x -> Resolve.Build.bind x ~f) in
-  Resolve.Build.bind (CC.requires_link cctx) ~f:(fun all_libs ->
-      let obj_dir = Compilation_context.obj_dir cctx |> Obj_dir.of_local in
-      let sctx = CC.super_context cctx in
-      let ctx = Super_context.context sctx in
-      let module LM = Lib.Lib_and_module in
-      let rec process_libs ~to_link_rev ~force_linkall libs =
-        match libs with
-        | [] ->
-          Memo.Build.return
-            (Resolve.return { to_link = List.rev to_link_rev; force_linkall })
-        | lib :: libs -> (
-          match Lib_info.special_builtin_support (Lib.info lib) with
-          | None ->
-            process_libs libs
-              ~to_link_rev:(LM.Lib lib :: to_link_rev)
-              ~force_linkall
-          | Some special -> (
-            match special with
-            | Build_info { data_module; api_version } ->
-              let** module_ =
-                generate_and_compile_module cctx ~name:data_module ~lib
-                  ~code:
-                    (Action_builder.memo_build
-                       (build_info_code cctx ~libs:all_libs ~api_version))
-                  ~requires:(Resolve.return [ lib ])
-                  ~precompiled_cmi:true
-              in
-              process_libs libs
-                ~to_link_rev:
-                  (LM.Lib lib :: Module (obj_dir, module_) :: to_link_rev)
-                ~force_linkall
-            | Findlib_dynload ->
-              (* If findlib.dynload is linked, we stores in the binary the
-                 packages linked by linking just after findlib.dynload a module
-                 containing the info *)
-              let requires =
-                (* This shouldn't fail since findlib.dynload depends on dynlink
-                   and findlib. That's why it's ok to use a dummy location. *)
-                let db = SC.public_libs sctx in
-                let open Resolve.O in
-                let+ dynlink =
-                  Lib.DB.resolve db (Loc.none, Lib_name.of_string "dynlink")
-                and+ findlib =
-                  Lib.DB.resolve db (Loc.none, Lib_name.of_string "findlib")
-                in
-                [ dynlink; findlib ]
-              in
-              let** module_ =
-                generate_and_compile_module cctx ~lib
-                  ~name:(Module_name.of_string "findlib_initl")
-                  ~code:
-                    (Action_builder.return
-                       (findlib_init_code
-                          ~preds:Findlib.findlib_predicates_set_by_dune
-                          ~libs:all_libs))
-                  ~requires ~precompiled_cmi:false
-              in
-              process_libs libs
-                ~to_link_rev:
-                  (LM.Module (obj_dir, module_) :: Lib lib :: to_link_rev)
-                ~force_linkall:true
-            | Configurator _ ->
-              process_libs libs
-                ~to_link_rev:(LM.Lib lib :: to_link_rev)
-                ~force_linkall
-            | Dune_site { data_module; plugins } ->
-              let code =
-                if plugins then
-                  Action_builder.return
-                    (dune_site_plugins_code ~libs:all_libs
-                       ~builtins:(Findlib.builtins ctx.Context.findlib))
-                else
-                  Action_builder.return (dune_site_code ())
-              in
-              let** module_ =
-                generate_and_compile_module cctx ~name:data_module ~lib ~code
-                  ~requires:(Resolve.return [ lib ])
-                  ~precompiled_cmi:true
-              in
-              process_libs libs
-                ~to_link_rev:
-                  (LM.Lib lib :: Module (obj_dir, module_) :: to_link_rev)
-                ~force_linkall))
-      in
-      process_libs all_libs ~to_link_rev:[] ~force_linkall:false)
+  let ( let& ) m f = Resolve.Build.bind m ~f in
+  let& all_libs = Memo.Build.return (CC.requires_link cctx) in
+  let obj_dir = Compilation_context.obj_dir cctx |> Obj_dir.of_local in
+  let sctx = CC.super_context cctx in
+  let ctx = Super_context.context sctx in
+  let module LM = Lib.Lib_and_module in
+  let rec process_libs ~to_link_rev ~force_linkall libs =
+    match libs with
+    | [] ->
+      Resolve.Build.return { to_link = List.rev to_link_rev; force_linkall }
+    | lib :: libs -> (
+      match Lib_info.special_builtin_support (Lib.info lib) with
+      | None ->
+        process_libs libs
+          ~to_link_rev:(LM.Lib lib :: to_link_rev)
+          ~force_linkall
+      | Some special -> (
+        match special with
+        | Build_info { data_module; api_version } ->
+          let& module_ =
+            generate_and_compile_module cctx ~name:data_module ~lib
+              ~code:
+                (Action_builder.memo_build
+                   (build_info_code cctx ~libs:all_libs ~api_version))
+              ~requires:(Resolve.return [ lib ])
+              ~precompiled_cmi:true
+          in
+          process_libs libs
+            ~to_link_rev:
+              (LM.Lib lib :: Module (obj_dir, module_) :: to_link_rev)
+            ~force_linkall
+        | Findlib_dynload ->
+          (* If findlib.dynload is linked, we stores in the binary the packages
+             linked by linking just after findlib.dynload a module containing
+             the info *)
+          let open Memo.Build.O in
+          let* requires =
+            (* This shouldn't fail since findlib.dynload depends on dynlink and
+               findlib. That's why it's ok to use a dummy location. *)
+            let db = SC.public_libs sctx in
+            let open Resolve.Build.O in
+            let+ dynlink =
+              Lib.DB.resolve db (Loc.none, Lib_name.of_string "dynlink")
+            and+ findlib =
+              Lib.DB.resolve db (Loc.none, Lib_name.of_string "findlib")
+            in
+            [ dynlink; findlib ]
+          in
+          let& module_ =
+            generate_and_compile_module cctx ~lib
+              ~name:(Module_name.of_string "findlib_initl")
+              ~code:
+                (Action_builder.return
+                   (findlib_init_code
+                      ~preds:Findlib.findlib_predicates_set_by_dune
+                      ~libs:all_libs))
+              ~requires ~precompiled_cmi:false
+          in
+          process_libs libs
+            ~to_link_rev:
+              (LM.Module (obj_dir, module_) :: Lib lib :: to_link_rev)
+            ~force_linkall:true
+        | Configurator _ ->
+          process_libs libs
+            ~to_link_rev:(LM.Lib lib :: to_link_rev)
+            ~force_linkall
+        | Dune_site { data_module; plugins } ->
+          let code =
+            if plugins then
+              Action_builder.return
+                (dune_site_plugins_code ~libs:all_libs
+                   ~builtins:(Findlib.builtins ctx.Context.findlib))
+            else
+              Action_builder.return (dune_site_code ())
+          in
+          let& module_ =
+            generate_and_compile_module cctx ~name:data_module ~lib ~code
+              ~requires:(Resolve.return [ lib ])
+              ~precompiled_cmi:true
+          in
+          process_libs libs
+            ~to_link_rev:
+              (LM.Lib lib :: Module (obj_dir, module_) :: to_link_rev)
+            ~force_linkall))
+  in
+  process_libs all_libs ~to_link_rev:[] ~force_linkall:false

@@ -47,6 +47,7 @@ module Digest = Digest
 module Fdecl = Fdecl
 module Unit = Unit
 module Monad = Monad
+module Monad_intf = Monad_intf
 module Monoid = Monoid
 module Dyn = Dyn
 module Float = Float

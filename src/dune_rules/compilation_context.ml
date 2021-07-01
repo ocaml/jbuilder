@@ -220,9 +220,11 @@ let for_wrapped_compat t = { t with includes = Includes.empty; stdlib = None }
 
 let for_plugin_executable t ~embed_in_plugin_libraries =
   let libs = Scope.libs t.scope in
-  let requires_link =
-    lazy (Resolve.List.map ~f:(Lib.DB.resolve libs) embed_in_plugin_libraries)
+  let open Memo.Build.O in
+  let+ requires_link =
+    Resolve.Build.List.map ~f:(Lib.DB.resolve libs) embed_in_plugin_libraries
   in
+  let requires_link = lazy requires_link in
   { t with requires_link }
 
 let without_bin_annot t = { t with bin_annot = false }

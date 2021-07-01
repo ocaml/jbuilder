@@ -172,8 +172,11 @@ module Stanza = struct
          :: List.map toplevel.libraries ~f:(fun d -> Lib_dep.Direct d))
         ~pps ~dune_version ~allow_overlaps:false
     in
-    let requires_compile = Lib.Compile.direct_requires compile_info in
-    let requires_link = Lib.Compile.requires_link compile_info in
+    let* requires_compile = Lib.Compile.direct_requires compile_info in
+    let* requires_link =
+      Memo.Lazy.force (Lib.Compile.requires_link compile_info)
+    in
+    let requires_link = lazy requires_link in
     let obj_dir = Source.obj_dir source in
     let flags =
       let profile = (Super_context.context sctx).profile in

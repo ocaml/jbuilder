@@ -72,17 +72,21 @@ end = struct
     | Toplevel toplevel ->
       let+ () = Toplevel_rules.setup ~sctx ~dir ~toplevel in
       empty_none
-    | Library lib
-      when Lib.DB.available (Scope.libs scope) (Dune_file.Library.best_name lib)
-      ->
-      let+ cctx, merlin =
-        Lib_rules.rules lib ~sctx ~dir ~scope ~dir_contents ~expander
+    | Library lib ->
+      let* available =
+        Lib.DB.available (Scope.libs scope) (Dune_file.Library.best_name lib)
       in
-      { merlin = Some merlin
-      ; cctx = Some (lib.buildable.loc, cctx)
-      ; js = None
-      ; source_dirs = None
-      }
+      if available then
+        let+ cctx, merlin =
+          Lib_rules.rules lib ~sctx ~dir ~scope ~dir_contents ~expander
+        in
+        { merlin = Some merlin
+        ; cctx = Some (lib.buildable.loc, cctx)
+        ; js = None
+        ; source_dirs = None
+        }
+      else
+        Memo.Build.return empty_none
     | Foreign_library lib ->
       let+ () =
         Lib_rules.foreign_rules lib ~sctx ~dir ~dir_contents ~expander

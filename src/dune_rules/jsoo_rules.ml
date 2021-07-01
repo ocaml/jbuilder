@@ -50,11 +50,12 @@ let js_of_ocaml_rule sctx ~sub_command ~dir ~flags ~spec ~target =
     ]
 
 let standalone_runtime_rule cc ~javascript_files ~target ~flags =
+  let libs = Compilation_context.requires_link cc in
   let spec =
     Command.Args.S
       [ Resolve.args
           (let open Resolve.O in
-          let+ libs = Compilation_context.requires_link cc in
+          let+ libs = libs in
           Command.Args.Deps (Lib.L.jsoo_runtime_files libs))
       ; Deps javascript_files
       ]
@@ -68,11 +69,12 @@ let standalone_runtime_rule cc ~javascript_files ~target ~flags =
 let exe_rule cc ~javascript_files ~src ~target ~flags =
   let dir = Compilation_context.dir cc in
   let sctx = Compilation_context.super_context cc in
+  let libs = Compilation_context.requires_link cc in
   let spec =
     Command.Args.S
       [ Resolve.args
           (let open Resolve.O in
-          let+ libs = Compilation_context.requires_link cc in
+          let+ libs = libs in
           Command.Args.Deps (Lib.L.jsoo_runtime_files libs))
       ; Deps javascript_files
       ; Dep (Path.build src)
@@ -150,7 +152,8 @@ let setup_separate_compilation_rules sctx components =
       | [ pkg ] -> (
         let pkg = Lib_name.parse_string_exn (Loc.none, pkg) in
         let ctx = SC.context sctx in
-        match Lib.DB.find (SC.installed_libs sctx) pkg with
+        let open Memo.Build.O in
+        Lib.DB.find (SC.installed_libs sctx) pkg >>= function
         | None -> Memo.Build.return ()
         | Some pkg ->
           let info = Lib.info pkg in

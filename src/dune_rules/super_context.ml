@@ -466,7 +466,7 @@ let get_installed_binaries stanzas ~(context : Context.t) =
               let project = Scope.project d.scope in
               let dune_version = Dune_project.dune_version project in
               let+ pps =
-                Resolve.read_memo_build
+                Resolve.Build.read_memo_build
                   (Preprocess.Per_module.with_instrumentation
                      exes.buildable.preprocess
                      ~instrumentation_backend:
@@ -477,8 +477,10 @@ let get_installed_binaries stanzas ~(context : Context.t) =
                 exes.names exes.buildable.libraries ~pps ~dune_version
                 ~allow_overlaps:exes.buildable.allow_overlapping_dependencies
             in
-            let available =
-              Resolve.is_ok (Lib.Compile.direct_requires compile_info)
+            let* available =
+              let open Memo.Build.O in
+              let+ available = Lib.Compile.direct_requires compile_info in
+              Resolve.is_ok available
             in
             if available then
               binaries_from_install files
@@ -489,19 +491,22 @@ let get_installed_binaries stanzas ~(context : Context.t) =
   >>| Path.Build.Set.union_all
 
 let create_lib_entries_by_package ~public_libs stanzas =
-  Dir_with_dune.deep_fold stanzas ~init:[] ~f:(fun d stanza acc ->
+  let module Deep_fold = Dir_with_dune.Deep_fold (Memo.Build) in
+  Deep_fold.deep_fold stanzas ~init:[] ~f:(fun d stanza acc ->
       match stanza with
       | Dune_file.Library ({ visibility = Private (Some pkg); _ } as lib) -> (
-        match
+        let+ lib =
           let db = Scope.libs d.scope in
           Lib.DB.find db (Dune_file.Library.best_name lib)
-        with
+        in
+        match lib with
         | None -> acc
         | Some lib ->
           let name = Package.name pkg in
           (name, Lib_entry.Library (Lib.Local.of_lib_exn lib)) :: acc)
       | Dune_file.Library { visibility = Public pub; _ } -> (
-        match Lib.DB.find public_libs (Dune_file.Public_lib.name pub) with
+        let+ lib = Lib.DB.find public_libs (Dune_file.Public_lib.name pub) in
+        match lib with
         | None ->
           (* Skip hidden or unavailable libraries. TODO we should assert that
              the library name is always found somehow *)
@@ -514,9 +519,10 @@ let create_lib_entries_by_package ~public_libs stanzas =
           ({ old_name = old_public_name, _; _ } as d) ->
         let package = Dune_file.Public_lib.package old_public_name in
         let name = Package.name package in
-        (name, Lib_entry.Deprecated_library_name d) :: acc
-      | _ -> acc)
-  |> Package.Name.Map.of_list_multi
+        Memo.Build.return ((name, Lib_entry.Deprecated_library_name d) :: acc)
+      | _ -> Memo.Build.return acc)
+  >>| fun libs ->
+  Package.Name.Map.of_list_multi libs
   |> Package.Name.Map.map
        ~f:
          (List.sort ~compare:(fun a b ->
@@ -680,7 +686,7 @@ let create ~(context : Context.t) ~host ~projects ~packages ~stanzas =
     Dune_project.File_key.Map.of_list_map_exn projects ~f:(fun project ->
         (Dune_project.file_key project, project))
   in
-  let lib_entries_by_package =
+  let+ lib_entries_by_package =
     create_lib_entries_by_package ~public_libs stanzas
   in
   let t =
@@ -703,7 +709,7 @@ let create ~(context : Context.t) ~host ~projects ~packages ~stanzas =
   in
   Fdecl.set modules_of_lib_for_scope (fun ~dir ~name ->
       Fdecl.get modules_of_lib t ~dir ~name);
-  Memo.Build.return t
+  t
 
 let filter_out_stanzas_from_hidden_packages ~visible_pkgs =
   List.filter_map ~f:(fun stanza ->

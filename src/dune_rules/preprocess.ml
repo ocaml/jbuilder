@@ -80,24 +80,25 @@ let filter_map t ~f =
   | (No_preprocessing | Action _ | Future_syntax _) as t -> t
 
 let filter_map_resolve t ~f =
-  let open Resolve.O in
+  let open Resolve.Build.O in
   match t with
   | Pps t ->
-    let+ pps = Resolve.List.filter_map t.pps ~f in
+    let+ pps = Resolve.Build.List.filter_map t.pps ~f in
     let pps, flags = List.split pps in
     if pps = [] then
       No_preprocessing
     else
       Pps { t with pps; flags = t.flags @ List.flatten flags }
-  | (No_preprocessing | Action _ | Future_syntax _) as t -> Resolve.return t
+  | (No_preprocessing | Action _ | Future_syntax _) as t ->
+    Resolve.Build.return t
 
 let fold_resolve t ~init ~f =
   match t with
-  | Pps t -> Resolve.List.fold_left t.pps ~init ~f
+  | Pps t -> Resolve.Build.List.fold_left t.pps ~init ~f
   | No_preprocessing
   | Action _
   | Future_syntax _ ->
-    Resolve.return init
+    Resolve.Build.return init
 
 module Without_instrumentation = struct
   type t = Loc.t * Lib_name.t
@@ -264,9 +265,9 @@ module Per_module = struct
   let with_instrumentation t ~instrumentation_backend =
     let f = function
       | With_instrumentation.Ordinary libname ->
-        Resolve.return (Some (libname, []))
+        Resolve.Build.return (Some (libname, []))
       | With_instrumentation.Instrumentation_backend { libname; flags; _ } ->
-        Resolve.map
+        Resolve.Build.map
           ~f:(fun backend ->
             match backend with
             | None -> None
@@ -276,9 +277,9 @@ module Per_module = struct
     Per_module.map_resolve t ~f:(filter_map_resolve ~f)
 
   let instrumentation_deps t ~instrumentation_backend =
-    let open Resolve.O in
+    let open Resolve.Build.O in
     let f = function
-      | With_instrumentation.Ordinary _ -> Resolve.return []
+      | With_instrumentation.Ordinary _ -> Resolve.Build.return []
       | With_instrumentation.Instrumentation_backend
           { libname; deps; flags = _ } -> (
         instrumentation_backend libname >>| function

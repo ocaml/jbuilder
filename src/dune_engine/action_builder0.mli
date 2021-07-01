@@ -35,11 +35,7 @@ val all : 'a t list -> 'a list t
 
 val all_unit : unit t list -> unit t
 
-module List : sig
-  val map : 'a list -> f:('a -> 'b t) -> 'b list t
-
-  val concat_map : 'a list -> f:('a -> 'b list t) -> 'b list t
-end
+module List : Monad_intf.List with type 'a t := 'a t
 
 val push_stack_frame :
      human_readable_description:(unit -> User_message.Style.t Pp.t)

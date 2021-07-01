@@ -357,12 +357,12 @@ let cctx (lib : Library.t) ~sctx ~source_modules ~dir ~expander ~scope
     Lib.DB.instrumentation_backend (Scope.libs scope)
   in
   let* preprocess =
-    Resolve.read_memo_build
+    Resolve.Build.read_memo_build
       (Preprocess.Per_module.with_instrumentation lib.buildable.preprocess
          ~instrumentation_backend)
   in
   let* instrumentation_deps =
-    Resolve.read_memo_build
+    Resolve.Build.read_memo_build
       (Preprocess.Per_module.instrumentation_deps lib.buildable.preprocess
          ~instrumentation_backend)
   in
@@ -373,12 +373,15 @@ let cctx (lib : Library.t) ~sctx ~source_modules ~dir ~expander ~scope
       ~lint:lib.buildable.lint
       ~lib_name:(Some (snd lib.name))
   in
-  let+ modules =
+  let* modules =
     Modules.map_user_written source_modules ~f:(Pp_spec.pp_module pp)
   in
   let modules = Vimpl.impl_modules vimpl modules in
-  let requires_compile = Lib.Compile.direct_requires compile_info in
-  let requires_link = Lib.Compile.requires_link compile_info in
+  let* requires_compile = Lib.Compile.direct_requires compile_info in
+  let+ requires_link =
+    Memo.Lazy.force (Lib.Compile.requires_link compile_info)
+  in
+  let requires_link = lazy requires_link in
   let modes =
     let { Lib_config.has_native; _ } = ctx.lib_config in
     Dune_file.Mode_conf.Set.eval_detailed lib.modes ~has_native
@@ -435,7 +438,7 @@ let library_rules (lib : Library.t) ~cctx ~source_modules ~dir_contents
       ; compile_info
       }
   and+ preprocess =
-    Resolve.read_memo_build
+    Resolve.Build.read_memo_build
       (Preprocess.Per_module.with_instrumentation lib.buildable.preprocess
          ~instrumentation_backend:
            (Lib.DB.instrumentation_backend (Scope.libs scope)))
@@ -448,7 +451,7 @@ let library_rules (lib : Library.t) ~cctx ~source_modules ~dir_contents
       () )
 
 let rules (lib : Library.t) ~sctx ~dir_contents ~dir ~expander ~scope =
-  let compile_info =
+  let* compile_info =
     Lib.DB.get_compile_info (Scope.libs scope) (Library.best_name lib)
       ~allow_overlaps:lib.buildable.allow_overlapping_dependencies
   in

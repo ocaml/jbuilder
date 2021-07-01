@@ -93,7 +93,7 @@ val for_module_generated_at_link_time :
   t -> requires:Lib.t list Resolve.t -> module_:Module.t -> t
 
 val for_plugin_executable :
-  t -> embed_in_plugin_libraries:(Loc.t * Lib_name.t) list -> t
+  t -> embed_in_plugin_libraries:(Loc.t * Lib_name.t) list -> t Memo.Build.t
 
 val bin_annot : t -> bool
 

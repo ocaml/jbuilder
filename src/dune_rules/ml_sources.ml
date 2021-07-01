@@ -202,8 +202,8 @@ let virtual_modules lookup_vlib vlib =
 let make_lib_modules (d : _ Dir_with_dune.t) ~lookup_vlib ~(lib : Library.t)
     ~modules =
   let src_dir = d.ctx_dir in
-  let+ res =
-    let open Resolve.O in
+  let open Resolve.Build.O in
+  let+ kind, main_module_name, wrapped =
     match lib.implements with
     | None ->
       (* In the two following pattern matching, we can only get [From _] if
@@ -228,39 +228,35 @@ let make_lib_modules (d : _ Dir_with_dune.t) ~lookup_vlib ~(lib : Library.t)
       Memo.Build.return (Resolve.return (kind, main_module_name, wrapped))
     | Some _ ->
       assert (Option.is_none lib.virtual_modules);
-      let resolved =
+      let open Memo.Build.O in
+      let* resolved =
         let name = Library.best_name lib in
         Lib.DB.find_even_when_hidden (Scope.libs d.scope) name
         (* can't happen because this library is defined using the current stanza *)
-        |> Option.value_exn
+        >>| Option.value_exn
       in
+      let open Resolve.Build.O in
       (* This [Option.value_exn] is correct because the above [lib.implements]
          is [Some _] and this [lib] variable correspond to the same library. *)
-      Resolve.Build.bind
-        (Option.value_exn (Lib.implements resolved))
-        ~f:(fun vlib ->
-          Memo.Build.map (virtual_modules lookup_vlib vlib) ~f:(fun impl ->
-              let kind : Modules_field_evaluator.kind = Implementation impl in
-              let+ main_module_name, wrapped =
-                let open Resolve.O in
-                let* main_module_name = Lib.main_module_name resolved in
-                let+ wrapped = Lib.wrapped resolved in
-                (main_module_name, Option.value_exn wrapped)
-              in
-              (kind, main_module_name, wrapped)))
+      let* vlib = Option.value_exn (Lib.implements resolved) in
+      let* wrapped = Lib.wrapped resolved in
+      let wrapped = Option.value_exn wrapped in
+      let* main_module_name = Lib.main_module_name resolved in
+      let+ impl = Resolve.Build.lift_memo (virtual_modules lookup_vlib vlib) in
+      let kind : Modules_field_evaluator.kind = Implementation impl in
+      (kind, main_module_name, wrapped)
   in
-  Resolve.map res ~f:(fun (kind, main_module_name, wrapped) ->
-      let modules =
-        Modules_field_evaluator.eval ~modules ~buildable:lib.buildable ~kind
-          ~private_modules:
-            (Option.value ~default:Ordered_set_lang.standard lib.private_modules)
-          ~src_dir
-      in
-      let stdlib = lib.stdlib in
-      let implements = Option.is_some lib.implements in
-      let _loc, lib_name = lib.name in
-      Modules_group.lib ~stdlib ~implements ~lib_name ~src_dir ~modules
-        ~main_module_name ~wrapped)
+  let modules =
+    Modules_field_evaluator.eval ~modules ~buildable:lib.buildable ~kind
+      ~private_modules:
+        (Option.value ~default:Ordered_set_lang.standard lib.private_modules)
+      ~src_dir
+  in
+  let stdlib = lib.stdlib in
+  let implements = Option.is_some lib.implements in
+  let _loc, lib_name = lib.name in
+  Modules_group.lib ~stdlib ~implements ~lib_name ~src_dir ~modules
+    ~main_module_name ~wrapped
 
 let libs_and_exes (d : _ Dir_with_dune.t) ~lookup_vlib ~modules =
   Memo.Build.parallel_map d.data ~f:(fun stanza ->

@@ -16,7 +16,7 @@ module Register_backend (M : Backend) = struct
   end)
 
   let top_closure l ~deps =
-    let open Resolve.O in
+    let open Resolve.Build.O in
     Lib.L.top_closure l ~key:M.lib ~deps >>| function
     | Ok x -> x
     | Error _ ->
@@ -87,19 +87,21 @@ module Register_backend (M : Backend) = struct
     | l -> Ok l
 
   let select_extensible_backends ?written_by_user ~extends to_scan =
-    Memo.Build.map (written_by_user_or_scan ~written_by_user ~to_scan)
+    Memo.Build.bind (written_by_user_or_scan ~written_by_user ~to_scan)
       ~f:(function
-      | Error _ as err -> Resolve.return err
+      | Error _ as err -> Resolve.Build.return err
       | Ok backends ->
-        let open Resolve.O in
-        let* backends = top_closure backends ~deps:extends in
+        let open Resolve.Build.O in
+        let* backends =
+          top_closure backends ~deps:(fun s -> Memo.Build.return (extends s))
+        in
         let+ roots =
           let all = Set.of_list backends in
           let rec loop acc backends =
             match backends with
-            | [] -> Resolve.return (Set.to_list acc)
+            | [] -> Resolve.Build.return (Set.to_list acc)
             | t :: rest ->
-              let* x = extends t in
+              let* x = Memo.Build.return (extends t) in
               let acc = Set.diff acc (Set.of_list x) in
               loop acc rest
           in
@@ -134,11 +136,9 @@ module Register_end_point (M : End_point) = struct
   let gen info (c : Library_compilation_context.t) =
     let open Memo.Build.O in
     let* backends =
-      let ( let& ) t f = Memo.Build.bind t ~f:(Resolve.Build.bind ~f) in
-      let& deps =
-        Memo.Build.return (Lib.Compile.direct_requires c.compile_info)
-      in
-      let& pps = Memo.Build.return (Lib.Compile.pps c.compile_info) in
+      let ( let& ) t f = Resolve.Build.bind t ~f in
+      let& deps = Lib.Compile.direct_requires c.compile_info in
+      let& pps = Lib.Compile.pps c.compile_info in
       let& written_by_user =
         match M.Info.backends info with
         | None -> Memo.Build.return (Resolve.return None)

@@ -40,4 +40,4 @@ val action_for_pp_with_target :
   -> Action.t Action_builder.With_targets.t
 
 val ppx_exe :
-  Super_context.t -> scope:Scope.t -> Lib_name.t -> Path.Build.t Resolve.t
+  Super_context.t -> scope:Scope.t -> Lib_name.t -> Path.Build.t Resolve.Build.t

@@ -60,7 +60,7 @@ module Public_libs = struct
   let create ~context ~public_libs = { context; public_libs }
 
   let file_of_lib t ~loc ~lib ~file =
-    let open Resolve.O in
+    let open Resolve.Build.O in
     let+ lib = Lib.DB.resolve t.public_libs (loc, lib) in
     if Lib.is_local lib then
       let package, rest = Lib_name.split (Lib.name lib) in

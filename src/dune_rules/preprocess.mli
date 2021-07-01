@@ -92,13 +92,15 @@ module Per_module : sig
   val with_instrumentation :
        With_instrumentation.t t
     -> instrumentation_backend:
-         (Loc.t * Lib_name.t -> Without_instrumentation.t option Resolve.t)
-    -> Without_instrumentation.t t Resolve.t
+         (   Loc.t * Lib_name.t
+          -> Without_instrumentation.t option Resolve.Build.t)
+    -> Without_instrumentation.t t Resolve.Build.t
 
   val instrumentation_deps :
        With_instrumentation.t t
     -> instrumentation_backend:
-         (Loc.t * Lib_name.t -> Without_instrumentation.t option Resolve.t)
-    -> Dep_conf.t list Resolve.t
+         (   Loc.t * Lib_name.t
+          -> Without_instrumentation.t option Resolve.Build.t)
+    -> Dep_conf.t list Resolve.Build.t
 end
 with type 'a preprocess := 'a t

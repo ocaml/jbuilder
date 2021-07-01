@@ -10,7 +10,8 @@ let def name dyn =
 let rule sctx compile (exes : Dune_file.Executables.t) () =
   let* locals, externals =
     let+ libs =
-      Resolve.read_memo_build (Lazy.force (Lib.Compile.requires_link compile))
+      Resolve.Build.read_memo_build
+        (Memo.Lazy.force (Lib.Compile.requires_link compile))
     in
     List.partition_map libs ~f:(fun lib ->
         match Lib.Local.of_lib lib with

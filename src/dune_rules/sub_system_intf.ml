@@ -13,7 +13,7 @@ module type S = sig
 
   (** Create an instance of the sub-system *)
   val instantiate :
-       resolve:(Loc.t * Lib_name.t -> Lib.t Resolve.t)
+       resolve:(Loc.t * Lib_name.t -> Lib.t Resolve.Build.t)
     -> get:(loc:Loc.t -> Lib.t -> t option Memo.Build.t)
     -> Lib.t
     -> Info.t
@@ -37,7 +37,7 @@ module type Backend = sig
   (** Return the processed information. This is what is serialised in
       [dune-package] files. Typically, it should be the original info with the
       private library names replaced by public ones. *)
-  val public_info : t -> Info.t Resolve.t
+  val public_info : t -> Info.t Resolve.Build.t
 end
 
 module type Registered_backend = sig
@@ -46,7 +46,7 @@ module type Registered_backend = sig
   val get : Lib.t -> t option Memo.Build.t
 
   (** Resolve a backend name *)
-  val resolve : Lib.DB.t -> Loc.t * Lib_name.t -> t Resolve.t Memo.Build.t
+  val resolve : Lib.DB.t -> Loc.t * Lib_name.t -> t Resolve.Build.t
 
   module Selection_error : sig
     type nonrec t =
@@ -66,7 +66,7 @@ module type Registered_backend = sig
        ?written_by_user:t list
     -> extends:(t -> t list Resolve.t)
     -> Lib.t list
-    -> (t list, Selection_error.t) result Resolve.t Memo.Build.t
+    -> (t list, Selection_error.t) result Resolve.Build.t
 
   (** Choose a backend by either using the ones written by the user or by
       scanning the dependencies.

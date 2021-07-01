@@ -209,17 +209,18 @@ module Driver = struct
       { info; lib; replaces }
 
     let public_info t =
-      let open Resolve.O in
-      let+ replaces = t.replaces in
-      { Info.loc = t.info.loc
-      ; flags = t.info.flags
-      ; as_ppx_flags = t.info.as_ppx_flags
-      ; lint_flags = t.info.lint_flags
-      ; main = t.info.main
-      ; replaces =
-          List.map2 t.info.replaces replaces ~f:(fun (loc, _) t ->
-              (loc, Lib.name t.lib))
-      }
+      Memo.Build.return
+        (let open Resolve.O in
+        let+ replaces = t.replaces in
+        { Info.loc = t.info.loc
+        ; flags = t.info.flags
+        ; as_ppx_flags = t.info.as_ppx_flags
+        ; lint_flags = t.info.lint_flags
+        ; main = t.info.main
+        ; replaces =
+            List.map2 t.info.replaces replaces ~f:(fun (loc, _) t ->
+                (loc, Lib.name t.lib))
+        })
   end
 
   include M
@@ -295,11 +296,11 @@ let build_ppx_driver sctx ~scope ~target ~pps ~pp_names =
   let open Memo.Build.O in
   let ctx = SC.context sctx in
   let* driver_and_libs =
-    Resolve.Build.bind
-      (Resolve.bind pps ~f:(Lib.closure ~linking:true))
-      ~f:(fun pps ->
-        Driver.select pps ~loc:(Dot_ppx (target, pp_names))
-        >>| Resolve.map ~f:(fun driver -> (driver, pps)))
+    let ( let& ) t f = Resolve.Build.bind t ~f in
+    let& pps = Resolve.Build.lift pps in
+    let& pps = Lib.closure ~linking:true pps in
+    Driver.select pps ~loc:(Dot_ppx (target, pp_names))
+    >>| Resolve.map ~f:(fun driver -> (driver, pps))
     >>| (* Extend the dependency stack as we don't have locations at this point *)
     Resolve.push_stack_frame ~human_readable_description:(fun () ->
         Dyn.pp
@@ -368,7 +369,8 @@ let get_rules sctx key =
       in
       (pps, scope)
   in
-  let pps =
+  let open Memo.Build.O in
+  let* pps =
     let lib_db = Scope.libs scope in
     List.map pp_names ~f:(fun x -> (Loc.none, x)) |> Lib.DB.resolve_pps lib_db
   in
@@ -449,11 +451,11 @@ let ppx_driver_and_flags_internal sctx ~loc ~expander ~lib_name ~flags libs =
 
 let ppx_driver_and_flags sctx ~lib_name ~expander ~scope ~loc ~flags pps =
   let open Action_builder.O in
-  let* libs = Resolve.read (Lib.DB.resolve_pps (Scope.libs scope) pps) in
+  let* libs = Resolve.Build.read (Lib.DB.resolve_pps (Scope.libs scope) pps) in
   let* exe, flags =
     ppx_driver_and_flags_internal sctx ~loc ~expander ~lib_name ~flags libs
   in
-  let* libs = Resolve.read (Lib.closure libs ~linking:true) in
+  let* libs = Resolve.Build.read (Lib.closure libs ~linking:true) in
   let+ driver =
     Action_builder.memo_build (Driver.select libs ~loc:(User_file (loc, pps)))
     >>= Resolve.read
@@ -717,10 +719,10 @@ let make sctx ~dir ~expander ~lint ~preprocess ~preprocessor_deps
 
 let get_ppx_driver sctx ~loc ~expander ~scope ~lib_name ~flags pps =
   let open Action_builder.O in
-  let* libs = Resolve.read (Lib.DB.resolve_pps (Scope.libs scope) pps) in
+  let* libs = Resolve.Build.read (Lib.DB.resolve_pps (Scope.libs scope) pps) in
   ppx_driver_and_flags_internal sctx ~loc ~expander ~lib_name ~flags libs
 
 let ppx_exe sctx ~scope pp =
-  let open Resolve.O in
+  let open Resolve.Build.O in
   let+ libs = Lib.DB.resolve_pps (Scope.libs scope) [ (Loc.none, pp) ] in
   ppx_driver_exe sctx libs

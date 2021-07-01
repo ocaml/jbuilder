@@ -22,3 +22,18 @@ and inner_fold t inner_list l ~init ~f =
   match inner_list with
   | [] -> deep_fold l ~init ~f
   | x :: inner_list -> inner_fold t inner_list l ~init:(f t x init) ~f
+
+module Deep_fold (M : Monad_intf.S) = struct
+  let rec deep_fold l ~init ~f =
+    match l with
+    | [] -> M.return init
+    | t :: l -> inner_fold t t.data l ~init ~f
+
+  and inner_fold t inner_list l ~init ~f =
+    match inner_list with
+    | [] -> deep_fold l ~init ~f
+    | x :: inner_list ->
+      let open M.O in
+      let* init = f t x init in
+      inner_fold t inner_list l ~init ~f
+end

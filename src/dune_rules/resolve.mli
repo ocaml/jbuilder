@@ -136,10 +136,6 @@ val push_stack_frame :
 
 val all : 'a t list -> 'a list t
 
-module Build : sig
-  val bind : 'a t -> f:('a -> 'b t Memo.Build.t) -> 'b t Memo.Build.t
-end
-
 module List : sig
   val map : 'a list -> f:('a -> 'b t) -> 'b list t
 
@@ -155,3 +151,51 @@ end
 module Option : sig
   val iter : 'a option -> f:('a -> unit t) -> unit t
 end
+
+module Build : sig
+  type 'a resolve
+
+  type 'a t = 'a resolve Memo.Build.t
+
+  val all : 'a t list -> 'a list t
+
+  include Monad with type 'a t := 'a t
+
+  val push_stack_frame :
+       human_readable_description:(unit -> User_message.Style.t Pp.t)
+    -> (unit -> 'a t)
+    -> 'a t
+
+  val lift_memo : 'a Memo.Build.t -> 'a t
+
+  val lift : 'a resolve -> 'a t
+
+  val is_ok : 'a t -> bool Memo.Build.t
+
+  (** [is_ok t] is the same as [Result.is_error (peek t)] *)
+  val is_error : 'a t -> bool Memo.Build.t
+
+  module List : Monad_intf.List with type 'a t := 'a t
+
+  module Option : sig
+    val iter : 'a option -> f:('a -> unit t) -> unit t
+  end
+
+  (** Same as [read] but in the memo build monad. Use with caution! *)
+  val read_memo_build : 'a t -> 'a Memo.Build.t
+
+  (** Read a [Resolve.t] value inside the action builder monad. *)
+  val read : 'a t -> 'a Action_builder.t
+
+  (** [args] allows to easily inject a resolve monad computing some command line
+      arguments into an command line specification. *)
+  val args : Command.Args.without_targets Command.Args.t t -> 'a Command.Args.t
+
+  val fail : User_message.t -> _ t
+
+  val of_result : ('a, exn) result -> 'a t
+
+  (** Read the value immediatly, ignoring actual errors. *)
+  val peek : 'a t -> ('a, unit) result Memo.Build.t
+end
+with type 'a resolve := 'a t

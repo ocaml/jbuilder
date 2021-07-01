@@ -21,24 +21,28 @@ end
 module T = struct
   open Memo.Build.O
 
-  type 'a t = 'a thunk
+  module M = struct
+    type 'a t = 'a thunk
 
-  let return x = { f = (fun _mode -> Memo.Build.return (x, Dep.Map.empty)) }
+    let return x = { f = (fun _mode -> Memo.Build.return (x, Dep.Map.empty)) }
 
-  let map t ~f =
-    { f =
-        (fun mode ->
-          let+ x, deps = t.f mode in
-          (f x, deps))
-    }
+    let map t ~f =
+      { f =
+          (fun mode ->
+            let+ x, deps = t.f mode in
+            (f x, deps))
+      }
 
-  let bind t ~f =
-    { f =
-        (fun mode ->
-          let* x, deps1 = t.f mode in
-          let+ y, deps2 = (f x).f mode in
-          (y, Deps_or_facts.union mode deps1 deps2))
-    }
+    let bind t ~f =
+      { f =
+          (fun mode ->
+            let* x, deps1 = t.f mode in
+            let+ y, deps2 = (f x).f mode in
+            (y, Deps_or_facts.union mode deps1 deps2))
+      }
+  end
+
+  include M
 
   let both x y =
     { f =
@@ -87,6 +91,11 @@ module T = struct
   end
 
   module List = struct
+    include Monad.List (struct
+      include M
+      include Monad.Make (M)
+    end)
+
     let map l ~f =
       { f =
           (fun mode ->
