@@ -182,21 +182,21 @@ let command_line_enclosers ~dir ~(stdout_to : Io.output Io.t)
       suffix
     | File fn -> suffix ^ " < " ^ quote fn
   in
+  let add_to_suffix redirect path suffix =
+    match path with
+    | None -> suffix
+    | Some path -> suffix ^ redirect ^ String.quote_for_shell path
+  in
   let suffix =
     match
       ( io_to_redirection_path stdout_to.kind
       , io_to_redirection_path stderr_to.kind )
     with
-    | Some fn1, Some fn2 when String.equal fn1 fn2 ->
-      " &> " ^ String.quote_for_shell fn1
+    | Some path_out, Some path_err when String.equal path_out path_err ->
+      let path = path_out in
+      suffix |> add_to_suffix " &> " (Some path)
     | path_out, path_err ->
-      let add_to_suffix suffix path redirect =
-        match path with
-        | None -> suffix
-        | Some path -> suffix ^ redirect ^ String.quote_for_shell path
-      in
-      let suffix = add_to_suffix suffix path_out " > " in
-      add_to_suffix suffix path_err " 2> "
+      suffix |> add_to_suffix " > " path_out |> add_to_suffix " 2> " path_err
   in
   (prefix, suffix)
 
