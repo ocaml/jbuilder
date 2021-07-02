@@ -48,35 +48,21 @@ module Mode = struct
     | Ignore_source_files
 end
 
-module Id = Id.Make ()
+type t =
+  { context : Build_context.t option
+  ; targets : Path.Build.Set.t
+  ; action : Action.Full.t Action_builder.t
+  ; mode : Mode.t
+  ; info : Info.t
+  ; loc : Loc.t
+  ; dir : Path.Build.t
+  }
 
-module T = struct
-  type t =
-    { id : Id.t
-    ; context : Build_context.t option
-    ; targets : Path.Build.Set.t
-    ; action : Action.Full.t Action_builder.t
-    ; mode : Mode.t
-    ; info : Info.t
-    ; loc : Loc.t
-    ; dir : Path.Build.t
-    }
+let loc t = t.loc
 
-  let compare a b = Id.compare a.id b.id
+let to_dyn t : Dyn.t = Record [ ("info", Info.to_dyn t.info) ]
 
-  let equal a b = Id.equal a.id b.id
-
-  let hash t = Id.hash t.id
-
-  let loc t = t.loc
-
-  let to_dyn t : Dyn.t =
-    Record [ ("id", Id.to_dyn t.id); ("info", Info.to_dyn t.info) ]
-end
-
-include T
-module O = Comparable.Make (T)
-module Set = O.Set
+let head_target t = Path.Build.Set.min_elt t.targets |> Option.value_exn
 
 let add_sandbox_config :
     type a.
@@ -136,7 +122,7 @@ let make ?(sandbox = Sandbox_config.default) ?(mode = Mode.Standard) ~context
            (Path.build (Path.Build.relative dir "_unknown_")))
     | Source_file_copy p -> Loc.in_file (Path.source p)
   in
-  { id = Id.gen (); targets; context; action; mode; info; loc; dir }
+  { targets; context; action; mode; info; loc; dir }
 
 let set_action t action =
   let action = Action_builder.memoize "Rule.set_action" action in

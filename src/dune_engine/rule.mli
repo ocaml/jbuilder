@@ -46,19 +46,8 @@ module Mode : sig
             .install files. *)
 end
 
-module Id : sig
-  type t
-
-  val compare : t -> t -> Ordering.t
-
-  module Map : Map.S with type key = t
-
-  module Set : Set.S with type elt = t
-end
-
 type t = private
-  { id : Id.t
-  ; context : Build_context.t option
+  { context : Build_context.t option
   ; targets : Path.Build.Set.t
   ; action : Action.Full.t Action_builder.t
   ; mode : Mode.t
@@ -66,12 +55,6 @@ type t = private
   ; loc : Loc.t
   ; (* Directory where all the targets are produced. *) dir : Path.Build.t
   }
-
-module Set : Set.S with type elt = t
-
-val equal : t -> t -> bool
-
-val hash : t -> int
 
 val to_dyn : t -> Dyn.t
 
@@ -92,6 +75,8 @@ val loc : t -> Loc.t
     rule.dir. Eg. [src/dune] for a rule with dir
     [_build/default/src/dune/.dune.objs]. *)
 val find_source_dir : t -> Source_tree.Dir.t Memo.Build.t
+
+val head_target : t -> Path.Build.t
 
 module Anonymous_action : sig
   (* jeremiedimino: this type correspond to a subset of [Rule.t]. We should

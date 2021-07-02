@@ -117,11 +117,25 @@ end
 
 let files_in_source_tree_to_delete () = Promoted_to_delete.get_db ()
 
+type rule_execution_result =
+  { deps : Dep.Fact.t Dep.Map.t
+  ; targets : Digest.t Path.Build.Map.t
+  }
+
+let execute_rule_fdecl : (Rule.t -> rule_execution_result Memo.Build.t) Fdecl.t
+    =
+  Fdecl.create Dyn.Encoder.opaque
+
 module Loaded = struct
+  type rule =
+    { rule : Rule.t
+    ; exec_rule : rule_execution_result Memo.Lazy.t
+    }
+
   type build =
     { allowed_subdirs : Path.Unspecified.w Dir_set.t
     ; rules_produced : Rules.t
-    ; rules_here : Rule.t Path.Build.Map.t
+    ; rules_here : rule Path.Build.Map.t
     ; aliases : (Loc.t * Rules.Dir_rules.Alias_spec.item) list Alias.Name.Map.t
     }
 
@@ -745,14 +759,19 @@ end = struct
           build)
 
   let compile_rules ~dir ~source_dirs rules =
+    let execute_rule = Fdecl.get execute_rule_fdecl in
     List.concat_map rules ~f:(fun rule ->
         assert (Path.Build.( = ) dir rule.Rule.dir);
+        let compiled_rule =
+          { Loaded.rule; exec_rule = Memo.lazy_ (fun () -> execute_rule rule) }
+        in
         Path.Build.Set.to_list_map rule.targets ~f:(fun target ->
             if String.Set.mem source_dirs (Path.Build.basename target) then
               report_rule_src_dir_conflict dir target rule
             else
-              (target, rule)))
-    |> Path.Build.Map.of_list_reducei ~f:report_rule_conflict
+              (target, compiled_rule)))
+    |> Path.Build.Map.of_list_reducei ~f:(fun p r1 r2 ->
+           report_rule_conflict p r1.Loaded.rule r2.Loaded.rule)
 
   (* Here we are doing a O(log |S|) lookup in a set S of files in the build
      directory [dir]. We could memoize these lookups, but it doesn't seem to be
@@ -1138,7 +1157,7 @@ let get_rule fn =
 
 type rule_or_source =
   | Source of Digest.t
-  | Rule of Path.Build.t * Rule.t
+  | Rule of Path.Build.t * Loaded.rule
 
 let get_rule_or_source t path =
   let dir = Path.parent_exn path in
@@ -1183,11 +1202,6 @@ let get_alias_definition alias =
       [ Pp.text "No rule found for " ++ Alias.describe alias ]
   | Some x -> Memo.Build.return x
 
-type rule_execution_result =
-  { deps : Dep.Fact.t Dep.Map.t
-  ; targets : Digest.t Path.Build.Map.t
-  }
-
 module type Rec = sig
   (** Build all the transitive dependencies of the alias and return the alias
       expansion. *)
@@ -1199,8 +1213,6 @@ module type Rec = sig
 
   val eval_deps :
     'a Action_builder.eval_mode -> Dep.Set.t -> 'a Dep.Map.t Memo.Build.t
-
-  val execute_rule : Rule.t -> rule_execution_result Memo.Build.t
 
   val execute_action :
     observing_facts:Dep.Facts.t -> Rule.Anonymous_action.t -> unit Memo.Build.t
@@ -1224,8 +1236,6 @@ module rec Used_recursively : Rec = Exported
 
 and Exported : sig
   include Rec
-
-  val execute_rule : Rule.t -> rule_execution_result Memo.Build.t
 
   (* The below two definitions are useless, but if we remove them we get an
      "Undefined_recursive_module" exception. *)
@@ -1589,11 +1599,9 @@ end = struct
                reason)
         ]
 
-  let execute_rule_impl ~rule_kind rule =
+  let execute_rule ~rule_kind rule =
     let t = t () in
-    let { Rule.id = _; targets; dir; context; mode; action; info = _; loc } =
-      rule
-    in
+    let { Rule.targets; dir; context; mode; action; info = _; loc } = rule in
     start_rule t rule;
     let head_target = Path.Build.Set.choose_exn targets in
     let* execution_parameters =
@@ -1948,6 +1956,10 @@ end = struct
     fun targets_and_digests ->
     { deps; targets = Path.Build.Map.of_list_exn targets_and_digests }
 
+  let () =
+    Fdecl.set execute_rule_fdecl (fun rule ->
+        execute_rule rule ~rule_kind:Normal_rule)
+
   module Anonymous_action = struct
     type t =
       { action : Rule.Anonymous_action.t
@@ -2011,7 +2023,7 @@ end = struct
            })
     in
     let+ { deps = _; targets = _ } =
-      execute_rule_impl rule
+      execute_rule rule
         ~rule_kind:
           (match act.alias with
           | None -> Anonymous_action
@@ -2122,7 +2134,7 @@ end = struct
     | Rule (path, rule) ->
       let+ { deps = _; targets } =
         Memo.push_stack_frame
-          (fun () -> execute_rule rule)
+          (fun () -> Memo.Lazy.force rule.exec_rule)
           ~human_readable_description:(fun () ->
             Pp.text (Path.to_string_maybe_quoted (Path.build path)))
       in
@@ -2176,7 +2188,7 @@ end = struct
       | Build { rules_here; _ } ->
         let only_generated_files = File_selector.only_generated_files g in
         Path.Build.Map.foldi ~init:[] rules_here
-          ~f:(fun s { Rule.info; _ } acc ->
+          ~f:(fun s { rule = { Rule.info; _ }; _ } acc ->
             match info with
             | Rule.Info.Source_file_copy _ when only_generated_files -> acc
             | _ ->
@@ -2215,26 +2227,14 @@ end = struct
 
   let build_alias = Memo.exec build_alias_memo
 
-  let execute_rule_memo =
-    Memo.create "execute-rule"
-      ~input:(module Rule)
-      (execute_rule_impl ~rule_kind:Normal_rule)
-
-  let execute_rule = Memo.exec execute_rule_memo
-
   let () =
     Fdecl.set Rule_fn.loc_decl (fun () ->
         let+ stack = Memo.get_call_stack () in
         List.find_map stack ~f:(fun frame ->
-            match
-              Memo.Stack_frame.as_instance_of frame ~of_:execute_rule_memo
-            with
-            | Some r -> Some (Rule.loc r)
-            | None ->
-              Option.bind
-                (Memo.Stack_frame.as_instance_of frame
-                   ~of_:execute_action_generic_stage2_memo) ~f:(fun x ->
-                  x.action.Rule.Anonymous_action.loc)))
+            Option.bind
+              (Memo.Stack_frame.as_instance_of frame
+                 ~of_:execute_action_generic_stage2_memo) ~f:(fun x ->
+                x.action.Rule.Anonymous_action.loc)))
 end
 
 open Exported
@@ -2248,7 +2248,7 @@ let eval_pred = Pred.eval
 let build_pred = Pred.build
 
 let package_deps ~packages_of (pkg : Package.t) files =
-  let rules_seen = ref Rule.Set.empty in
+  let rules_seen = ref Path.Build.Set.empty in
   let rec loop fn =
     match Path.as_in_build_dir fn with
     | None ->
@@ -2265,11 +2265,12 @@ let package_deps ~packages_of (pkg : Package.t) files =
     get_rule (Path.build fn) >>= function
     | None -> Memo.Build.return Package.Id.Set.empty
     | Some rule ->
-      if Rule.Set.mem !rules_seen rule then
+      let head_target = Rule.head_target rule.rule in
+      if Path.Build.Set.mem !rules_seen head_target then
         Memo.Build.return Package.Id.Set.empty
       else (
-        rules_seen := Rule.Set.add !rules_seen rule;
-        let* res = execute_rule rule in
+        rules_seen := Path.Build.Set.add !rules_seen head_target;
+        let* res = Memo.Lazy.force rule.exec_rule in
         loop_files (Dep.Facts.paths res.deps |> Path.Map.keys)
       )
   and loop_files files =
@@ -2441,3 +2442,5 @@ let get_current_progress () =
 let targets_of = targets_of
 
 let all_targets () = all_targets (t ())
+
+let get_rule p = get_rule p >>| Option.map ~f:(fun r -> r.Loaded.rule)

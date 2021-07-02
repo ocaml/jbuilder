@@ -30,8 +30,7 @@ let info = Term.info "rules" ~doc ~man
 module Eval_rules : sig
   module Rule : sig
     type t = private
-      { id : Dune_engine.Rule.Id.t
-      ; dir : Path.Build.t
+      { dir : Path.Build.t
       ; deps : Dep.Set.t
       ; expanded_deps : Path.Set.t
       ; targets : Path.Build.Set.t
@@ -44,23 +43,31 @@ module Eval_rules : sig
     recursive:bool -> request:unit Action_builder.t -> Rule.t list Memo.Build.t
 end = struct
   open Dune_engine
-  module Non_evaluated_rule = Rule
+
+  module Non_evaluated_rule = struct
+    include Rule
+
+    let equal a b = Path.Build.equal (head_target a) (head_target b)
+
+    let hash t = Path.Build.hash (head_target t)
+  end
+
   open Memo.Build.O
 
   module Rule = struct
     type t =
-      { id : Rule.Id.t
-      ; dir : Path.Build.t
+      { dir : Path.Build.t
       ; deps : Dep.Set.t
       ; expanded_deps : Path.Set.t
       ; targets : Path.Build.Set.t
       ; context : Build_context.t option
       ; action : Action.t
       }
+
+    let head_target t = Path.Build.Set.min_elt t.targets |> Option.value_exn
   end
 
-  module Rule_top_closure =
-    Top_closure.Make (Non_evaluated_rule.Id.Set) (Memo.Build)
+  module Rule_top_closure = Top_closure.Make (Path.Build.Set) (Memo.Build)
 
   module rec Expand : sig
     val alias : Alias.t -> Path.Set.t Memo.Build.t
@@ -110,8 +117,7 @@ end = struct
           let* action, deps = Action_builder.run rule.action Lazy in
           let* expanded_deps = Expand.deps deps in
           Memo.Build.return
-            { Rule.id = rule.id
-            ; dir = rule.dir
+            { Rule.dir = rule.dir
             ; deps
             ; expanded_deps
             ; targets = rule.targets
@@ -133,7 +139,7 @@ end = struct
     let* (), deps = Action_builder.run request Lazy in
     let* root_rules = rules_of_deps deps in
     Rule_top_closure.top_closure root_rules
-      ~key:(fun rule -> rule.Rule.id)
+      ~key:(fun rule -> Rule.head_target rule)
       ~deps:(fun rule ->
         if recursive then
           rules_of_deps rule.deps
