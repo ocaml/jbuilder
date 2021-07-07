@@ -4,43 +4,88 @@ open Import
 module SC = Super_context
 
 module Includes = struct
-  type t = Command.Args.without_targets Command.Args.t Cm_kind.Dict.t
+  type t =
+    Module.t -> Command.Args.without_targets Command.Args.t Cm_kind.Dict.t
 
-  let make ~project ~opaque ~requires : _ Cm_kind.Dict.t =
-    let open Resolve.O in
+  let read_raw_deps_of ~obj_dir ~ml_kind m =
+    (* If the module does not have an interface, use the dependencies of the
+       implementation. *)
+    let ml_kind =
+      if ml_kind = Ml_kind.Intf && not (Module.has m ~ml_kind) then
+        Ml_kind.Impl
+      else
+        ml_kind
+    in
+    match Module.kind m with
+    | Module.Kind.Impl -> Ocamldep.read_raw_deps_of ~obj_dir ~ml_kind m
+    | _ -> None
+
+  let make ~project ~obj_dir ~opaque ~requires : _ -> _ Cm_kind.Dict.t =
+    let open Action_builder.O in
     let iflags libs mode = Lib.L.include_flags ~project libs mode in
-    let cmi_includes =
-      Command.Args.memo
-        (Resolve.args
-           (let+ libs = requires in
-            Command.Args.S
-              [ iflags libs Byte
-              ; Hidden_deps (Lib_file_deps.deps libs ~groups:[ Cmi ])
-              ]))
+    let entry_modules =
+      let* libs = Resolve.read requires in
+      let+ entry_modules =
+        Action_builder.List.map libs ~f:(fun lib ->
+            let* entry_module_names =
+              Action_builder.memo_build (Lib.entry_module_names lib)
+            in
+            Resolve.read entry_module_names)
+      in
+      List.fold_left2 libs entry_modules ~init:Module_name.Map.empty
+        ~f:(fun accu lib entry_modules ->
+          List.fold_left entry_modules ~init:accu ~f:(fun accu entry_module ->
+              Module_name.Map.update accu entry_module ~f:(function
+                | None -> Some (Lib.Set.singleton lib)
+                | Some libs -> Some (Lib.Set.add libs lib))))
     in
-    let cmx_includes =
-      Command.Args.memo
-        (Resolve.args
-           (let+ libs = requires in
-            Command.Args.S
-              [ iflags libs Native
-              ; Hidden_deps
-                  (if opaque then
-                    List.map libs ~f:(fun lib ->
-                        ( lib
-                        , if Lib.is_local lib then
-                            [ Lib_file_deps.Group.Cmi ]
-                          else
-                            [ Cmi; Cmx ] ))
-                    |> Lib_file_deps.deps_with_exts
-                  else
-                    Lib_file_deps.deps libs
-                      ~groups:[ Lib_file_deps.Group.Cmi; Cmx ])
-              ]))
+    let cmi_includes libs =
+      let+ requires = Resolve.read requires
+      and+ libs = libs in
+      Command.Args.S
+        [ iflags requires Byte
+        ; Hidden_deps (Lib_file_deps.deps libs ~groups:[ Cmi ])
+        ]
     in
-    { cmi = cmi_includes; cmo = cmi_includes; cmx = cmx_includes }
+    let cmx_includes libs =
+      let+ requires = Resolve.read requires
+      and+ libs = libs in
+      Command.Args.S
+        [ iflags requires Native
+        ; Hidden_deps
+            (if opaque then
+              List.map libs ~f:(fun lib ->
+                  ( lib
+                  , if Lib.is_local lib then
+                      [ Lib_file_deps.Group.Cmi ]
+                    else
+                      [ Cmi; Cmx ] ))
+              |> Lib_file_deps.deps_with_exts
+            else
+              Lib_file_deps.deps libs ~groups:[ Lib_file_deps.Group.Cmi; Cmx ])
+        ]
+    in
+    fun m ->
+      let libs ml_kind =
+        match read_raw_deps_of ~obj_dir ~ml_kind m with
+        | None -> Resolve.read requires
+        | Some deps ->
+          let+ deps = deps
+          and+ entry_modules = entry_modules in
+          List.fold_left deps ~init:Lib.Set.empty ~f:(fun accu dep ->
+              match Module_name.Map.find entry_modules dep with
+              | None -> accu
+              | Some libs -> Lib.Set.union accu libs)
+          |> Lib.Set.to_list
+      in
+      let cmi_includes = Command.Args.Dyn (cmi_includes (libs Intf)) in
+      let cmx_includes = Command.Args.Dyn (cmx_includes (libs Impl)) in
+      { Cm_kind.Dict.cmi = cmi_includes
+      ; cmo = cmi_includes
+      ; cmx = cmx_includes
+      }
 
-  let empty = Cm_kind.Dict.make_all Command.Args.empty
+  let empty _ = Cm_kind.Dict.make_all Command.Args.empty
 end
 
 type opaque =
@@ -146,7 +191,8 @@ let create ~super_context ~scope ~expander ~obj_dir ~modules ~flags
   ; flags
   ; requires_compile
   ; requires_link
-  ; includes = Includes.make ~project ~opaque ~requires:requires_compile
+  ; includes =
+      Includes.make ~project ~obj_dir ~opaque ~requires:requires_compile
   ; preprocessing
   ; opaque
   ; stdlib

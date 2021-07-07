@@ -44,6 +44,9 @@ let generate_and_compile_module cctx ~precompiled_cmi ~name ~lib ~code ~requires
         Compilation_context.for_module_generated_at_link_time cctx ~requires
           ~module_
       in
+      (* FIXME: the following call is used just to set up the rule to generate
+         the files containing the dependencies of [module_]. *)
+      let* _ = Dep_rules.for_module cctx module_ in
       let+ () =
         Module_compilation.build_module
           ~dep_graphs:(Dep_graph.Ml_kind.dummy module_)
