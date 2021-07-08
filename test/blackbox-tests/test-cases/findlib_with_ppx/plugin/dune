@@ -1,0 +1,4 @@
+(library
+  (name plugin)
+  (public_name findlib_with_ppx.plugin)
+  (libraries pcre))

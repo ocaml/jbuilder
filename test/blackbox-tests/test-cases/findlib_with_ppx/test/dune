@@ -1,0 +1,3 @@
+(executable
+  (name test)
+  (preprocess (pps findlib_with_ppx)))

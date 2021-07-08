@@ -1,0 +1,10 @@
+(lang dune 1.11)
+
+(package
+ (name findlib_with_ppx)
+ (synopsis "findlib_with_ppx")
+ (description "findlib_with_ppx")
+ (depends
+  (ocaml (and (>= 4.03.0)))
+  (ocaml-migrate-parsetree (>= 1.5.0))
+  (dune (>= 1.11.0))))
