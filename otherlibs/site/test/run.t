@@ -142,7 +142,7 @@ Test with an opam like installation
     "odoc" {with-doc}
   ]
   build: [
-    ["dune" "subst" "--root" "."] {dev}
+    ["dune" "subst"] {dev}
     [
       "dune"
       "build"
