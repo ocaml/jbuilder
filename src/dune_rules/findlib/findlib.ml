@@ -579,8 +579,6 @@ let find t name =
   | Some x -> Ok x
   | None -> Error Unavailable_reason.Not_found
 
-let available t name = Result.is_ok (find t name)
-
 let root_packages t =
   let pkgs =
     List.concat_map t.paths ~f:(fun dir ->

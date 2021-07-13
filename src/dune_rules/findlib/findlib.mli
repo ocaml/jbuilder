@@ -36,8 +36,6 @@ val find_root_package :
 val find :
   t -> Lib_name.t -> (Dune_package.Entry.t, Unavailable_reason.t) result
 
-val available : t -> Lib_name.t -> bool
-
 (** List all the packages available in this Database *)
 val all_packages : t -> Dune_package.Entry.t list
 
