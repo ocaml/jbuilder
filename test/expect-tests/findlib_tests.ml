@@ -37,7 +37,10 @@ let findlib =
 
 let%expect_test _ =
   let pkg =
-    match Findlib.find findlib (Lib_name.of_string "foo") with
+    match
+      Lib_name.of_string "foo" |> Findlib.find findlib |> Memo.Build.run
+      |> Test_scheduler.(run (create ()))
+    with
     | Ok (Library x) -> x
     | _ -> assert false
   in

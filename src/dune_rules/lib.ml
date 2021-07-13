@@ -381,7 +381,7 @@ end
 
 type db =
   { parent : db option
-  ; resolve : (Lib_name.t, resolve_result) Memo.t
+  ; resolve : Lib_name.t -> resolve_result Memo.Build.t
   ; all : Lib_name.t list Lazy.t
   ; lib_config : Lib_config.t
   ; instrument_with : Lib_name.t list
@@ -1355,7 +1355,7 @@ end = struct
 
   let resolve_name db name ~stack =
     let open Memo.Build.O in
-    Memo.exec db.resolve name >>= function
+    db.resolve name >>= function
     | Redirect (db', (_, name')) ->
       let db' = Option.value db' ~default:db in
       find_internal db' name' ~stack
@@ -1867,10 +1867,6 @@ module DB = struct
      memoization framework instead of using mutable state. *)
   let create ~parent ~resolve ~projects_by_package ~all ~modules_of_lib
       ~lib_config () =
-    let resolve =
-      let resolve x = Memo.Build.return (resolve x) in
-      Memo.create "db-resolve" ~input:(module Lib_name) resolve
-    in
     { parent
     ; resolve
     ; all = Lazy.from_fun all
@@ -1891,7 +1887,8 @@ module DB = struct
                ]);
          t)
       ~resolve:(fun name ->
-        match Findlib.find findlib name with
+        let open Memo.Build.O in
+        Findlib.find findlib name >>| function
         | Ok (Library pkg) -> Found (Dune_package.Lib.info pkg)
         | Ok (Deprecated_library_name d) ->
           Redirect (None, (d.loc, d.new_public_name))

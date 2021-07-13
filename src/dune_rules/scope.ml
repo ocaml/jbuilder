@@ -101,10 +101,11 @@ module DB = struct
     in
     Lib.DB.create () ~parent:(Some parent) ~projects_by_package
       ~resolve:(fun name ->
-        match Lib_name.Map.find map name with
-        | None -> Lib.DB.Resolve_result.not_found
-        | Some (Redirect lib) -> Lib.DB.Resolve_result.redirect None lib
-        | Some (Found lib) -> Lib.DB.Resolve_result.found lib)
+        Memo.Build.return
+          (match Lib_name.Map.find map name with
+          | None -> Lib.DB.Resolve_result.not_found
+          | Some (Redirect lib) -> Lib.DB.Resolve_result.redirect None lib
+          | Some (Found lib) -> Lib.DB.Resolve_result.found lib))
       ~all:(fun () -> Lib_name.Map.keys map)
       ~modules_of_lib ~lib_config
 
@@ -179,7 +180,7 @@ module DB = struct
             ; Pp.textf "- %s" (Loc.to_file_colon_line loc2)
             ])
     in
-    let resolve = resolve t public_libs in
+    let resolve lib = Memo.Build.return (resolve t public_libs lib) in
     Lib.DB.create ~parent:(Some installed_libs) ~resolve ~modules_of_lib
       ~projects_by_package
       ~all:(fun () -> Lib_name.Map.keys public_libs)

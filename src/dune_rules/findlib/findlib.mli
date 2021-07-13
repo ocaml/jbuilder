@@ -34,7 +34,7 @@ val find_root_package :
   t -> Package.Name.t -> (Dune_package.t, Unavailable_reason.t) result
 
 val find :
-  t -> Lib_name.t -> (Dune_package.Entry.t, Unavailable_reason.t) result
+  t -> Lib_name.t -> (Dune_package.Entry.t, Unavailable_reason.t) result Memo.Build.t
 
 (** List all the packages available in this Database *)
 val all_packages : t -> Dune_package.Entry.t list

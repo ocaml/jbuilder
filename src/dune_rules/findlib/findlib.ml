@@ -573,11 +573,12 @@ let find_root_package t name =
     res
 
 let find t name =
-  let open Result.O in
-  let* p = find_root_package t (Lib_name.package_name name) in
-  match Lib_name.Map.find p.entries name with
-  | Some x -> Ok x
-  | None -> Error Unavailable_reason.Not_found
+  Memo.Build.return
+    (let open Result.O in
+    let* p = find_root_package t (Lib_name.package_name name) in
+    match Lib_name.Map.find p.entries name with
+    | Some x -> Ok x
+    | None -> Error Unavailable_reason.Not_found)
 
 let root_packages t =
   let pkgs =

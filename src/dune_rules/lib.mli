@@ -186,7 +186,7 @@ module DB : sig
       [all] returns the list of names of libraries available in this database. *)
   val create :
        parent:t option
-    -> resolve:(Lib_name.t -> Resolve_result.t)
+    -> resolve:(Lib_name.t -> Resolve_result.t Memo.Build.t)
     -> projects_by_package:Dune_project.t Package.Name.Map.t
     -> all:(unit -> Lib_name.t list)
     -> modules_of_lib:
