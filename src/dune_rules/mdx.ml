@@ -280,15 +280,15 @@ let mdx_prog_gen t ~sctx ~dir ~scope ~expander ~mdx_prog =
 
   (* Libs from the libraries field should have their include directories sent to
      mdx *)
-  let open Resolve.O in
+  let open Resolve.Build.O in
   let directory_args =
     let+ libs_to_include =
-      Resolve.List.filter_map t.libraries ~f:(function
+      Resolve.Build.List.filter_map t.libraries ~f:(function
         | Direct lib
         | Re_export lib ->
           let+ lib = Lib.DB.resolve (Scope.libs scope) lib in
           Some lib
-        | _ -> Resolve.return None)
+        | _ -> Resolve.Build.return None)
     in
 
     let mode = Context.best_mode (Super_context.context sctx) in
@@ -310,7 +310,7 @@ let mdx_prog_gen t ~sctx ~dir ~scope ~expander ~mdx_prog =
   (* We call mdx to generate the testing executable source *)
   let action =
     Command.run ~dir:(Path.build dir) mdx_prog ~stdout_to:file
-      [ A "dune-gen"; prelude_args; Resolve.args directory_args ]
+      [ A "dune-gen"; prelude_args; Resolve.Build.args directory_args ]
   in
   let open Memo.Build.O in
   let* () = Super_context.add_rule sctx ~loc ~dir action in
@@ -328,12 +328,15 @@ let mdx_prog_gen t ~sctx ~dir ~scope ~expander ~mdx_prog =
       (Lib_dep.Direct (loc, Lib_name.of_string "mdx.test") :: t.libraries)
       ~pps:[] ~dune_version
   in
-  let cctx =
+  let* cctx =
+    let+ requires_compile = Lib.Compile.direct_requires compile_info
+    and+ requires_link =
+      Memo.Lazy.force (Lib.Compile.requires_link compile_info)
+    in
+    let requires_link = lazy requires_link in
     Compilation_context.create ~super_context:sctx ~scope ~expander ~obj_dir
-      ~modules ~flags
-      ~requires_compile:(Lib.Compile.direct_requires compile_info)
-      ~requires_link:(Lib.Compile.requires_link compile_info)
-      ~opaque:(Explicit false) ~js_of_ocaml:None ~package:None ()
+      ~modules ~flags ~requires_compile ~requires_link ~opaque:(Explicit false)
+      ~js_of_ocaml:None ~package:None ()
   in
   let+ () =
     Exe.build_and_link cctx
