@@ -154,21 +154,16 @@ module V1 : sig
     end
   end
 
-  module Build : sig
-    module Event : sig
-      type t =
-        | Start
-        | Finish
-        | Fail
-        | Interrupt
-    end
-  end
-
   module Progress : sig
     type t =
-      { complete : int
-      ; remaining : int
-      }
+      | Waiting
+      | In_progress of
+          { complete : int
+          ; remaining : int
+          }
+      | Failed
+      | Interrupted
+      | Success
   end
 
   module Subscribe : sig
@@ -223,7 +218,6 @@ module V1 : sig
                (** Called whenever diagnostics are added or removed. When
                    subscribing to diagnostics, this function will immediately be
                    called with the current set of diagnostics. *)
-          -> ?build_event:(Build.Event.t -> unit fiber)
           -> ?build_progress:(Progress.t -> unit fiber)
           -> ?abort:(Message.t -> unit fiber)
                (** If [abort] is called, the server has terminated the

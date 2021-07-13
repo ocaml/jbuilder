@@ -358,7 +358,7 @@ let error t errors =
 
 let build_progress t ~complete ~remaining =
   let t = Fdecl.get t in
-  let notification = { Progress.complete; remaining } in
+  let notification = Progress.In_progress { complete; remaining } in
   task t (fun () ->
       Subscribers.notify t.subscribers Build_progress ~f:(fun session ->
           Session.notification session Server_notifications.progress
@@ -368,14 +368,14 @@ let build_event t (event : Build_system.Handler.event) =
   let t = Fdecl.get t in
   let notification =
     match event with
-    | Start -> Build.Event.Start
-    | Finish -> Finish
-    | Interrupt -> Interrupt
-    | Fail -> Fail
+    | Start -> Progress.In_progress { complete = 0; remaining = 0 }
+    | Finish -> Success
+    | Interrupt -> Interrupted
+    | Fail -> Failed
   in
   task t (fun () ->
       Subscribers.notify t.subscribers Build_progress ~f:(fun session ->
-          Session.notification session Server_notifications.build_event
+          Session.notification session Server_notifications.progress
             notification))
 
 let create () =

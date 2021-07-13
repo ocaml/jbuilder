@@ -245,23 +245,16 @@ module Diagnostic : sig
   end
 end
 
-module Build : sig
-  module Event : sig
-    type t =
-      | Start
-      | Finish
-      | Fail
-      | Interrupt
-
-    val to_dyn : t -> Stdune.Dyn.t
-  end
-end
-
 module Progress : sig
   type t =
-    { complete : int
-    ; remaining : int
-    }
+    | Waiting
+    | In_progress of
+        { complete : int
+        ; remaining : int
+        }
+    | Failed
+    | Interrupted
+    | Success
 end
 
 module Message : sig
@@ -326,7 +319,6 @@ module Client : sig
       val create :
            ?log:(Message.t -> unit fiber)
         -> ?diagnostic:(Diagnostic.Event.t list -> unit fiber)
-        -> ?build_event:(Build.Event.t -> unit fiber)
         -> ?build_progress:(Progress.t -> unit fiber)
         -> ?abort:(Message.t -> unit fiber)
         -> unit
@@ -433,8 +425,6 @@ module Server_notifications : sig
   val diagnostic : Diagnostic.Event.t list Decl.notification
 
   val progress : Progress.t Decl.notification
-
-  val build_event : Build.Event.t Decl.notification
 
   val log : Message.t Decl.notification
 

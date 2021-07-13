@@ -8,7 +8,6 @@ module V1 = struct
   module Loc = Loc
   module Target = Target
   module Diagnostic = Diagnostic
-  module Build = Build
   module Progress = Progress
   module Subscribe = Subscribe
   module Message = Message
@@ -29,7 +28,6 @@ module V1 = struct
         val create :
              ?log:(Message.t -> unit fiber)
           -> ?diagnostic:(Diagnostic.Event.t list -> unit fiber)
-          -> ?build_event:(Build.Event.t -> unit fiber)
           -> ?build_progress:(Progress.t -> unit fiber)
           -> ?abort:(Message.t -> unit fiber)
           -> unit

@@ -382,46 +382,43 @@ module Diagnostic = struct
   end
 end
 
-module Build = struct
-  module Event = struct
-    type t =
-      | Start
-      | Finish
-      | Fail
-      | Interrupt
-
-    let all =
-      [ ("start", Start)
-      ; ("finish", Finish)
-      ; ("fail", Fail)
-      ; ("interrupt", Interrupt)
-      ]
-
-    let sexp = Conv.enum all
-
-    let to_dyn t =
-      List.find_map all ~f:(fun (s, v) ->
-          if v = t then
-            Some (Dyn.String s)
-          else
-            None)
-      |> Option.value_exn
-  end
-end
-
 module Progress = struct
   type t =
-    { complete : int
-    ; remaining : int
-    }
+    | Waiting
+    | In_progress of
+        { complete : int
+        ; remaining : int
+        }
+    | Failed
+    | Interrupted
+    | Success
 
   let sexp =
     let open Conv in
-    let from { complete; remaining } = (complete, remaining) in
-    let to_ (complete, remaining) = { complete; remaining } in
-    let complete = field "complete" (required int) in
-    let remaining = field "remaining" (required int) in
-    iso (record (both complete remaining)) to_ from
+    let waiting = constr "waiting" unit (fun () -> Waiting) in
+    let failed = constr "failed" unit (fun () -> Failed) in
+    let in_progress =
+      let complete = field "complete" (required int) in
+      let remaining = field "remaining" (required int) in
+      constr "in_progress"
+        (record (both complete remaining))
+        (fun (complete, remaining) -> In_progress { complete; remaining })
+    in
+    let interrupted = constr "interrupted" unit (fun () -> Interrupted) in
+    let success = constr "success" unit (fun () -> Success) in
+    let constrs =
+      List.map ~f:econstr [ waiting; failed; interrupted; success ]
+      @ [ econstr in_progress ]
+    in
+    let serialize = function
+      | Waiting -> case () waiting
+      | In_progress { complete; remaining } ->
+        case (complete, remaining) in_progress
+      | Failed -> case () failed
+      | Interrupted -> case () interrupted
+      | Success -> case () success
+    in
+    sum constrs serialize
 end
 
 module Message = struct
@@ -484,9 +481,6 @@ module Server_notifications = struct
   let log = Decl.notification ~method_:"notify/log" Message.sexp
 
   let progress = Decl.notification ~method_:"notify/progress" Progress.sexp
-
-  let build_event =
-    Decl.notification ~method_:"notify/build-event" Build.Event.sexp
 end
 
 module Client = struct
@@ -534,7 +528,6 @@ module Client = struct
       val create :
            ?log:(Message.t -> unit fiber)
         -> ?diagnostic:(Diagnostic.Event.t list -> unit fiber)
-        -> ?build_event:(Build.Event.t -> unit fiber)
         -> ?build_progress:(Progress.t -> unit fiber)
         -> ?abort:(Message.t -> unit fiber)
         -> unit
@@ -840,12 +833,10 @@ module Client = struct
         { log : Message.t -> unit Fiber.t
         ; abort : Message.t -> unit Fiber.t
         ; diagnostic : Diagnostic.Event.t list -> unit Fiber.t
-        ; build_event : Build.Event.t -> unit Fiber.t
         ; build_progress : Progress.t -> unit Fiber.t
         }
 
-      let on_notification
-          { log; abort; diagnostic; build_event; build_progress } ~version =
+      let on_notification { log; abort; diagnostic; build_progress } ~version =
         let table = Table.create (module String) 16 in
         let to_callback (decl : _ Decl.notification) f payload =
           match Conv.of_sexp decl.req payload ~version with
@@ -861,7 +852,6 @@ module Client = struct
         add Server_notifications.log log;
         add Server_notifications.abort abort;
         add Server_notifications.progress build_progress;
-        add Server_notifications.build_event build_event;
         fun { Call.method_; params } ->
           match Table.find table method_ with
           | None ->
@@ -883,11 +873,9 @@ module Client = struct
       let abort { Message.payload = _; message } =
         failwith ("Fatal error from server: " ^ message)
 
-      let build_event _ = failwith "unexpected build event notification"
+      let default = { log; diagnostic; build_progress; abort }
 
-      let default = { log; diagnostic; build_event; build_progress; abort }
-
-      let create ?log ?diagnostic ?build_event ?build_progress ?abort () =
+      let create ?log ?diagnostic ?build_progress ?abort () =
         let t =
           let t = default in
           match log with
@@ -898,11 +886,6 @@ module Client = struct
           match diagnostic with
           | None -> t
           | Some diagnostic -> { t with diagnostic }
-        in
-        let t =
-          match build_event with
-          | None -> t
-          | Some build_event -> { t with build_event }
         in
         let t =
           match build_progress with
