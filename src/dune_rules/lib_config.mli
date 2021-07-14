@@ -25,3 +25,7 @@ val allowed_in_enabled_if : (string * Dune_lang.Syntax.Version.t) list
 val get_for_enabled_if : t -> Pform.t -> string
 
 val linker_can_create_empty_archives : t -> bool
+
+val hash : t -> int
+
+val equal : t -> t -> bool

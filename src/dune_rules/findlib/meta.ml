@@ -74,6 +74,10 @@ module Simplified = struct
     ; subs : t list
     }
 
+  let equal = Poly.equal
+
+  let hash = Poly.hash
+
   let rec to_dyn { name; vars; subs } =
     let open Dyn.Encoder in
     record

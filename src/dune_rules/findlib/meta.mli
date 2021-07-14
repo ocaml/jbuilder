@@ -54,6 +54,10 @@ module Simplified : sig
     ; subs : t list
     }
 
+  val equal : t -> t -> bool
+
+  val hash : t -> int
+
   val to_dyn : t -> Dyn.t
 end
 
