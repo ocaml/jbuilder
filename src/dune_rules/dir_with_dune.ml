@@ -37,3 +37,5 @@ module Deep_fold (M : Monad_intf.S) = struct
       let* init = f t x init in
       inner_fold t inner_list l ~init ~f
 end
+
+module Memo = Deep_fold (Memo.Build)

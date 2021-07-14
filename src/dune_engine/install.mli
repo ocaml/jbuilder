@@ -89,9 +89,9 @@ module Entry : sig
     -> (   loc:Loc.t
         -> pkg:Package.Name.t
         -> site:Dune_section.Site.t
-        -> Section.t)
+        -> Section.t Memo.Build.t)
     -> Path.Build.t
-    -> Path.Build.t t
+    -> Path.Build.t t Memo.Build.t
 
   val set_src : _ t -> 'src -> 'src t
 

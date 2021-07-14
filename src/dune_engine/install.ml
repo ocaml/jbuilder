@@ -280,9 +280,11 @@ module Entry = struct
 
   let make_with_site section ?dst get_section src =
     match section with
-    | Section_with_site.Section section -> make section ?dst src
+    | Section_with_site.Section section ->
+      Memo.Build.return (make section ?dst src)
     | Site { pkg; site; loc } ->
-      let section = get_section ~loc ~pkg ~site in
+      let open Memo.Build.O in
+      let+ section = get_section ~loc ~pkg ~site in
       let dst = adjust_dst' ~src ~dst ~section in
       let dst = Dst.add_prefix (Section.Site.to_string site) dst in
       let dst_with_pkg_prefix =

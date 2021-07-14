@@ -330,14 +330,16 @@ end = struct
                   in
                   let section = i.section in
                   Memo.Build.List.map i.files ~f:(fun unexpanded ->
-                      let+ fb = path_expander unexpanded in
+                      let* fb = path_expander unexpanded in
                       let loc = File_binding.Expanded.src_loc fb in
                       let src = File_binding.Expanded.src fb in
                       let dst = File_binding.Expanded.dst fb in
-                      ( Some loc
-                      , Install.Entry.make_with_site section
+                      let+ entry =
+                        Install.Entry.make_with_site section
                           (Super_context.get_site_of_packages sctx)
-                          src ?dst ))
+                          src ?dst
+                      in
+                      (Some loc, entry))
                 | Dune_file.Library lib ->
                   let sub_dir = Dune_file.Library.sub_dir lib in
                   let* dir_contents = Dir_contents.get sctx ~dir in

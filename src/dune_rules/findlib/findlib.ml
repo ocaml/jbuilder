@@ -565,20 +565,22 @@ let dummy_lib t ~name =
   | _ -> assert false
 
 let find_root_package t name =
-  match Table.find t.root_packages name with
-  | Some x -> x
-  | None ->
-    let res = Loader.lookup_and_load t name in
-    Table.set t.root_packages name res;
-    res
+  Memo.Build.return
+    (match Table.find t.root_packages name with
+    | Some x -> x
+    | None ->
+      let res = Loader.lookup_and_load t name in
+      Table.set t.root_packages name res;
+      res)
 
 let find t name =
-  Memo.Build.return
-    (let open Result.O in
-    let* p = find_root_package t (Lib_name.package_name name) in
-    match Lib_name.Map.find p.entries name with
-    | Some x -> Ok x
-    | None -> Error Unavailable_reason.Not_found)
+  let open Memo.Build.O in
+  let+ p = find_root_package t (Lib_name.package_name name) in
+  let open Result.O in
+  let* p = p in
+  match Lib_name.Map.find p.entries name with
+  | Some x -> Ok x
+  | None -> Error Unavailable_reason.Not_found
 
 let root_packages t =
   let pkgs =

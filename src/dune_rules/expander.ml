@@ -64,7 +64,7 @@ type t =
   ; foreign_flags :
          dir:Path.Build.t
       -> string list Action_builder.t Foreign_language.Dict.t Memo.Build.t
-  ; find_package : Package.Name.t -> any_package option
+  ; find_package : Package.Name.t -> any_package option Memo.Build.t
   ; expanding_what : Expanding_what.t
   }
 

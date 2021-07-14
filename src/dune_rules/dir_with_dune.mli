@@ -19,10 +19,10 @@ val map : 'a t -> f:('a -> 'b) -> 'b t
 val deep_fold :
   'a list t list -> init:'acc -> f:('a list t -> 'a -> 'acc -> 'acc) -> 'acc
 
-module Deep_fold (M : Monad_intf.S) : sig
+module Memo : sig
   val deep_fold :
        'a list t list
     -> init:'acc
-    -> f:('a list t -> 'a -> 'acc -> 'acc M.t)
-    -> 'acc M.t
+    -> f:('a list t -> 'a -> 'acc -> 'acc Memo.Build.t)
+    -> 'acc Memo.Build.t
 end

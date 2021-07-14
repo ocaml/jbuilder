@@ -45,11 +45,11 @@ let install_rules ~sctx ~dir ({ name; site = loc, (pkg, site); _ } as t) =
     Memo.Build.return []
   else
     let meta = meta_file ~dir t in
-    Memo.Build.return
-      [ ( Some loc
-        , Install.Entry.make_with_site
-            ~dst:(sprintf "%s/%s" (Package.Name.to_string name) Findlib.meta_fn)
-            (Site { pkg; site; loc })
-            (Super_context.get_site_of_packages sctx)
-            meta )
-      ]
+    let+ entry =
+      Install.Entry.make_with_site
+        ~dst:(sprintf "%s/%s" (Package.Name.to_string name) Findlib.meta_fn)
+        (Site { pkg; site; loc })
+        (Super_context.get_site_of_packages sctx)
+        meta
+    in
+    [ (Some loc, entry) ]

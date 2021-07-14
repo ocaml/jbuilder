@@ -246,9 +246,10 @@ let host t = Option.value t.host ~default:t
 
 let any_package_aux ~packages ~context pkg =
   match Package.Name.Map.find packages pkg with
-  | Some p -> Some (Expander.Local p)
+  | Some p -> Memo.Build.return (Some (Expander.Local p))
   | None -> (
-    match Findlib.find_root_package context.Context.findlib pkg with
+    let open Memo.Build.O in
+    Findlib.find_root_package context.Context.findlib pkg >>| function
     | Ok p -> Some (Expander.Installed p)
     | Error Not_found -> None
     | Error (Invalid_dune_package exn) -> Exn.raise exn)
@@ -267,7 +268,8 @@ let get_site_of_packages_aux ~loc ~any_package ~pkg ~site =
             (Section.Site.to_string site)
         ]
   in
-  match any_package pkg with
+  let open Memo.Build.O in
+  any_package pkg >>| function
   | Some (Expander.Local p) -> find_site p.Package.sites ~pkg ~site
   | Some (Expander.Installed p) -> find_site p.sites ~pkg ~site
   | None ->
@@ -491,8 +493,7 @@ let get_installed_binaries stanzas ~(context : Context.t) =
   >>| Path.Build.Set.union_all
 
 let create_lib_entries_by_package ~public_libs stanzas =
-  let module Deep_fold = Dir_with_dune.Deep_fold (Memo.Build) in
-  Deep_fold.deep_fold stanzas ~init:[] ~f:(fun d stanza acc ->
+  Dir_with_dune.Memo.deep_fold stanzas ~init:[] ~f:(fun d stanza acc ->
       match stanza with
       | Dune_file.Library ({ visibility = Private (Some pkg); _ } as lib) -> (
         let+ lib =
@@ -591,11 +592,13 @@ let create ~(context : Context.t) ~host ~projects ~packages ~stanzas =
       | None -> Some (Section.Set.singleton section)
       | Some s -> Some (Section.Set.add s section))
   in
-  let package_sections =
-    Dir_with_dune.deep_fold stanzas ~init:Package.Name.Map.empty
+  let* package_sections =
+    Dir_with_dune.Memo.deep_fold stanzas ~init:Package.Name.Map.empty
       ~f:(fun _ stanza acc ->
         let add_in_package_sites acc pkg site loc =
-          let section = get_site_of_packages_aux ~loc ~any_package ~pkg ~site in
+          let+ section =
+            get_site_of_packages_aux ~loc ~any_package ~pkg ~site
+          in
           add_in_package_section acc pkg section
         in
         match stanza with
@@ -603,17 +606,19 @@ let create ~(context : Context.t) ~host ~projects ~packages ~stanzas =
           add_in_package_sites acc pkg site loc
         | Dune_file.Plugin { site = loc, (pkg, site); _ } ->
           add_in_package_sites acc pkg site loc
-        | _ -> acc)
+        | _ -> Memo.Build.return acc)
   in
   (* Add the site of the local package: it should only useful for making sure
      that at least one location is given to the site of local package because if
      the site is used it should already be in [packages_sections] *)
-  let package_sections =
-    Package.Name.Map.foldi ~init:package_sections packages
-      ~f:(fun package_name package acc ->
-        Section.Site.Map.fold ~init:acc package.Package.sites
-          ~f:(fun section acc ->
-            add_in_package_section acc package_name section))
+  let* package_sections =
+    Package.Name.Map.to_list packages
+    |> Memo.Build.List.fold_left ~init:package_sections
+         ~f:(fun acc (package_name, package) ->
+           Section.Site.Map.to_list package.Package.sites
+           |> Memo.Build.List.fold_left ~init:acc ~f:(fun acc (_, section) ->
+                  Memo.Build.return
+                    (add_in_package_section acc package_name section)))
   in
   let env_dune_dir_locations =
     let install_dir = Local_install_path.dir ~context:context.Context.name in
