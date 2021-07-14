@@ -43,6 +43,11 @@ module Buildable = struct
       let default =
         if version < (0, 3) then
           Coq_mode.Legacy
+        else if
+          Unix.system "coqc -config | grep -q \"NATIVE_COMPILER_DEFAULT=yes\""
+          = Unix.WEXITED 0
+        then
+          Coq_mode.Native
         else
           Coq_mode.VoOnly
       in

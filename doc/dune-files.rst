@@ -1762,9 +1762,8 @@ The stanza will build all ``.v`` files on the given directory. The semantics of 
   native compute is **experimental**, and requires Coq >= 8.12.1;
   moreover, depending libraries *must* be built with ``(mode native)``
   too for this to work; also Coq must be configured to support native
-  compilation. Note that Dune will explicitly disable output of native
-  compilation objects when ``(mode vo)`` even if the default Coq's
-  configure flag enabled it. This will be improved in the future.
+  compilation. When no value is given, choose default according to
+  Coq's configure flags (as retrieved by ``coqc -config``).
 
 Recursive qualification of modules
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
