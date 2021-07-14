@@ -382,7 +382,7 @@ end
 type db =
   { parent : db option
   ; resolve : Lib_name.t -> resolve_result Memo.Build.t
-  ; all : Lib_name.t list Lazy.t
+  ; all : Lib_name.t list Memo.Lazy.t
   ; lib_config : Lib_config.t
   ; instrument_with : Lib_name.t list
   ; modules_of_lib :
@@ -1869,7 +1869,7 @@ module DB = struct
       ~lib_config () =
     { parent
     ; resolve
-    ; all = Lazy.from_fun all
+    ; all = Memo.lazy_ all
     ; lib_config
     ; instrument_with = lib_config.Lib_config.instrument_with
     ; projects_by_package
@@ -1898,7 +1898,8 @@ module DB = struct
           | Invalid_dune_package why -> Invalid why
           | Not_found -> Not_found))
       ~all:(fun () ->
-        Findlib.all_packages findlib |> List.map ~f:Dune_package.Entry.name)
+        let open Memo.Build.O in
+        Findlib.all_packages findlib >>| List.map ~f:Dune_package.Entry.name)
 
   let find t name =
     let open Memo.Build.O in
@@ -2009,8 +2010,8 @@ module DB = struct
   let rec all ?(recursive = false) t =
     let open Memo.Build.O in
     let* l =
-      Lazy.force t.all |> Memo.Build.parallel_map ~f:(find t) >>| fun libs ->
-      List.filter_opt libs |> Set.of_list
+      Memo.Lazy.force t.all >>= Memo.Build.parallel_map ~f:(find t)
+      >>| fun libs -> List.filter_opt libs |> Set.of_list
     in
     match (recursive, t.parent) with
     | true, Some t ->

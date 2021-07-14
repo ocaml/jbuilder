@@ -188,7 +188,7 @@ module DB : sig
        parent:t option
     -> resolve:(Lib_name.t -> Resolve_result.t Memo.Build.t)
     -> projects_by_package:Dune_project.t Package.Name.Map.t
-    -> all:(unit -> Lib_name.t list)
+    -> all:(unit -> Lib_name.t list Memo.Build.t)
     -> modules_of_lib:
          (dir:Path.Build.t -> name:Lib_name.t -> Modules.t Memo.Build.t) Fdecl.t
     -> lib_config:Lib_config.t

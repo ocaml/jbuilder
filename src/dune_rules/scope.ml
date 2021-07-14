@@ -106,7 +106,7 @@ module DB = struct
           | None -> Lib.DB.Resolve_result.not_found
           | Some (Redirect lib) -> Lib.DB.Resolve_result.redirect None lib
           | Some (Found lib) -> Lib.DB.Resolve_result.found lib))
-      ~all:(fun () -> Lib_name.Map.keys map)
+      ~all:(fun () -> Lib_name.Map.keys map |> Memo.Build.return)
       ~modules_of_lib ~lib_config
 
   (* This function is linear in the depth of [dir] in the worst case, so if it
@@ -183,7 +183,7 @@ module DB = struct
     let resolve lib = Memo.Build.return (resolve t public_libs lib) in
     Lib.DB.create ~parent:(Some installed_libs) ~resolve ~modules_of_lib
       ~projects_by_package
-      ~all:(fun () -> Lib_name.Map.keys public_libs)
+      ~all:(fun () -> Lib_name.Map.keys public_libs |> Memo.Build.return)
       ~lib_config ()
 
   module Path_source_map_traversals =

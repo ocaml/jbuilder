@@ -618,6 +618,7 @@ let all_packages t =
          Lib_name.compare
            (Dune_package.Entry.name a)
            (Dune_package.Entry.name b))
+  |> Memo.Build.return
 
 (* CR-someday amokhov: Remove the mutable table below and add:
 
@@ -644,3 +645,4 @@ let all_broken_packages t =
         acc
       | Error (Invalid_dune_package exn) -> (name, exn) :: acc)
   |> List.sort ~compare:(fun (a, _) (b, _) -> Package.Name.compare a b)
+  |> Memo.Build.return
