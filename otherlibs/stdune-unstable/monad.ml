@@ -70,14 +70,6 @@ module List (M : Monad_intf.S) = struct
         let+ pred = f x in
         Option.some_if pred x)
 
-  let exists xs ~f =
-    let+ res =
-      find_map xs ~f:(fun x ->
-          let+ x = f x in
-          Option.some_if x ())
-    in
-    Option.is_some res
-
   let map xs ~f =
     filter_map xs ~f:(fun x ->
         let+ x = f x in
@@ -91,4 +83,24 @@ module List (M : Monad_intf.S) = struct
     | x :: xs ->
       let* () = f x in
       iter xs ~f
+
+  let rec for_all xs ~f =
+    match xs with
+    | [] -> return true
+    | x :: xs ->
+      let* pred = f x in
+      if pred then
+        for_all xs ~f
+      else
+        return false
+
+  let rec exists xs ~f =
+    match xs with
+    | [] -> return false
+    | x :: xs ->
+      let* pred = f x in
+      if pred then
+        return true
+      else
+        exists xs ~f
 end

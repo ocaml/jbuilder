@@ -279,26 +279,27 @@ end = struct
         [ rep any; str "__"; rep any ] |> seq |> compile)
 
     let exists t ~is_builtin =
-      Memo.Build.return
-        (let exists_if = Vars.get_words t.vars "exists_if" Ps.empty in
-         match exists_if with
-         | _ :: _ ->
-           List.for_all exists_if ~f:(fun fn ->
-               Path.exists (Path.relative t.dir fn))
-         | [] -> (
-           (not is_builtin)
-           ||
-           (* The META files for installed packages are sometimes broken, i.e.
-              META files for libraries that were not installed by the compiler
-              are still present:
+      let exists_if = Vars.get_words t.vars "exists_if" Ps.empty in
+      match exists_if with
+      | _ :: _ ->
+        Memo.Build.List.for_all exists_if ~f:(fun fn ->
+            Fs_memo.path_exists (Path.relative t.dir fn))
+      | [] -> (
+        if not is_builtin then
+          Memo.Build.return true
+        else
+          (* The META files for installed packages are sometimes broken, i.e.
+             META files for libraries that were not installed by the compiler
+             are still present:
 
-              https://github.com/ocaml/dune/issues/563
+             https://github.com/ocaml/dune/issues/563
 
-              To workaround this problem, for builtin packages we check that at
-              least one of the archive is present. *)
-           match archives t with
-           | { byte = []; native = [] } -> true
-           | { byte; native } -> List.exists (byte @ native) ~f:Path.exists))
+             To workaround this problem, for builtin packages we check that at
+             least one of the archive is present. *)
+          match archives t with
+          | { byte = []; native = [] } -> Memo.Build.return true
+          | { byte; native } ->
+            Memo.Build.List.exists (byte @ native) ~f:Fs_memo.path_exists)
 
     let to_dune_library t ~(lib_config : Lib_config.t) =
       let loc = Loc.in_file t.meta_file in
@@ -306,7 +307,8 @@ end = struct
       let dot_dune_file =
         Path.relative t.dir (sprintf "%s.dune" (Lib_name.to_string t.name))
       in
-      if Path.exists dot_dune_file then
+      let* dot_dune_exists = Fs_memo.path_exists dot_dune_file in
+      if dot_dune_exists then
         User_warning.emit
           ~loc:(Loc.in_file dot_dune_file)
           [ Pp.text
@@ -325,7 +327,7 @@ end = struct
         else
           discovered
       in
-      let info : Path.t Lib_info.t =
+      let+ (info : Path.t Lib_info.t) =
         let kind = kind t in
         let sub_systems = Sub_system_name.Map.empty in
         let synopsis = description t in
@@ -362,7 +364,7 @@ end = struct
         let virtual_ = None in
         let default_implementation = None in
         let wrapped = None in
-        let dir_contents = Path.readdir_unsorted t.dir in
+        let+ dir_contents = Fs_memo.dir_contents_unsorted t.dir in
         let foreign_archives, native_archives =
           (* Here we scan [t.dir] and consider all files named [lib*.ext_lib] to
              be foreign archives, and all other files with the extension
@@ -384,7 +386,7 @@ end = struct
             ([], [])
           | Ok res ->
             let foreign_archives, native_archives =
-              List.rev_filter_partition_map res ~f:(fun f ->
+              List.rev_filter_partition_map res ~f:(fun (f, _) ->
                   let ext = Filename.extension f in
                   if ext = lib_config.ext_lib then
                     let file = Path.relative t.dir f in
@@ -420,7 +422,7 @@ end = struct
                      , [] ))
               | Ok files ->
                 let ext = Cm_kind.ext Cmi in
-                Result.List.filter_map files ~f:(fun fname ->
+                Result.List.filter_map files ~f:(fun (fname, _) ->
                     match Filename.check_suffix fname ext with
                     | false -> Ok None
                     | true -> (
@@ -448,7 +450,7 @@ end = struct
           ~wrapped ~special_builtin_support ~exit_module:None
           ~instrumentation_backend:None ~entry_modules
       in
-      Memo.Build.return (Dune_package.Lib.of_findlib info)
+      Dune_package.Lib.of_findlib info
   end
 
   (* Parse all the packages defined in a META file *)
@@ -543,7 +545,8 @@ end = struct
 
   let lookup_and_load_one_dir db ~dir ~name =
     let meta_file = Path.relative dir meta_fn in
-    if Path.exists meta_file then
+    let* meta_file_exists = Fs_memo.path_exists meta_file in
+    if meta_file_exists then
       load_and_convert db ~dir ~meta_file ~name >>| Option.some
     else
       (* Alternative layout *)
@@ -553,7 +556,8 @@ end = struct
         let meta_file =
           Path.relative dir (meta_fn ^ "." ^ Package.Name.to_string name)
         in
-        if Path.exists meta_file then
+        let* meta_exists = Fs_memo.path_exists meta_file in
+        if meta_exists then
           load_and_convert db ~dir ~meta_file ~name >>| Option.some
         else
           Memo.Build.return None
@@ -574,15 +578,17 @@ end = struct
       | dir :: dirs -> (
         let dir = Path.relative dir (Package.Name.to_string name) in
         let dune = Path.relative dir Dune_package.fn in
-        match
-          if Path.exists dune then
+        let* exists =
+          let+ exists = Fs_memo.path_exists dune in
+          if exists then
             Dune_package.Or_meta.load dune
           else
             Ok Dune_package.Or_meta.Use_meta
-        with
+        in
+        match exists with
         | Error e ->
           Memo.Build.return (Error (Unavailable_reason.Invalid_dune_package e))
-        | Ok (Dune_package p) -> Memo.Build.return (Ok p)
+        | Ok (Dune_package.Or_meta.Dune_package p) -> Memo.Build.return (Ok p)
         | Ok Use_meta -> (
           let open Memo.Build.O in
           lookup_and_load_one_dir db ~dir ~name >>= function
@@ -612,10 +618,10 @@ let find t name =
   | None -> Error Unavailable_reason.Not_found
 
 let root_packages ((db : DB.t), _) =
-  let pkgs =
-    List.concat_map db.paths ~f:(fun dir ->
-        match Path.readdir_unsorted dir with
-        | Error ENOENT -> []
+  let+ pkgs =
+    Memo.Build.List.concat_map db.paths ~f:(fun dir ->
+        Fs_memo.dir_contents_unsorted dir >>= function
+        | Error ENOENT -> Memo.Build.return []
         | Error unix_error ->
           User_error.raise
             [ Pp.textf "Unable to read directory %s for findlib package"
@@ -623,21 +629,24 @@ let root_packages ((db : DB.t), _) =
             ; Pp.textf "Reason: %s" (Unix.error_message unix_error)
             ]
         | Ok listing ->
-          List.filter_map listing ~f:(fun name ->
-              if Path.exists (Path.relative dir (name ^ "/" ^ meta_fn)) then
+          Memo.Build.List.filter_map listing ~f:(fun (name, _) ->
+              let+ exists =
+                Fs_memo.path_exists (Path.relative dir (name ^ "/" ^ meta_fn))
+              in
+              if exists then
                 Some (Package.Name.of_string name)
               else
                 None))
-    |> Package.Name.Set.of_list
+    >>| Package.Name.Set.of_list
   in
   let builtins = Package.Name.Set.of_list (Package.Name.Map.keys db.builtins) in
   Package.Name.Set.union pkgs builtins
 
 let load_all_packages (t : t) =
-  root_packages t |> Package.Name.Set.to_list
-  |> Memo.Build.parallel_map ~f:(fun name ->
-         let+ pkg = find_root_package t name in
-         (name, pkg))
+  root_packages t >>| Package.Name.Set.to_list
+  >>= Memo.Build.parallel_map ~f:(fun name ->
+          let+ pkg = find_root_package t name in
+          (name, pkg))
 
 let all_packages t =
   let+ root_packages = load_all_packages t in

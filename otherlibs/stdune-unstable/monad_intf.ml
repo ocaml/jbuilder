@@ -48,4 +48,6 @@ module type List = sig
   val filter_map : 'a list -> f:('a -> 'b option t) -> 'b list t
 
   val fold_left : 'a list -> f:('acc -> 'a -> 'acc t) -> init:'acc -> 'acc t
+
+  val for_all : 'a list -> f:('a -> bool t) -> bool t
 end
