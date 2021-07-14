@@ -120,9 +120,14 @@ let rec complexify t =
 
 let parse_entries lb = Parse.entries lb 0 []
 
-let load p ~name =
+let of_lex lex ~name =
   let name = Option.map name ~f:Lib_name.of_package_name in
-  { name; entries = Io.with_lexbuf_from_file p ~f:parse_entries } |> simplify
+  let entries = parse_entries lex in
+  simplify { name; entries }
+
+let load p ~name = Fs_memo.with_lexbuf_from_file p ~f:(of_lex ~name)
+
+let of_string s ~name = of_lex (Lexing.from_string s) ~name
 
 let rule var predicates action value = Rule { var; predicates; action; value }
 

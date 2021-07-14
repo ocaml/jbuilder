@@ -120,15 +120,16 @@ module Config = struct
   let load path ~toolchain ~context =
     let path = Path.extend_basename path ~suffix:".d" in
     let conf_file = Path.relative path (toolchain ^ ".conf") in
-    if not (Path.exists conf_file) then
+    let* conf_file_exists = Fs_memo.path_exists conf_file in
+    if not conf_file_exists then
       User_error.raise
         [ Pp.textf "ocamlfind toolchain %s isn't defined in %s (context: %s)"
             toolchain
             (Path.to_string_maybe_quoted path)
             context
         ];
-    let vars = (Meta.load ~name:None conf_file).vars in
-    { vars = String.Map.map vars ~f:Rules.of_meta_rules
+    let+ meta = Meta.load ~name:None conf_file in
+    { vars = String.Map.map meta.vars ~f:Rules.of_meta_rules
     ; preds = Ps.make [ toolchain ]
     }
 
@@ -519,7 +520,7 @@ end = struct
     }
 
   let load_and_convert db ~dir ~meta_file ~name =
-    let meta = Meta.load meta_file ~name:(Some name) in
+    let* meta = Meta.load meta_file ~name:(Some name) in
     dune_package_of_meta db ~dir ~meta_file ~meta
 
   let load_builtin db meta =

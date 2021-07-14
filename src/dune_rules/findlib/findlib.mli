@@ -54,7 +54,7 @@ module Config : sig
 
   val to_dyn : t -> Dyn.t
 
-  val load : Path.t -> toolchain:string -> context:string -> t
+  val load : Path.t -> toolchain:string -> context:string -> t Memo.Build.t
 
   val get : t -> string -> string option
 

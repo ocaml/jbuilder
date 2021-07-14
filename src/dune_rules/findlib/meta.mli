@@ -63,7 +63,9 @@ end
 
 val complexify : Simplified.t -> t
 
-val load : Path.t -> name:Package.Name.t option -> Simplified.t
+val of_string : string -> name:Package.Name.t option -> Simplified.t
+
+val load : Path.t -> name:Package.Name.t option -> Simplified.t Memo.Build.t
 
 (** Builtin META files for libraries distributed with the compiler. For when
     ocamlfind is not installed. *)
