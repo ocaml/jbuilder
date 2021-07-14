@@ -210,9 +210,11 @@ let findlib_predicates_set_by_dune =
 module Loader : sig
   (* Search for a <package>/{META,dune-package} file in the findlib search path *)
   val lookup_and_load :
-    DB.t -> Package.Name.t -> (Dune_package.t, Unavailable_reason.t) result
+       DB.t
+    -> Package.Name.t
+    -> (Dune_package.t, Unavailable_reason.t) result Memo.Build.t
 
-  val dummy_package : DB.t -> Lib_name.t -> Dune_package.t
+  val dummy_package : DB.t -> Lib_name.t -> Dune_package.t Memo.Build.t
 end = struct
   module Findlib_package : sig
     type t =
@@ -222,9 +224,10 @@ end = struct
       ; vars : Vars.t
       }
 
-    val to_dune_library : t -> lib_config:Lib_config.t -> Dune_package.Lib.t
+    val to_dune_library :
+      t -> lib_config:Lib_config.t -> Dune_package.Lib.t Memo.Build.t
 
-    val exists : t -> is_builtin:bool -> bool
+    val exists : t -> is_builtin:bool -> bool Memo.Build.t
   end = struct
     type t =
       { meta_file : Path.t
@@ -276,25 +279,26 @@ end = struct
         [ rep any; str "__"; rep any ] |> seq |> compile)
 
     let exists t ~is_builtin =
-      let exists_if = Vars.get_words t.vars "exists_if" Ps.empty in
-      match exists_if with
-      | _ :: _ ->
-        List.for_all exists_if ~f:(fun fn ->
-            Path.exists (Path.relative t.dir fn))
-      | [] -> (
-        (not is_builtin)
-        ||
-        (* The META files for installed packages are sometimes broken, i.e. META
-           files for libraries that were not installed by the compiler are still
-           present:
+      Memo.Build.return
+        (let exists_if = Vars.get_words t.vars "exists_if" Ps.empty in
+         match exists_if with
+         | _ :: _ ->
+           List.for_all exists_if ~f:(fun fn ->
+               Path.exists (Path.relative t.dir fn))
+         | [] -> (
+           (not is_builtin)
+           ||
+           (* The META files for installed packages are sometimes broken, i.e.
+              META files for libraries that were not installed by the compiler
+              are still present:
 
-           https://github.com/ocaml/dune/issues/563
+              https://github.com/ocaml/dune/issues/563
 
-           To workaround this problem, for builtin packages we check that at
-           least one of the archive is present. *)
-        match archives t with
-        | { byte = []; native = [] } -> true
-        | { byte; native } -> List.exists (byte @ native) ~f:Path.exists)
+              To workaround this problem, for builtin packages we check that at
+              least one of the archive is present. *)
+           match archives t with
+           | { byte = []; native = [] } -> true
+           | { byte; native } -> List.exists (byte @ native) ~f:Path.exists))
 
     let to_dune_library t ~(lib_config : Lib_config.t) =
       let loc = Loc.in_file t.meta_file in
@@ -444,7 +448,7 @@ end = struct
           ~wrapped ~special_builtin_support ~exit_module:None
           ~instrumentation_backend:None ~entry_modules
       in
-      Dune_package.Lib.of_findlib info
+      Memo.Build.return (Dune_package.Lib.of_findlib info)
   end
 
   (* Parse all the packages defined in a META file *)
@@ -469,22 +473,25 @@ end = struct
       let pkg : Findlib_package.t =
         { meta_file; name = full_name; dir; vars }
       in
-      let lib = Findlib_package.to_dune_library pkg ~lib_config:db.lib_config in
-      let entry : Dune_package.Entry.t =
-        if
+      let* lib =
+        Findlib_package.to_dune_library pkg ~lib_config:db.lib_config
+      in
+      let* (entry : Dune_package.Entry.t) =
+        let+ exists =
           Findlib_package.exists pkg
             ~is_builtin:
               (Package.Name.Map.mem db.builtins
                  (Lib_name.package_name pkg.name))
-        then
-          Library lib
+        in
+        if exists then
+          Dune_package.Entry.Library lib
         else
           Hidden_library lib
       in
       let acc =
         Lib_name.Map.add_exn acc (Dune_package.Entry.name entry) entry
       in
-      List.fold_left meta.subs ~init:acc
+      Memo.Build.List.fold_left meta.subs ~init:acc
         ~f:(fun acc (meta : Meta.Simplified.t) ->
           let full_name =
             match meta.name with
@@ -494,7 +501,7 @@ end = struct
           loop ~dir ~full_name meta acc)
     in
     let name = Option.value_exn meta.name in
-    let entries =
+    let+ entries =
       loop ~dir ~full_name:(Option.value_exn meta.name) meta Lib_name.Map.empty
     in
     { Dune_package.name = Lib_name.package_name name
@@ -537,29 +544,33 @@ end = struct
   let lookup_and_load_one_dir db ~dir ~name =
     let meta_file = Path.relative dir meta_fn in
     if Path.exists meta_file then
-      Some (load_and_convert db ~dir ~meta_file ~name)
+      load_and_convert db ~dir ~meta_file ~name >>| Option.some
     else
       (* Alternative layout *)
-      let open Option.O in
-      let* dir = Path.parent dir in
-      let meta_file =
-        Path.relative dir (meta_fn ^ "." ^ Package.Name.to_string name)
-      in
-      if Path.exists meta_file then
-        Some (load_and_convert db ~dir ~meta_file ~name)
-      else
-        None
+      match Path.parent dir with
+      | None -> Memo.Build.return None
+      | Some dir ->
+        let meta_file =
+          Path.relative dir (meta_fn ^ "." ^ Package.Name.to_string name)
+        in
+        if Path.exists meta_file then
+          load_and_convert db ~dir ~meta_file ~name >>| Option.some
+        else
+          Memo.Build.return None
 
   let lookup_and_load (db : DB.t) name =
-    let rec loop dirs : (Dune_package.t, Unavailable_reason.t) Result.t =
+    let rec loop dirs :
+        (Dune_package.t, Unavailable_reason.t) Result.t Memo.Build.t =
       match dirs with
       | [] -> (
         match Package.Name.to_string name with
-        | "dune" -> Ok builtin_for_dune
+        | "dune" -> Memo.Build.return (Ok builtin_for_dune)
         | _ -> (
-          Package.Name.Map.find db.builtins name |> function
-          | None -> Error Unavailable_reason.Not_found
-          | Some meta -> Ok (load_builtin db meta)))
+          match Package.Name.Map.find db.builtins name with
+          | None -> Memo.Build.return (Error Unavailable_reason.Not_found)
+          | Some meta ->
+            let+ builtin = load_builtin db meta in
+            Ok builtin))
       | dir :: dirs -> (
         let dir = Path.relative dir (Package.Name.to_string name) in
         let dune = Path.relative dir Dune_package.fn in
@@ -569,18 +580,20 @@ end = struct
           else
             Ok Dune_package.Or_meta.Use_meta
         with
-        | Error e -> Error (Unavailable_reason.Invalid_dune_package e)
-        | Ok (Dune_package p) -> Ok p
+        | Error e ->
+          Memo.Build.return (Error (Unavailable_reason.Invalid_dune_package e))
+        | Ok (Dune_package p) -> Memo.Build.return (Ok p)
         | Ok Use_meta -> (
-          match lookup_and_load_one_dir db ~dir ~name with
+          let open Memo.Build.O in
+          lookup_and_load_one_dir db ~dir ~name >>= function
           | None -> loop dirs
-          | Some p -> Ok p))
+          | Some p -> Memo.Build.return (Ok p)))
     in
     loop db.paths
 end
 
 let dummy_lib (db, _) ~name =
-  let p = Loader.dummy_package db name in
+  let+ p = Loader.dummy_package db name in
   match Lib_name.Map.find_exn p.entries name with
   | Library lib -> lib
   | _ -> assert false
@@ -659,7 +672,7 @@ let create ~paths ~(lib_config : Lib_config.t) : t =
     end in
     Memo.create "findlib"
       ~input:(module Input)
-      (fun (db, name) -> Memo.Build.return (Loader.lookup_and_load db name))
+      (fun (db, name) -> Loader.lookup_and_load db name)
   in
   let db =
     { DB.stdlib_dir

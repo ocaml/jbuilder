@@ -47,7 +47,7 @@ val all_packages : t -> Dune_package.Entry.t list Memo.Build.t
 val all_broken_packages : t -> (Package.Name.t * exn) list Memo.Build.t
 
 (** A dummy package. This is used to implement [external-lib-deps] *)
-val dummy_lib : t -> name:Lib_name.t -> Dune_package.Lib.t
+val dummy_lib : t -> name:Lib_name.t -> Dune_package.Lib.t Memo.Build.t
 
 module Config : sig
   type t
