@@ -1016,20 +1016,22 @@ end = struct
   end
 
   let second_step_closure ts impls =
-    let visited = ref Id.Set.empty in
     let res = ref [] in
-    let rec loop t =
+    let rec loop visited t =
       let t = Option.value ~default:t (Map.find impls t) in
-      if Id.Set.mem !visited t.unique_id then
-        Resolve.return ()
-      else (
-        visited := Id.Set.add !visited t.unique_id;
+      if Id.Set.mem visited t.unique_id then
+        Resolve.return visited
+      else
+        let visited = Id.Set.add visited t.unique_id in
         let* deps = t.requires in
-        let+ () = Resolve.List.iter deps ~f:loop in
-        res := t :: !res
-      )
+        let+ visited = many visited deps in
+        res := t :: !res;
+        visited
+    and many visited deps =
+      Resolve.List.fold_left deps ~init:visited ~f:(fun visited a ->
+          loop visited a)
     in
-    let+ () = Resolve.List.iter ts ~f:loop in
+    let+ (_visited : Id.Set.t) = many Id.Set.empty ts in
     List.rev !res
 
   let associate closure ~orig_stack ~linking =
