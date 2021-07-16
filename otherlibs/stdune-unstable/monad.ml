@@ -104,3 +104,10 @@ module List (M : Monad_intf.S) = struct
       else
         exists xs ~f
 end
+
+module Option (M : Monad_intf.S) = struct
+  let iter a ~f =
+    match a with
+    | None -> M.return ()
+    | Some s -> f s
+end

@@ -51,3 +51,9 @@ module type List = sig
 
   val for_all : 'a list -> f:('a -> bool t) -> bool t
 end
+
+module type Option = sig
+  type 'a t
+
+  val iter : 'a option -> f:('a -> unit t) -> unit t
+end

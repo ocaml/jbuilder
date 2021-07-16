@@ -913,19 +913,6 @@ module Vlib : sig
 
     val with_default_implementations : t -> lib list
   end
-
-  module Visit : sig
-    type t
-
-    val create : unit -> t
-
-    val visit :
-         t
-      -> lib
-      -> stack:Lib_info.external_ list
-      -> f:(lib -> unit Resolve.t)
-      -> unit Resolve.t
-  end
 end = struct
   module Unimplemented = struct
     type t =
@@ -1042,28 +1029,6 @@ end = struct
       second_step_closure closure impls
     else
       Resolve.return closure
-
-  module Visit = struct
-    module Status = struct
-      type t =
-        | Visiting
-        | Visited
-    end
-
-    type t = Status.t Map.t ref
-
-    let create () = ref Map.empty
-
-    let visit t lib ~stack ~f =
-      match Map.find !t lib with
-      | Some Status.Visited -> Resolve.return ()
-      | Some Visiting -> Error.default_implementation_cycle (lib.info :: stack)
-      | None ->
-        t := Map.set !t lib Visiting;
-        let res = f lib in
-        t := Map.set !t lib Visited;
-        res
-  end
 end
 
 let instrumentation_backend ?(do_not_fail = false) instrument_with resolve
@@ -1566,12 +1531,43 @@ end = struct
 
      Assertion: libraries is a list of virtual libraries with no implementation.
      The goal is to find which libraries can safely be defaulted. *)
+
+  type state =
+    { vlib_default_parent : lib list Map.t
+    ; visited : [ `Visiting | `Visited ] Map.t
+    }
+
   let resolve_default_libraries libraries =
     (* Map from a vlib to vlibs that are implemented in the transitive closure
        of its default impl. *)
-    let vlib_status = Vlib.Visit.create () in
-    (* Reverse map *)
-    let vlib_default_parent = ref Map.empty in
+    let module R = struct
+      module M =
+        State.Make
+          (struct
+            type t = state
+          end)
+          (Resolve)
+
+      module Option = Monad.Option (M)
+      module List = Monad.List (M)
+      include M
+
+      let visit lib ~stack ~f =
+        let open O in
+        let* s = get in
+        match Map.find s.visited lib with
+        | Some `Visited -> return ()
+        | Some `Visiting ->
+          lift (Error.default_implementation_cycle (lib.info :: stack))
+        | None ->
+          let* () = set { s with visited = Map.set s.visited lib `Visiting } in
+          let* res = f lib in
+          let+ () =
+            modify (fun s ->
+                { s with visited = Map.set s.visited lib `Visited })
+          in
+          res
+    end in
     let avoid_direct_parent vlib (impl : lib) =
       match impl.implements with
       | None -> Resolve.return true
@@ -1590,8 +1586,8 @@ end = struct
       | None -> true
       | Some lib -> lib <> impl
     in
-    let library_is_default lib =
-      match Map.find !vlib_default_parent lib with
+    let library_is_default vlib_default_parent lib =
+      match Map.find vlib_default_parent lib with
       | Some (_ :: _) -> Resolve.return None
       | None
       | Some [] -> (
@@ -1611,55 +1607,68 @@ end = struct
     in
     (* Gather vlibs that are transitively implemented by another vlib's default
        implementation. *)
-    let rec visit ~stack ancestor_vlib =
-      Vlib.Visit.visit vlib_status ~stack ~f:(fun lib ->
+    let rec visit ~stack ancestor_vlib lib =
+      R.visit lib ~stack ~f:(fun lib ->
+          let open R.O in
           (* Visit direct dependencies *)
-          let* deps = lib.requires in
+          let* deps = R.lift lib.requires in
           let* () =
-            Resolve.List.filter deps ~f:(fun x ->
-                let open Memo.Build.O in
-                let* peek = Resolve.peek (avoid_direct_parent x lib) in
-                Resolve.return
-                  (match peek with
-                  | Ok x -> x
-                  | Error () -> false))
-            >>= Resolve.List.iter
-                  ~f:(visit ~stack:(lib.info :: stack) ancestor_vlib)
+            R.lift
+              (Resolve.List.filter deps ~f:(fun x ->
+                   let open Memo.Build.O in
+                   let+ peek = Resolve.peek (avoid_direct_parent x lib) in
+                   Resolve.Base.return
+                     (match peek with
+                     | Ok x -> x
+                     | Error () -> false)))
+            >>= R.List.iter ~f:(visit ~stack:(lib.info :: stack) ancestor_vlib)
           in
           (* If the library is an implementation of some virtual library that
              overrides default, add a link in the graph. *)
           let* () =
-            Resolve.Option.iter lib.implements ~f:(fun vlib ->
-                let* vlib = vlib in
-                let* res = impl_different_from_vlib_default vlib lib in
+            R.Option.iter lib.implements ~f:(fun vlib ->
+                let* vlib = R.lift vlib in
+                let* res = R.lift (impl_different_from_vlib_default vlib lib) in
                 match (res, ancestor_vlib) with
                 | true, None ->
                   (* Recursion: no ancestor, vlib is explored *)
                   visit ~stack:(lib.info :: stack) None vlib
                 | true, Some ancestor ->
-                  vlib_default_parent :=
-                    Map.Multi.cons !vlib_default_parent lib ancestor;
+                  let* () =
+                    R.modify (fun s ->
+                        { s with
+                          vlib_default_parent =
+                            Map.Multi.cons s.vlib_default_parent lib ancestor
+                        })
+                  in
                   visit ~stack:(lib.info :: stack) None vlib
                 | false, _ ->
                   (* If lib is the default implementation, we'll manage it when
                      handling virtual lib. *)
-                  Resolve.return ())
+                  R.return ())
           in
           (* If the library has an implementation according to variants or
              default impl. *)
           let virtual_ = Lib_info.virtual_ lib.info in
           if Option.is_none virtual_ then
-            Resolve.return ()
+            R.return ()
           else
-            let* impl = impl_for lib in
+            let* impl = R.lift (impl_for lib) in
             match impl with
-            | None -> Resolve.return ()
+            | None -> R.return ()
             | Some impl -> visit ~stack:(lib.info :: stack) (Some lib) impl)
     in
     (* For each virtual library we know which vlibs will be implemented when
        enabling its default implementation. *)
-    let* () = Resolve.List.iter ~f:(visit ~stack:[] None) libraries in
-    Resolve.List.filter_map ~f:library_is_default libraries
+    let open Resolve.O in
+    let* status, () =
+      R.run
+        (R.List.iter ~f:(visit ~stack:[] None) libraries)
+        { visited = Map.empty; vlib_default_parent = Map.empty }
+    in
+    Resolve.List.filter_map
+      ~f:(library_is_default status.vlib_default_parent)
+      libraries
 
   module Closure = struct
     type nonrec t =
