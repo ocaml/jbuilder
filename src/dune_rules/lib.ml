@@ -1003,23 +1003,34 @@ end = struct
   end
 
   let second_step_closure ts impls =
-    let res = ref [] in
+    let module R = struct
+      module M =
+        State.Make
+          (struct
+            type t = lib list
+          end)
+          (Resolve)
+
+      module List = Monad.List (M)
+      include M
+    end in
+    let open R.O in
     let rec loop visited t =
       let t = Option.value ~default:t (Map.find impls t) in
       if Id.Set.mem visited t.unique_id then
-        Resolve.return visited
+        R.return visited
       else
         let visited = Id.Set.add visited t.unique_id in
-        let* deps = t.requires in
-        let+ visited = many visited deps in
-        res := t :: !res;
+        let* deps = R.lift t.requires in
+        let* visited = many visited deps in
+        let+ () = R.modify (fun res -> t :: res) in
         visited
     and many visited deps =
-      Resolve.List.fold_left deps ~init:visited ~f:(fun visited a ->
-          loop visited a)
+      R.List.fold_left deps ~init:visited ~f:(fun visited a -> loop visited a)
     in
-    let+ (_visited : Id.Set.t) = many Id.Set.empty ts in
-    List.rev !res
+    let open Resolve.O in
+    let+ res, _visited = R.run (many Id.Set.empty ts) [] in
+    List.rev res
 
   let associate closure ~orig_stack ~linking =
     let* impls = Table.Partial.make closure ~orig_stack in
@@ -1351,20 +1362,31 @@ end = struct
     Resolve.List.map names ~f:(resolve_dep db ~private_deps ~stack)
 
   let re_exports_closure ts =
-    let visited = ref Set.empty in
-    let res = ref [] in
+    let module R = struct
+      module M =
+        State.Make
+          (struct
+            type t = lib list * Set.t
+          end)
+          (Resolve)
+
+      module List = Monad.List (M)
+      include M
+    end in
+    let open R.O in
     let rec one (t : lib) =
-      if Set.mem !visited t then
-        Resolve.return ()
-      else (
-        visited := Set.add !visited t;
-        let* re_exports = t.re_exports in
-        let+ () = many re_exports in
-        res := t :: !res
-      )
-    and many l = Resolve.List.iter l ~f:one in
-    let+ () = many ts in
-    List.rev !res
+      let* res, visited = R.get in
+      if Set.mem visited t then
+        R.return ()
+      else
+        let* () = R.set (res, Set.add visited t) in
+        let* re_exports = R.lift t.re_exports in
+        let* () = many re_exports in
+        R.modify (fun (res, visited) -> (t :: res, visited))
+    and many l = R.List.iter l ~f:one in
+    let open Resolve.O in
+    let+ (res, _visited), () = R.run (many ts) ([], Set.empty) in
+    List.rev res
 
   type resolved_deps =
     { resolved : t list Resolve.t
