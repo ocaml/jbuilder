@@ -1007,7 +1007,7 @@ end = struct
       module M =
         State.Make
           (struct
-            type t = lib list
+            type t = lib list * Id.Set.t
           end)
           (Resolve)
 
@@ -1015,21 +1015,19 @@ end = struct
       include M
     end in
     let open R.O in
-    let rec loop visited t =
+    let rec loop t =
       let t = Option.value ~default:t (Map.find impls t) in
+      let* res, visited = R.get in
       if Id.Set.mem visited t.unique_id then
-        R.return visited
+        R.return ()
       else
-        let visited = Id.Set.add visited t.unique_id in
+        let* () = R.set (res, Id.Set.add visited t.unique_id) in
         let* deps = R.lift t.requires in
-        let* visited = many visited deps in
-        let+ () = R.modify (fun res -> t :: res) in
-        visited
-    and many visited deps =
-      R.List.fold_left deps ~init:visited ~f:(fun visited a -> loop visited a)
-    in
+        let* () = many deps in
+        R.modify (fun (res, visited) -> (t :: res, visited))
+    and many deps = R.List.iter deps ~f:loop in
     let open Resolve.O in
-    let+ res, _visited = R.run (many Id.Set.empty ts) [] in
+    let+ (res, _visited), () = R.run (many ts) ([], Id.Set.empty) in
     List.rev res
 
   let associate closure ~orig_stack ~linking =
