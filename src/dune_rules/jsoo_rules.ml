@@ -53,8 +53,8 @@ let standalone_runtime_rule cc ~javascript_files ~target ~flags =
   let libs = Compilation_context.requires_link cc in
   let spec =
     Command.Args.S
-      [ Resolve.args
-          (let open Resolve.O in
+      [ Resolve.Build.args
+          (let open Resolve.Build.O in
           let+ libs = libs in
           Command.Args.Deps (Lib.L.jsoo_runtime_files libs))
       ; Deps javascript_files
@@ -72,8 +72,8 @@ let exe_rule cc ~javascript_files ~src ~target ~flags =
   let libs = Compilation_context.requires_link cc in
   let spec =
     Command.Args.S
-      [ Resolve.args
-          (let open Resolve.O in
+      [ Resolve.Build.args
+          (let open Resolve.Build.O in
           let+ libs = libs in
           Command.Args.Deps (Lib.L.jsoo_runtime_files libs))
       ; Deps javascript_files
@@ -103,8 +103,8 @@ let link_rule cc ~runtime ~target cm =
   let requires = Compilation_context.requires_link cc in
   let get_all =
     Action_builder.map cm ~f:(fun cm ->
-        Resolve.args
-          (let open Resolve.O in
+        Resolve.Build.args
+          (let open Resolve.Build.O in
           let+ libs = requires in
           let all_libs = List.concat_map libs ~f:(jsoo_archives ~ctx) in
           (* Special case for the stdlib because it is not referenced in the

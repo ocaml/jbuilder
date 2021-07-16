@@ -373,15 +373,12 @@ let cctx (lib : Library.t) ~sctx ~source_modules ~dir ~expander ~scope
       ~lint:lib.buildable.lint
       ~lib_name:(Some (snd lib.name))
   in
-  let* modules =
+  let+ modules =
     Modules.map_user_written source_modules ~f:(Pp_spec.pp_module pp)
   in
   let modules = Vimpl.impl_modules vimpl modules in
-  let* requires_compile = Lib.Compile.direct_requires compile_info in
-  let+ requires_link =
-    Memo.Lazy.force (Lib.Compile.requires_link compile_info)
-  in
-  let requires_link = lazy requires_link in
+  let requires_compile = Lib.Compile.direct_requires compile_info in
+  let requires_link = Lib.Compile.requires_link compile_info in
   let modes =
     let { Lib_config.has_native; _ } = ctx.lib_config in
     Dune_file.Mode_conf.Set.eval_detailed lib.modes ~has_native
@@ -405,7 +402,7 @@ let library_rules (lib : Library.t) ~cctx ~source_modules ~dir_contents
   let sctx = Compilation_context.super_context cctx in
   let dir = Compilation_context.dir cctx in
   let scope = Compilation_context.scope cctx in
-  let requires_compile = Compilation_context.requires_compile cctx in
+  let* requires_compile = Compilation_context.requires_compile cctx in
   let stdlib_dir = (Compilation_context.context cctx).Context.stdlib_dir in
   let* dep_graphs = Dep_rules.rules cctx ~modules
   and* () =

@@ -249,7 +249,7 @@ let build_and_link_many ~programs ~linkages ~promote ?link_args ?o_files
               match Linkage.is_plugin linkage with
               | false -> Memo.Build.return link_time_code_gen
               | true ->
-                let* cc =
+                let cc =
                   CC.for_plugin_executable cctx ~embed_in_plugin_libraries
                 in
                 Link_time_code_gen.handle_special_libs cc

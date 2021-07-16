@@ -328,12 +328,9 @@ let mdx_prog_gen t ~sctx ~dir ~scope ~expander ~mdx_prog =
       (Lib_dep.Direct (loc, Lib_name.of_string "mdx.test") :: t.libraries)
       ~pps:[] ~dune_version
   in
-  let* cctx =
-    let+ requires_compile = Lib.Compile.direct_requires compile_info
-    and+ requires_link =
-      Memo.Lazy.force (Lib.Compile.requires_link compile_info)
-    in
-    let requires_link = lazy requires_link in
+  let cctx =
+    let requires_compile = Lib.Compile.direct_requires compile_info
+    and requires_link = Lib.Compile.requires_link compile_info in
     Compilation_context.create ~super_context:sctx ~scope ~expander ~obj_dir
       ~modules ~flags ~requires_compile ~requires_link ~opaque:(Explicit false)
       ~js_of_ocaml:None ~package:None ()

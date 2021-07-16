@@ -234,7 +234,7 @@ let dune_site_plugins_code ~libs ~builtins =
 
 let handle_special_libs cctx =
   let ( let& ) m f = Resolve.Build.bind m ~f in
-  let& all_libs = Memo.Build.return (CC.requires_link cctx) in
+  let& all_libs = CC.requires_link cctx in
   let obj_dir = Compilation_context.obj_dir cctx |> Obj_dir.of_local in
   let sctx = CC.super_context cctx in
   let ctx = Super_context.context sctx in
@@ -257,7 +257,7 @@ let handle_special_libs cctx =
               ~code:
                 (Action_builder.memo_build
                    (build_info_code cctx ~libs:all_libs ~api_version))
-              ~requires:(Resolve.return [ lib ])
+              ~requires:(Resolve.Build.return [ lib ])
               ~precompiled_cmi:true
           in
           process_libs libs
@@ -268,8 +268,7 @@ let handle_special_libs cctx =
           (* If findlib.dynload is linked, we stores in the binary the packages
              linked by linking just after findlib.dynload a module containing
              the info *)
-          let open Memo.Build.O in
-          let* requires =
+          let requires =
             (* This shouldn't fail since findlib.dynload depends on dynlink and
                findlib. That's why it's ok to use a dummy location. *)
             let db = SC.public_libs sctx in
@@ -310,7 +309,7 @@ let handle_special_libs cctx =
           in
           let& module_ =
             generate_and_compile_module cctx ~name:data_module ~lib ~code
-              ~requires:(Resolve.return [ lib ])
+              ~requires:(Resolve.Build.return [ lib ])
               ~precompiled_cmi:true
           in
           process_libs libs

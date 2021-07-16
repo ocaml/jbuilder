@@ -106,7 +106,7 @@ include Sub_system.Register_end_point (struct
     in
     let modules = Modules.singleton_exe main_module in
     let* expander = Super_context.expander sctx ~dir in
-    let* runner_libs =
+    let runner_libs =
       let open Resolve.Build.O in
       let* libs =
         Resolve.Build.List.concat_map backends ~f:(fun (backend : Backend.t) ->
@@ -157,7 +157,7 @@ include Sub_system.Register_end_point (struct
       let flags = Ocaml_flags.append_common ocaml_flags [ "-w"; "-24"; "-g" ] in
       Compilation_context.create () ~super_context:sctx ~expander ~scope
         ~obj_dir ~modules ~opaque:(Explicit false) ~requires_compile:runner_libs
-        ~requires_link:(lazy runner_libs)
+        ~requires_link:(Memo.lazy_ (fun () -> runner_libs))
         ~flags ~js_of_ocaml:(Some lib.buildable.js_of_ocaml) ~package
     in
     let linkages =

@@ -121,7 +121,7 @@ let setup sctx ~dir =
   let obj_dir = Toplevel.Source.obj_dir source in
   let loc = Toplevel.Source.loc source in
   let* modules = Toplevel.Source.modules source preprocessing in
-  let* requires =
+  let requires =
     let open Resolve.Build.O in
     (loc, Lib_name.of_string "utop")
     |> Lib.DB.resolve db
@@ -137,9 +137,9 @@ let setup sctx ~dir =
       [ "-w"; "-24" ]
   in
   let cctx =
+    let requires_link = Memo.lazy_ (fun () -> requires) in
     Compilation_context.create () ~super_context:sctx ~expander ~scope ~obj_dir
-      ~modules ~opaque:(Explicit false)
-      ~requires_link:(lazy requires)
+      ~modules ~opaque:(Explicit false) ~requires_link
       ~requires_compile:requires ~flags ~js_of_ocaml:None ~package:None
       ~preprocessing
   in

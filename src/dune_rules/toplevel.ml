@@ -104,7 +104,7 @@ let setup_module_rules t =
   let main_ml =
     let open Action_builder.O in
     Action_builder.write_file_dyn path
-      (let* libs = Resolve.read requires_compile in
+      (let* libs = Resolve.Build.read requires_compile in
        let include_dirs =
          Path.Set.to_list (Lib.L.include_paths libs Mode.Byte)
        in
@@ -172,11 +172,8 @@ module Stanza = struct
          :: List.map toplevel.libraries ~f:(fun d -> Lib_dep.Direct d))
         ~pps ~dune_version ~allow_overlaps:false
     in
-    let* requires_compile = Lib.Compile.direct_requires compile_info in
-    let* requires_link =
-      Memo.Lazy.force (Lib.Compile.requires_link compile_info)
-    in
-    let requires_link = lazy requires_link in
+    let requires_compile = Lib.Compile.direct_requires compile_info in
+    let requires_link = Lib.Compile.requires_link compile_info in
     let obj_dir = Source.obj_dir source in
     let flags =
       let profile = (Super_context.context sctx).profile in

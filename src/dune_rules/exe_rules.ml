@@ -156,12 +156,9 @@ let executables_rules ~sctx ~dir ~expander ~dir_contents ~scope ~compile_info
   let explicit_js_mode = Dune_project.explicit_js_mode (Scope.project scope) in
   let linkages = linkages ctx ~exes ~explicit_js_mode in
   let* flags = Super_context.ocaml_flags sctx ~dir exes.buildable.flags in
-  let* cctx =
-    let* requires_compile = Lib.Compile.direct_requires compile_info in
-    let+ requires_link =
-      Memo.Lazy.force (Lib.Compile.requires_link compile_info)
-    in
-    let requires_link = lazy requires_link in
+  let cctx =
+    let requires_compile = Lib.Compile.direct_requires compile_info in
+    let requires_link = Lib.Compile.requires_link compile_info in
     let js_of_ocaml =
       let js_of_ocaml = exes.buildable.js_of_ocaml in
       if explicit_js_mode then
@@ -176,7 +173,7 @@ let executables_rules ~sctx ~dir ~expander ~dir_contents ~scope ~compile_info
       ~js_of_ocaml ~opaque:Inherit_from_settings ~package:exes.package
   in
   let stdlib_dir = ctx.Context.stdlib_dir in
-  let requires_compile = Compilation_context.requires_compile cctx in
+  let* requires_compile = Compilation_context.requires_compile cctx in
   let* preprocess =
     Resolve.Build.read_memo_build
       (Preprocess.Per_module.with_instrumentation exes.buildable.preprocess

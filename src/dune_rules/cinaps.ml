@@ -109,12 +109,9 @@ let gen_rules sctx t ~dir ~scope =
       ~dune_version
   in
   let obj_dir = Obj_dir.make_exe ~dir:cinaps_dir ~name in
-  let* cctx =
-    let* requires_compile = Lib.Compile.direct_requires compile_info in
-    let+ requires_link =
-      Memo.Lazy.force (Lib.Compile.requires_link compile_info)
-    in
-    let requires_link = lazy requires_link in
+  let cctx =
+    let requires_compile = Lib.Compile.direct_requires compile_info in
+    let requires_link = Lib.Compile.requires_link compile_info in
     Compilation_context.create () ~super_context:sctx ~expander ~scope ~obj_dir
       ~modules ~opaque:(Explicit false) ~requires_compile ~requires_link
       ~flags:(Ocaml_flags.of_list [ "-w"; "-24" ])
