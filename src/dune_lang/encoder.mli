@@ -17,7 +17,9 @@ val field_o : string -> 'a t -> 'a option -> field
 
 val field_b : string -> bool -> field
 
-(** Field with inlined list as value *)
+(** Field with inlined list as value
+
+    The field is left absent if the list is empty. *)
 val field_l : string -> 'a t -> 'a list -> field
 
 (** Same as [field_l] but to represent a single value *)

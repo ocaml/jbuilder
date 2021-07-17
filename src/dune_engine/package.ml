@@ -94,6 +94,17 @@ module Dependency = struct
       | Lt
       | Neq
 
+    let equal a b =
+      match (a, b) with
+      | Eq, Eq
+      | Gte, Gte
+      | Lte, Lte
+      | Gt, Gt
+      | Lt, Lt
+      | Neq, Neq ->
+        true
+      | _ -> false
+
     let map =
       [ ("=", Eq); (">=", Gte); ("<=", Lte); (">", Gt); ("<", Lt); ("<>", Neq) ]
 
@@ -114,6 +125,11 @@ module Dependency = struct
       | Gt -> `Gt
       | Lt -> `Lt
       | Neq -> `Neq
+
+    let encode x =
+      let f (_, op) = equal x op in
+      (* Assumes the [map] is complete, so exception is impossible *)
+      List.find_exn ~f map |> fst |> Dune_lang.Encoder.string
   end
 
   module Constraint = struct
@@ -121,6 +137,10 @@ module Dependency = struct
       type t =
         | QVar of string
         | Var of string
+
+      let encode = function
+        | QVar v -> Dune_lang.Encoder.string v
+        | Var v -> Dune_lang.Encoder.string (":" ^ v)
 
       let decode =
         let open Dune_lang.Decoder in
@@ -147,6 +167,16 @@ module Dependency = struct
       | Bop of Op.t * Var.t * Var.t
       | And of t list
       | Or of t list
+
+    let rec encode c =
+      let open Dune_lang.Encoder in
+      match c with
+      | Bvar x -> Var.encode x
+      | Uop (op, x) -> pair Op.encode Var.encode (op, x)
+      | Bop (op, x, y) -> triple Op.encode Var.encode Var.encode (op, x, y)
+      | And conjuncts ->
+        list sexp (string "and" :: List.map ~f:encode conjuncts)
+      | Or disjuncts -> list sexp (string "or" :: List.map ~f:encode disjuncts)
 
     let decode =
       let open Dune_lang.Decoder in
@@ -202,6 +232,10 @@ module Dependency = struct
     { name : Name.t
     ; constraint_ : Constraint.t option
     }
+
+  let encode { name; constraint_ } =
+    let open Dune_lang.Encoder in
+    list sexp [ Name.encode name; option Constraint.encode constraint_ ]
 
   let decode =
     let open Dune_lang.Decoder in
@@ -322,6 +356,12 @@ module Source_kind = struct
              let constr = to_string kind in
              (constr, decode))
 
+    let encode { user; repo; kind } =
+      let forge = to_string kind in
+      let path = repo ^ "/" ^ user in
+      let open Dune_lang.Encoder in
+      pair string string (forge, path)
+
     let to_string { user; repo; kind } =
       sprintf "git+https://%s/%s/%s.git" (host_of_kind kind) user repo
   end
@@ -339,6 +379,12 @@ module Source_kind = struct
   let to_string = function
     | Host h -> Host.to_string h
     | Url u -> u
+
+  let encode =
+    let open Dune_lang.Encoder in
+    function
+    | Url url -> pair string string ("uri", url)
+    | Host host -> Host.encode host
 
   let decode =
     let open Dune_lang.Decoder in
@@ -404,6 +450,26 @@ module Info = struct
       ; ("bug_reports", (option string) bug_reports)
       ; ("maintainers", option (list string) maintainers)
       ; ("authors", option (list string) authors)
+      ]
+
+  let encode
+      { source
+      ; authors
+      ; license
+      ; homepage
+      ; documentation
+      ; bug_reports
+      ; maintainers
+      } =
+    let open Dune_lang.Encoder in
+    record_fields
+      [ field_o "source" Source_kind.encode source
+      ; field_o "authors" (list string) authors
+      ; field_o "license" string license
+      ; field_o "homepage" string homepage
+      ; field_o "documentation" string documentation
+      ; field_o "bug_reports" string bug_reports
+      ; field_o "maintainers" (list string) maintainers
       ]
 
   let decode ?since () =
@@ -480,6 +546,41 @@ let hash t = Id.hash t.id
 let name t = t.id.name
 
 let dir t = t.id.dir
+
+let encode
+    { id = _
+    ; loc = _
+    ; has_opam_file = _
+    ; synopsis
+    ; description
+    ; depends
+    ; conflicts
+    ; depopts
+    ; info
+    ; version
+    ; tags
+    ; deprecated_package_names
+    ; sites
+    } =
+  let open Dune_lang.Encoder in
+  let fields =
+    record_fields
+      [ field_o "synopsis" string synopsis
+      ; field_o "description" string description
+      ; field_l "depends" Dependency.encode depends
+      ; field_l "conflicts" Dependency.encode conflicts
+      ; field_l "depopts" Dependency.encode depopts
+      ; field_o "version" string version
+      ; field_l "tags" string tags
+      ; field_l "deprecated_package_names" Name.encode
+          (Name.Map.keys deprecated_package_names)
+      ; field_l "sits"
+          (pair Section.Site.encode Section.encode)
+          (Section.Site.Map.to_list sites)
+      ]
+    @ Info.encode info
+  in
+  constr "package" (list sexp) fields
 
 let decode ~dir =
   let open Dune_lang.Decoder in
