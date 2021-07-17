@@ -22,14 +22,14 @@ end)
 
 let error_equal { exn; stack_frames } b =
   Exn.equal exn b.exn
-  && List.equal
+  && Stdune.List.equal
        (fun (lazy a) (lazy b) -> Poly.equal a b)
        stack_frames b.stack_frames
 
 let equal f = Result.equal f error_equal
 
 let error_hash { exn; stack_frames } =
-  Poly.hash (Exn.hash exn, List.map stack_frames ~f:Lazy.force)
+  Poly.hash (Exn.hash exn, Stdune.List.map stack_frames ~f:Lazy.force)
 
 let to_dyn f t =
   Result.to_dyn f Exn.to_dyn (Result.map_error t ~f:(fun x -> x.exn))
@@ -80,13 +80,6 @@ let push_stack_frame ~human_readable_description:f t =
   | Error err ->
     Error { err with stack_frames = Lazy.from_fun f :: err.stack_frames }
 
-module Build = struct
-  let bind t ~f =
-    match t with
-    | Error _ as err -> Memo.Build.return err
-    | Ok x -> Memo.Build.map (f x) ~f:Fun.id
-end
-
 module List = struct
   let map = Result.List.map
 
@@ -106,4 +99,68 @@ module Option = struct
     match x with
     | None -> return ()
     | Some x -> f x
+end
+
+module Build = struct
+  open Memo.Build.O
+
+  module T = struct
+    type nonrec 'a t = 'a t Memo.Build.t
+
+    let return x = Memo.Build.return (Ok x)
+
+    let bind t ~f =
+      let* t = t in
+      match t with
+      | Ok s -> f s
+      | Error e -> Memo.Build.return (Error e)
+  end
+
+  module M = struct
+    include T
+    include Monad.Make (T)
+  end
+
+  module List = Monad.List (M)
+  include M
+
+  let push_stack_frame ~human_readable_description f =
+    let+ t = Memo.push_stack_frame ~human_readable_description f in
+    push_stack_frame ~human_readable_description t
+
+  let lift t = Memo.Build.return t
+
+  let lift_memo t = Memo.Build.map t ~f:(fun x -> Ok x)
+
+  let is_ok t = Memo.Build.map ~f:is_ok t
+
+  let is_error t = Memo.Build.map ~f:is_error t
+
+  module Option = struct
+    let iter t ~f : unit t =
+      match t with
+      | None -> return ()
+      | Some t -> f t
+  end
+
+  let all = List.map ~f:Fun.id
+
+  let read_memo_build t =
+    let* t = t in
+    read_memo_build t
+
+  let read (type a) (t : a t) : a Action_builder.t =
+    Action_builder.memo_build
+      (let* t = t in
+       match t with
+       | Ok x -> Memo.Build.return x
+       | Error err -> error_to_memo_build err)
+
+  let fail s = Memo.Build.return (fail s)
+
+  let args s = Command.Args.Dyn (read s)
+
+  let of_result s = Memo.Build.return (of_result s)
+
+  let peek t = Memo.Build.map t ~f:(Result.map_error ~f:ignore)
 end

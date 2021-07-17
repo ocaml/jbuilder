@@ -49,3 +49,7 @@ let linker_can_create_empty_archives t =
   match t.ccomp_type with
   | Msvc -> false
   | Other _ -> true
+
+let hash = Poly.hash
+
+let equal = Poly.equal

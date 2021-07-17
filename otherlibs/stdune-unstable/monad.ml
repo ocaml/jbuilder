@@ -33,3 +33,81 @@ module Id = Make (struct
 
   let bind x ~f = f x
 end)
+
+module List (M : Monad_intf.S) = struct
+  open M
+  open M.O
+
+  let rec find_map xs ~f =
+    match xs with
+    | [] -> return None
+    | x :: xs -> (
+      let* x = f x in
+      match x with
+      | None -> find_map xs ~f
+      | Some s -> return (Some s))
+
+  let rec fold_left xs ~f ~init =
+    match xs with
+    | [] -> return init
+    | x :: xs ->
+      let* init = f init x in
+      fold_left xs ~f ~init
+
+  let filter_map xs ~f =
+    let rec loop acc = function
+      | [] -> return (List.rev acc)
+      | x :: xs -> (
+        let* y = f x in
+        match y with
+        | None -> loop acc xs
+        | Some y -> loop (y :: acc) xs)
+    in
+    loop [] xs
+
+  let filter xs ~f =
+    filter_map xs ~f:(fun x ->
+        let+ pred = f x in
+        Option.some_if pred x)
+
+  let map xs ~f =
+    filter_map xs ~f:(fun x ->
+        let+ x = f x in
+        Some x)
+
+  let concat_map xs ~f = map xs ~f >>| List.concat
+
+  let rec iter xs ~f =
+    match xs with
+    | [] -> return ()
+    | x :: xs ->
+      let* () = f x in
+      iter xs ~f
+
+  let rec for_all xs ~f =
+    match xs with
+    | [] -> return true
+    | x :: xs ->
+      let* pred = f x in
+      if pred then
+        for_all xs ~f
+      else
+        return false
+
+  let rec exists xs ~f =
+    match xs with
+    | [] -> return false
+    | x :: xs ->
+      let* pred = f x in
+      if pred then
+        return true
+      else
+        exists xs ~f
+end
+
+module Option (M : Monad_intf.S) = struct
+  let iter a ~f =
+    match a with
+    | None -> M.return ()
+    | Some s -> f s
+end

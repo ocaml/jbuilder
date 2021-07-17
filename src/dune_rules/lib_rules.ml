@@ -357,12 +357,12 @@ let cctx (lib : Library.t) ~sctx ~source_modules ~dir ~expander ~scope
     Lib.DB.instrumentation_backend (Scope.libs scope)
   in
   let* preprocess =
-    Resolve.read_memo_build
+    Resolve.Build.read_memo_build
       (Preprocess.Per_module.with_instrumentation lib.buildable.preprocess
          ~instrumentation_backend)
   in
   let* instrumentation_deps =
-    Resolve.read_memo_build
+    Resolve.Build.read_memo_build
       (Preprocess.Per_module.instrumentation_deps lib.buildable.preprocess
          ~instrumentation_backend)
   in
@@ -402,7 +402,7 @@ let library_rules (lib : Library.t) ~cctx ~source_modules ~dir_contents
   let sctx = Compilation_context.super_context cctx in
   let dir = Compilation_context.dir cctx in
   let scope = Compilation_context.scope cctx in
-  let requires_compile = Compilation_context.requires_compile cctx in
+  let* requires_compile = Compilation_context.requires_compile cctx in
   let stdlib_dir = (Compilation_context.context cctx).Context.stdlib_dir in
   let* dep_graphs = Dep_rules.rules cctx ~modules
   and* () =
@@ -435,7 +435,7 @@ let library_rules (lib : Library.t) ~cctx ~source_modules ~dir_contents
       ; compile_info
       }
   and+ preprocess =
-    Resolve.read_memo_build
+    Resolve.Build.read_memo_build
       (Preprocess.Per_module.with_instrumentation lib.buildable.preprocess
          ~instrumentation_backend:
            (Lib.DB.instrumentation_backend (Scope.libs scope)))
@@ -448,7 +448,7 @@ let library_rules (lib : Library.t) ~cctx ~source_modules ~dir_contents
       () )
 
 let rules (lib : Library.t) ~sctx ~dir_contents ~dir ~expander ~scope =
-  let compile_info =
+  let* compile_info =
     Lib.DB.get_compile_info (Scope.libs scope) (Library.best_name lib)
       ~allow_overlaps:lib.buildable.allow_overlapping_dependencies
   in

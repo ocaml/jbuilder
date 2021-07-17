@@ -82,7 +82,7 @@ let impl sctx ~(lib : Dune_file.Library.t) ~scope =
   match lib.implements with
   | None -> Memo.Build.return None
   | Some (loc, implements) -> (
-    match Lib.DB.find (Scope.libs scope) implements with
+    Lib.DB.find (Scope.libs scope) implements >>= function
     | None ->
       User_error.raise ~loc
         [ Pp.textf "Cannot implement %s as that library isn't available"
@@ -116,7 +116,7 @@ let impl sctx ~(lib : Dune_file.Library.t) ~scope =
             Dir_contents.get sctx ~dir
           in
           let* preprocess =
-            Resolve.read_memo_build
+            Resolve.Build.read_memo_build
               (Preprocess.Per_module.with_instrumentation
                  lib.buildable.preprocess
                  ~instrumentation_backend:

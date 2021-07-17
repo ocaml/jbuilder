@@ -18,3 +18,11 @@ val map : 'a t -> f:('a -> 'b) -> 'b t
     corresponding directory information corresponding as first argument *)
 val deep_fold :
   'a list t list -> init:'acc -> f:('a list t -> 'a -> 'acc -> 'acc) -> 'acc
+
+module Memo : sig
+  val deep_fold :
+       'a list t list
+    -> init:'acc
+    -> f:('a list t -> 'a -> 'acc -> 'acc Memo.Build.t)
+    -> 'acc Memo.Build.t
+end

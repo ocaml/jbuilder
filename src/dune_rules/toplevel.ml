@@ -104,7 +104,7 @@ let setup_module_rules t =
   let main_ml =
     let open Action_builder.O in
     Action_builder.write_file_dyn path
-      (let* libs = Resolve.read requires_compile in
+      (let* libs = Resolve.Build.read requires_compile in
        let include_dirs =
          Path.Set.to_list (Lib.L.include_paths libs Mode.Byte)
        in

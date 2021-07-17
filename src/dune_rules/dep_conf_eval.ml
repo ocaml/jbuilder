@@ -115,7 +115,8 @@ let dep expander = function
        let+ () =
          let pkg = Package.Name.of_string pkg in
          let context = Expander.context expander in
-         match Expander.find_package expander pkg with
+         Action_builder.memo_build (Expander.find_package expander pkg)
+         >>= function
          | Some (Local pkg) ->
            Action_builder.alias
              (Alias.package_install

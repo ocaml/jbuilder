@@ -69,8 +69,9 @@ module Crawl = struct
     let obj_dir = Obj_dir.of_local obj_dir in
     let modules_ = modules ~obj_dir modules_ in
     let scope = Super_context.find_scope_by_project sctx project in
-    let+ compile_info = Exe_rules.compile_info ~scope exes in
-    match Resolve.peek (Lib.Compile.direct_requires compile_info) with
+    let* compile_info = Exe_rules.compile_info ~scope exes in
+    let+ requires = Lib.Compile.direct_requires compile_info in
+    match Resolve.peek requires with
     | Error () -> None
     | Ok libs ->
       let include_dirs = Obj_dir.all_cmis obj_dir in
@@ -92,7 +93,8 @@ module Crawl = struct
              ] ))
 
   let library sctx lib =
-    match Resolve.peek (Lib.requires lib) with
+    let* requires = Lib.requires lib in
+    match Resolve.peek requires with
     | Error () -> Memo.Build.return None
     | Ok requires ->
       let name = Lib.name lib in
@@ -128,18 +130,21 @@ module Crawl = struct
   let workspace { Dune_rules.Main.conf; contexts = _; scontexts }
       (context : Context.t) =
     let sctx = Context_name.Map.find_exn scontexts context.name in
-    let libs =
-      List.fold_left conf.projects ~init:Lib.Set.empty ~f:(fun libs project ->
+    let* libs =
+      Memo.Build.parallel_map conf.projects ~f:(fun project ->
           Super_context.find_scope_by_project sctx project
-          |> Scope.libs |> Lib.DB.all |> Lib.Set.union libs)
+          |> Scope.libs |> Lib.DB.all)
+      >>| fun libs -> libs |> Lib.Set.union_all |> Lib.Set.to_list
     in
     let* libs =
-      Lib.Set.fold libs ~init:libs ~f:(fun lib libs ->
-          match Resolve.peek (Lib.requires lib) with
-          | Error _ -> libs
-          | Ok requires -> Lib.Set.of_list requires |> Lib.Set.union libs)
-      |> Lib.Set.to_list
-      |> Memo.Build.parallel_map ~f:(library sctx)
+      Memo.Build.parallel_map libs ~f:(fun lib ->
+          let+ requires = Lib.requires lib in
+          match Resolve.peek requires with
+          | Error _ -> []
+          | Ok requires -> requires)
+      >>| (fun deps ->
+            List.concat (libs :: deps) |> Lib.Set.of_list |> Lib.Set.to_list)
+      >>= Memo.Build.parallel_map ~f:(library sctx)
       >>| List.filter_map ~f:Fun.id
     in
     let open Memo.Build.O in

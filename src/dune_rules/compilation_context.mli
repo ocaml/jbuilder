@@ -29,8 +29,8 @@ val create :
   -> obj_dir:Path.Build.t Obj_dir.t
   -> modules:Modules.t
   -> flags:Ocaml_flags.t
-  -> requires_compile:Lib.t list Resolve.t
-  -> requires_link:Lib.t list Resolve.t Lazy.t
+  -> requires_compile:Lib.t list Resolve.Build.t
+  -> requires_link:Lib.t list Resolve.t Memo.Lazy.t
   -> ?preprocessing:Pp_spec.t
   -> opaque:opaque
   -> ?stdlib:Ocaml_stdlib.t
@@ -63,9 +63,9 @@ val modules : t -> Modules.t
 
 val flags : t -> Ocaml_flags.t
 
-val requires_link : t -> Lib.t list Resolve.t
+val requires_link : t -> Lib.t list Resolve.Build.t
 
-val requires_compile : t -> Lib.t list Resolve.t
+val requires_compile : t -> Lib.t list Resolve.Build.t
 
 val includes : t -> Command.Args.without_targets Command.Args.t Cm_kind.Dict.t
 
@@ -90,7 +90,7 @@ val for_wrapped_compat : t -> t
 val for_root_module : t -> t
 
 val for_module_generated_at_link_time :
-  t -> requires:Lib.t list Resolve.t -> module_:Module.t -> t
+  t -> requires:Lib.t list Resolve.Build.t -> module_:Module.t -> t
 
 val for_plugin_executable :
   t -> embed_in_plugin_libraries:(Loc.t * Lib_name.t) list -> t

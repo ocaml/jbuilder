@@ -7,11 +7,11 @@ module Includes = struct
   type t = Command.Args.without_targets Command.Args.t Cm_kind.Dict.t
 
   let make ~project ~opaque ~requires : _ Cm_kind.Dict.t =
-    let open Resolve.O in
+    let open Resolve.Build.O in
     let iflags libs mode = Lib.L.include_flags ~project libs mode in
     let cmi_includes =
       Command.Args.memo
-        (Resolve.args
+        (Resolve.Build.args
            (let+ libs = requires in
             Command.Args.S
               [ iflags libs Byte
@@ -20,7 +20,7 @@ module Includes = struct
     in
     let cmx_includes =
       Command.Args.memo
-        (Resolve.args
+        (Resolve.Build.args
            (let+ libs = requires in
             Command.Args.S
               [ iflags libs Native
@@ -60,8 +60,8 @@ type t =
   ; obj_dir : Path.Build.t Obj_dir.t
   ; modules : Modules.t
   ; flags : Ocaml_flags.t
-  ; requires_compile : Lib.t list Resolve.t
-  ; requires_link : Lib.t list Resolve.t Lazy.t
+  ; requires_compile : Lib.t list Resolve.Build.t
+  ; requires_link : Lib.t list Resolve.t Memo.Lazy.t
   ; includes : Includes.t
   ; preprocessing : Pp_spec.t
   ; opaque : bool
@@ -90,7 +90,7 @@ let flags t = t.flags
 
 let requires_compile t = t.requires_compile
 
-let requires_link t = Lazy.force t.requires_link
+let requires_link t = Memo.Lazy.force t.requires_link
 
 let includes t = t.includes
 
@@ -120,7 +120,7 @@ let create ~super_context ~scope ~expander ~obj_dir ~modules ~flags
   let project = Scope.project scope in
   let requires_compile =
     if Dune_project.implicit_transitive_deps project then
-      Lazy.force requires_link
+      Memo.Lazy.force requires_link
     else
       requires_compile
   in
@@ -211,7 +211,7 @@ let for_module_generated_at_link_time cctx ~requires ~module_ =
     opaque
   ; js_of_ocaml = None
   ; flags = Ocaml_flags.empty
-  ; requires_link = lazy requires
+  ; requires_link = Memo.lazy_ (fun () -> requires)
   ; requires_compile = requires
   ; modules
   }
@@ -221,7 +221,9 @@ let for_wrapped_compat t = { t with includes = Includes.empty; stdlib = None }
 let for_plugin_executable t ~embed_in_plugin_libraries =
   let libs = Scope.libs t.scope in
   let requires_link =
-    lazy (Resolve.List.map ~f:(Lib.DB.resolve libs) embed_in_plugin_libraries)
+    Memo.lazy_ (fun () ->
+        Resolve.Build.List.map ~f:(Lib.DB.resolve libs)
+          embed_in_plugin_libraries)
   in
   { t with requires_link }
 
@@ -229,7 +231,7 @@ let without_bin_annot t = { t with bin_annot = false }
 
 let root_module_entries t =
   let open Action_builder.O in
-  let* requires = Resolve.read t.requires_compile in
+  let* requires = Resolve.Build.read t.requires_compile in
   let* l =
     Action_builder.List.map requires ~f:(fun lib ->
         Action_builder.memo_build (Lib.entry_module_names lib) >>= Resolve.read)

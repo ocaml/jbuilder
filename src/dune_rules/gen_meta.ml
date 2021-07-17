@@ -90,25 +90,28 @@ let gen_lib pub_name lib ~path ~version =
       [ Pos "ppx_driver" ]
   in
   let to_names = Lib_name.Set.of_list_map ~f:Lib.name in
-  let* lib_deps = Resolve.read_memo_build (Lib.requires lib) >>| to_names in
+  let* lib_deps =
+    Resolve.Build.read_memo_build (Lib.requires lib) >>| to_names
+  in
   let* ppx_rt_deps =
-    Resolve.read_memo_build (Lib.ppx_runtime_deps lib) >>| to_names
+    Lib.ppx_runtime_deps lib
+    |> Memo.Build.bind ~f:Resolve.read_memo_build
+    |> Memo.Build.map ~f:to_names
   in
   let+ ppx_runtime_deps_for_deprecated_method =
-    Resolve.read_memo_build
-      (let open Resolve.O in
-      (* For the deprecated method, we need to put all the runtime dependencies
-         of the transitive closure.
+    (* For the deprecated method, we need to put all the runtime dependencies of
+       the transitive closure.
 
-         We need to do this because [ocamlfind ocamlc -package ppx_foo] will not
-         look for the transitive dependencies of [foo], and the runtime
-         dependencies might be attached to a dependency of [foo] rather than
-         [foo] itself.
+       We need to do this because [ocamlfind ocamlc -package ppx_foo] will not
+       look for the transitive dependencies of [foo], and the runtime
+       dependencies might be attached to a dependency of [foo] rather than [foo]
+       itself.
 
-         Sigh... *)
-      Lib.closure [ lib ] ~linking:false
-      >>= Resolve.List.concat_map ~f:Lib.ppx_runtime_deps
-      >>| to_names)
+       Sigh... *)
+    let open Resolve.Build.O in
+    Lib.closure [ lib ] ~linking:false
+    >>= Resolve.Build.List.concat_map ~f:Lib.ppx_runtime_deps
+    >>| to_names |> Resolve.Build.read_memo_build
   in
   List.concat
     [ version

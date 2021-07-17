@@ -47,7 +47,7 @@ end = struct
     | Ppx_rewriter _ ->
       let name = Dune_file.Library.best_name lib in
       let+ ppx_exe =
-        Resolve.read_memo_build (Preprocessing.ppx_exe sctx ~scope name)
+        Resolve.Build.read_memo_build (Preprocessing.ppx_exe sctx ~scope name)
       in
       [ ppx_exe ]
 
@@ -208,10 +208,10 @@ end = struct
     let+ keep =
       match (stanza : Stanza.t) with
       | Dune_file.Library lib ->
-        Memo.Build.return
-          ((not lib.optional)
-          || Lib.DB.available (Scope.libs scope)
-               (Dune_file.Library.best_name lib))
+        if lib.optional then
+          Lib.DB.available (Scope.libs scope) (Dune_file.Library.best_name lib)
+        else
+          Memo.Build.return true
       | Dune_file.Documentation _ -> Memo.Build.return true
       | Dune_file.Install { enabled_if; _ } ->
         Expander.eval_blang expander enabled_if
@@ -223,12 +223,12 @@ end = struct
           if not exes.optional then
             Memo.Build.return true
           else
-            let+ compile_info =
+            let* compile_info =
               let dune_version =
                 Scope.project scope |> Dune_project.dune_version
               in
               let+ pps =
-                Resolve.read_memo_build
+                Resolve.Build.read_memo_build
                   (Preprocess.Per_module.with_instrumentation
                      exes.buildable.preprocess
                      ~instrumentation_backend:
@@ -239,7 +239,8 @@ end = struct
                 exes.names exes.buildable.libraries ~pps ~dune_version
                 ~allow_overlaps:exes.buildable.allow_overlapping_dependencies
             in
-            Resolve.is_ok (Lib.Compile.direct_requires compile_info))
+            let+ requires = Lib.Compile.direct_requires compile_info in
+            Resolve.is_ok requires)
       | Coq_stanza.Theory.T d -> Memo.Build.return (Option.is_some d.package)
       | _ -> Memo.Build.return false
     in
@@ -329,14 +330,16 @@ end = struct
                   in
                   let section = i.section in
                   Memo.Build.List.map i.files ~f:(fun unexpanded ->
-                      let+ fb = path_expander unexpanded in
+                      let* fb = path_expander unexpanded in
                       let loc = File_binding.Expanded.src_loc fb in
                       let src = File_binding.Expanded.src fb in
                       let dst = File_binding.Expanded.dst fb in
-                      ( Some loc
-                      , Install.Entry.make_with_site section
+                      let+ entry =
+                        Install.Entry.make_with_site section
                           (Super_context.get_site_of_packages sctx)
-                          src ?dst ))
+                          src ?dst
+                      in
+                      (Some loc, entry))
                 | Dune_file.Library lib ->
                   let sub_dir = Dune_file.Library.sub_dir lib in
                   let* dir_contents = Dir_contents.get sctx ~dir in
@@ -352,8 +355,7 @@ end = struct
                           ~dst:
                             (sprintf "odoc-pages/%s" (Path.Build.basename mld))
                           Section.Doc mld ))
-                | Dune_file.Plugin t ->
-                  Memo.Build.return (Plugin_rules.install_rules ~sctx ~dir t)
+                | Dune_file.Plugin t -> Plugin_rules.install_rules ~sctx ~dir t
                 | _ -> Memo.Build.return []
               in
               let name = Package.name package in

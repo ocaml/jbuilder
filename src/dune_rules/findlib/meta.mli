@@ -54,12 +54,18 @@ module Simplified : sig
     ; subs : t list
     }
 
+  val equal : t -> t -> bool
+
+  val hash : t -> int
+
   val to_dyn : t -> Dyn.t
 end
 
 val complexify : Simplified.t -> t
 
-val load : Path.t -> name:Package.Name.t option -> Simplified.t
+val of_string : string -> name:Package.Name.t option -> Simplified.t
+
+val load : Path.t -> name:Package.Name.t option -> Simplified.t Memo.Build.t
 
 (** Builtin META files for libraries distributed with the compiler. For when
     ocamlfind is not installed. *)

@@ -1,6 +1,16 @@
 open! Dune_engine
 open! Import
-open Resolve.O
+open Resolve.Build.O
+
+module Resolve = struct
+  module Base = Resolve
+
+  module Lazy = struct
+    type nonrec 'a t = 'a Resolve.t Memo.Lazy.t
+  end
+
+  include Resolve.Build
+end
 
 (* Errors *)
 
@@ -238,8 +248,6 @@ module Id : sig
     ; name : Lib_name.t
     }
 
-  val to_dyn : t -> Dyn.t
-
   val to_dep_path_lib : t -> Dep_path.Entry.Lib.t
 
   val hash : t -> int
@@ -304,7 +312,7 @@ module T = struct
     ; lib_config : Lib_config.t
     ; project : Dune_project.t option
     ; (* these fields cannot be forced until the library is instantiated *)
-      default_implementation : t Resolve.t Lazy.t option
+      default_implementation : t Resolve.Lazy.t option
     ; (* This is mutable to avoid this error:
 
          {[ This kind of expression is not allowed as right-hand side of `let
@@ -356,7 +364,6 @@ end
 
 module Status = struct
   type t =
-    | Initializing of Id.t (* To detect cycles *)
     | Found of lib
     | Not_found
     | Hidden of lib Hidden.t
@@ -366,7 +373,6 @@ module Status = struct
     let open Dyn.Encoder in
     match t with
     | Invalid e -> constr "Invalid" [ Exn.to_dyn e ]
-    | Initializing i -> constr "Initializing" [ Id.to_dyn i ]
     | Not_found -> constr "Not_found" []
     | Hidden { lib = _; path; reason } ->
       constr "Hidden" [ Path.to_dyn path; string reason ]
@@ -375,9 +381,8 @@ end
 
 type db =
   { parent : db option
-  ; resolve : Lib_name.t -> resolve_result
-  ; table : (Lib_name.t, Status.t) Table.t
-  ; all : Lib_name.t list Lazy.t
+  ; resolve : Lib_name.t -> resolve_result Memo.Build.t
+  ; all : Lib_name.t list Memo.Lazy.t
   ; lib_config : Lib_config.t
   ; instrument_with : Lib_name.t list
   ; modules_of_lib :
@@ -421,6 +426,7 @@ let main_module_name t =
   match main_module_name with
   | This mmn -> Resolve.return mmn
   | From _ -> (
+    let open Resolve.O in
     let+ vlib = Option.value_exn t.implements in
     let main_module_name = Lib_info.main_module_name vlib.info in
     match main_module_name with
@@ -429,13 +435,13 @@ let main_module_name t =
 
 let entry_module_names t =
   match Lib_info.entry_modules t.info with
-  | External d -> Memo.Build.return (Resolve.of_result d)
+  | External d -> Resolve.of_result d
   | Local -> (
     match t.modules with
     | None -> assert false
     | Some m ->
       let open Memo.Build.O in
-      let+ m = Memo.Lazy.force m in
+      let* m = Memo.Lazy.force m in
       Resolve.return (Modules.entry_modules m |> List.map ~f:Module.name))
 
 let src_dirs t = Memo.Lazy.force t.src_dirs
@@ -884,16 +890,6 @@ let check_private_deps lib ~loc ~(private_deps : private_deps) =
     | Private (_, None) -> Error.private_deps_not_allowed ~loc lib.info
     | _ -> Resolve.return lib)
 
-let already_in_table info name x =
-  let to_dyn = Dyn.Encoder.(pair Path.to_dyn Lib_name.to_dyn) in
-  let src_dir = Lib_info.src_dir info in
-  Code_error.raise
-    "Lib_db.DB: resolver returned name that's already in the table"
-    [ ("name", Lib_name.to_dyn name)
-    ; ("returned_lib", to_dyn (src_dir, name))
-    ; ("conflicting_with", Status.to_dyn x)
-    ]
-
 module Vlib : sig
   (** Make sure that for every virtual library in the list there is at most one
       corresponding implementation.
@@ -916,19 +912,6 @@ module Vlib : sig
     val add : t -> lib -> t Resolve.t
 
     val with_default_implementations : t -> lib list
-  end
-
-  module Visit : sig
-    type t
-
-    val create : unit -> t
-
-    val visit :
-         t
-      -> lib
-      -> stack:Lib_info.external_ list
-      -> f:(lib -> unit Resolve.t)
-      -> unit Resolve.t
   end
 end = struct
   module Unimplemented = struct
@@ -1020,21 +1003,32 @@ end = struct
   end
 
   let second_step_closure ts impls =
-    let visited = ref Id.Set.empty in
-    let res = ref [] in
+    let module R = struct
+      module M =
+        State.Make
+          (struct
+            type t = lib list * Id.Set.t
+          end)
+          (Resolve)
+
+      module List = Monad.List (M)
+      include M
+    end in
+    let open R.O in
     let rec loop t =
       let t = Option.value ~default:t (Map.find impls t) in
-      if Id.Set.mem !visited t.unique_id then
-        Resolve.return ()
-      else (
-        visited := Id.Set.add !visited t.unique_id;
-        let* deps = t.requires in
-        let+ () = Resolve.List.iter deps ~f:loop in
-        res := t :: !res
-      )
-    in
-    let+ () = Resolve.List.iter ts ~f:loop in
-    List.rev !res
+      let* res, visited = R.get in
+      if Id.Set.mem visited t.unique_id then
+        R.return ()
+      else
+        let* () = R.set (res, Id.Set.add visited t.unique_id) in
+        let* deps = R.lift t.requires in
+        let* () = many deps in
+        R.modify (fun (res, visited) -> (t :: res, visited))
+    and many deps = R.List.iter deps ~f:loop in
+    let open Resolve.O in
+    let+ (res, _visited), () = R.run (many ts) ([], Id.Set.empty) in
+    List.rev res
 
   let associate closure ~orig_stack ~linking =
     let* impls = Table.Partial.make closure ~orig_stack in
@@ -1044,32 +1038,11 @@ end = struct
       second_step_closure closure impls
     else
       Resolve.return closure
-
-  module Visit = struct
-    module Status = struct
-      type t =
-        | Visiting
-        | Visited
-    end
-
-    type t = Status.t Map.t ref
-
-    let create () = ref Map.empty
-
-    let visit t lib ~stack ~f =
-      match Map.find !t lib with
-      | Some Status.Visited -> Resolve.return ()
-      | Some Visiting -> Error.default_implementation_cycle (lib.info :: stack)
-      | None ->
-        t := Map.set !t lib Visiting;
-        let res = f lib in
-        t := Map.set !t lib Visited;
-        res
-  end
 end
 
 let instrumentation_backend ?(do_not_fail = false) instrument_with resolve
     libname =
+  let open Resolve.O in
   if not (List.mem ~equal:Lib_name.equal instrument_with (snd libname)) then
     Resolve.return None
   else
@@ -1089,7 +1062,8 @@ let instrumentation_backend ?(do_not_fail = false) instrument_with resolve
              ])
 
 module rec Resolve_names : sig
-  val find_internal : db -> Lib_name.t -> stack:Dep_stack.t -> Status.t
+  val find_internal :
+    db -> Lib_name.t -> stack:Dep_stack.t -> Status.t Memo.Build.t
 
   val resolve_dep :
        db
@@ -1098,9 +1072,11 @@ module rec Resolve_names : sig
     -> stack:Dep_stack.t
     -> lib Resolve.t
 
-  val resolve_name : db -> Lib_name.t -> stack:Dep_stack.t -> Status.t
+  val resolve_name :
+    db -> Lib_name.t -> stack:Dep_stack.t -> Status.t Memo.Build.t
 
-  val available_internal : db -> Lib_name.t -> stack:Dep_stack.t -> bool
+  val available_internal :
+    db -> Lib_name.t -> stack:Dep_stack.t -> bool Memo.Build.t
 
   val resolve_simple_deps :
        db
@@ -1141,15 +1117,11 @@ module rec Resolve_names : sig
 end = struct
   open Resolve_names
 
-  let instantiate db name info ~stack ~hidden =
+  let instantiate_impl (db, name, info, stack, hidden) =
     let unique_id, stack =
       let src_dir = Lib_info.src_dir info in
       Dep_stack.create_and_push stack name src_dir
     in
-    Option.iter (Table.find db.table name) ~f:(fun x ->
-        already_in_table info name x);
-    (* Add [id] to the table, to detect loops *)
-    Table.add_exn db.table name (Status.Initializing unique_id);
     let status = Lib_info.status info in
     let private_deps =
       match status with
@@ -1188,40 +1160,42 @@ end = struct
     let default_implementation =
       Lib_info.default_implementation info
       |> Option.map ~f:(fun l ->
-             lazy
-               (let* impl = resolve_impl l in
-                match Lib_info.package impl.info with
-                | None -> Resolve.return impl
-                | Some p -> (
-                  let loc = fst l in
-                  match Lib_info.package info with
-                  | None ->
-                    (* We don't need to verify that impl is private if this
-                       virtual library is private. Every implementation already
-                       depends on the virtual library, so the check will be done
-                       there. *)
-                    Resolve.return impl
-                  | Some p' ->
-                    (* It's not good to rely on package names for equality like
-                       this, but we piggy back on the fact that package names
-                       are globally unique *)
-                    if Package.Name.equal p p' then
-                      Resolve.return impl
-                    else
-                      Error.make ~loc
-                        [ Pp.textf
-                            "default implementation belongs to package %s \
-                             while virtual libarary belongs to package %s. \
-                             This is impossible\n"
-                            (Package.Name.to_string p)
-                            (Package.Name.to_string p')
-                        ])))
+             Memo.lazy_ (fun () ->
+                 let* impl = resolve_impl l in
+                 match Lib_info.package impl.info with
+                 | None -> Resolve.return impl
+                 | Some p -> (
+                   let loc = fst l in
+                   match Lib_info.package info with
+                   | None ->
+                     (* We don't need to verify that impl is private if this
+                        virtual library is private. Every implementation already
+                        depends on the virtual library, so the check will be
+                        done there. *)
+                     Resolve.return impl
+                   | Some p' ->
+                     (* It's not good to rely on package names for equality like
+                        this, but we piggy back on the fact that package names
+                        are globally unique *)
+                     if Package.Name.equal p p' then
+                       Resolve.return impl
+                     else
+                       Error.make ~loc
+                         [ Pp.textf
+                             "default implementation belongs to package %s \
+                              while virtual libarary belongs to package %s. \
+                              This is impossible\n"
+                             (Package.Name.to_string p)
+                             (Package.Name.to_string p')
+                         ])))
     in
     let resolved =
       let+ pps =
+        let instrumentation_backend =
+          instrumentation_backend db.instrument_with resolve
+        in
         Preprocess.Per_module.with_instrumentation (Lib_info.preprocess info)
-          ~instrumentation_backend:
-            (instrumentation_backend db.instrument_with resolve)
+          ~instrumentation_backend
         >>| Preprocess.Per_module.pps
       in
       let dune_version = Lib_info.dune_version info in
@@ -1243,7 +1217,9 @@ end = struct
     in
     let src_dir = Lib_info.src_dir info in
     let map_error x =
-      Resolve.push_stack_frame x ~human_readable_description:(fun () ->
+      Resolve.push_stack_frame
+        (fun () -> x)
+        ~human_readable_description:(fun () ->
           Dep_path.Entry.Lib.pp { name; path = src_dir })
     in
     let requires = map_error requires in
@@ -1302,72 +1278,78 @@ end = struct
       |> Sub_system_name.Map.mapi ~f:(fun name info ->
              Memo.Lazy.create (fun () ->
                  Sub_system.instantiate name info t ~resolve));
-    let res =
-      let hidden =
+    let open Memo.Build.O in
+    let* res =
+      let+ hidden =
         match hidden with
-        | Some _ -> hidden
+        | Some _ -> Memo.Build.return hidden
         | None -> (
           let enabled = Lib_info.enabled info in
           match enabled with
-          | Normal -> None
+          | Normal -> Memo.Build.return None
+          | Disabled_because_of_enabled_if ->
+            Memo.Build.return (Some "unsatisfied 'enabled_if'")
           | Optional ->
-            Option.some_if
-              (not
-                 (Resolve.is_ok t.requires && Resolve.is_ok t.ppx_runtime_deps))
-              "optional with unavailable dependencies"
-          | Disabled_because_of_enabled_if -> Some "unsatisfied 'enabled_if'")
+            (* TODO this could be made lazier *)
+            let* requires = Resolve.is_ok requires in
+            let+ ppx_runtime_deps = Resolve.is_ok t.ppx_runtime_deps in
+            if requires && ppx_runtime_deps then
+              None
+            else
+              Some "optional with unavailable dependencies")
       in
       match hidden with
       | None -> Status.Found t
       | Some reason -> Hidden (Hidden.of_lib t ~reason)
     in
-    (match Table.find db.table name with
-    | Some (Status.Initializing u) -> assert (Id.equal u unique_id)
-    | _ -> assert false);
-    Table.set db.table name res;
-    res
+    Memo.Build.return res
 
-  let find_internal db (name : Lib_name.t) ~stack : Status.t =
-    match Table.find db.table name with
-    | Some x -> x
-    | None -> resolve_name db name ~stack
+  let memo =
+    let module Input = struct
+      type t = db * Lib_name.t * Path.t Lib_info.t * Dep_stack.t * string option
+
+      let to_dyn = Dyn.Encoder.opaque
+
+      let hash x = Poly.hash x
+
+      let equal = ( == )
+    end in
+    Memo.create "lib-instantiate" ~input:(module Input) instantiate_impl
+
+  let instantiate db name info ~stack ~hidden =
+    Memo.exec memo (db, name, info, stack, hidden)
+
+  let find_internal db (name : Lib_name.t) ~stack = resolve_name db name ~stack
 
   let resolve_dep db (loc, name) ~private_deps ~stack : t Resolve.t =
-    match find_internal db name ~stack with
-    | Initializing id -> Dep_stack.dependency_cycle stack id
+    let open Memo.Build.O in
+    find_internal db name ~stack >>= function
     | Found lib -> check_private_deps lib ~loc ~private_deps
     | Not_found -> Error.not_found ~loc ~name
     | Invalid why -> Resolve.of_result (Error why)
     | Hidden h -> Hidden.error h ~loc ~name
 
   let resolve_name db name ~stack =
-    match db.resolve name with
-    | Redirect (db', (_, name')) -> (
+    let open Memo.Build.O in
+    db.resolve name >>= function
+    | Redirect (db', (_, name')) ->
       let db' = Option.value db' ~default:db in
-      match find_internal db' name' ~stack with
-      | Status.Initializing _ as x -> x
-      | x ->
-        Table.add_exn db.table name x;
-        x)
+      find_internal db' name' ~stack
     | Found info -> instantiate db name info ~stack ~hidden:None
-    | Invalid e -> Status.Invalid e
+    | Invalid e -> Memo.Build.return (Status.Invalid e)
     | Not_found ->
-      let res =
+      let+ res =
         match db.parent with
-        | None -> Status.Not_found
+        | None -> Memo.Build.return Status.Not_found
         | Some db -> find_internal db name ~stack
       in
-      Table.add_exn db.table name res;
       res
     | Hidden { lib = info; reason = hidden; path = _ } -> (
-      match
-        match db.parent with
-        | None -> Status.Not_found
-        | Some db -> find_internal db name ~stack
-      with
-      | Status.Found _ as x ->
-        Table.add_exn db.table name x;
-        x
+      (match db.parent with
+      | None -> Memo.Build.return Status.Not_found
+      | Some db -> find_internal db name ~stack)
+      >>= function
+      | Status.Found _ as x -> Memo.Build.return x
       | _ -> instantiate db name info ~stack ~hidden:(Some hidden))
 
   let available_internal db (name : Lib_name.t) ~stack =
@@ -1378,20 +1360,31 @@ end = struct
     Resolve.List.map names ~f:(resolve_dep db ~private_deps ~stack)
 
   let re_exports_closure ts =
-    let visited = ref Set.empty in
-    let res = ref [] in
+    let module R = struct
+      module M =
+        State.Make
+          (struct
+            type t = lib list * Set.t
+          end)
+          (Resolve)
+
+      module List = Monad.List (M)
+      include M
+    end in
+    let open R.O in
     let rec one (t : lib) =
-      if Set.mem !visited t then
-        Resolve.return ()
-      else (
-        visited := Set.add !visited t;
-        let* re_exports = t.re_exports in
-        let+ () = many re_exports in
-        res := t :: !res
-      )
-    and many l = Resolve.List.iter l ~f:one in
-    let+ () = many ts in
-    List.rev !res
+      let* res, visited = R.get in
+      if Set.mem visited t then
+        R.return ()
+      else
+        let* () = R.set (res, Set.add visited t) in
+        let* re_exports = R.lift t.re_exports in
+        let* () = many re_exports in
+        R.modify (fun (res, visited) -> (t :: res, visited))
+    and many l = R.List.iter l ~f:one in
+    let open Resolve.O in
+    let+ (res, _visited), () = R.run (many ts) ([], Set.empty) in
+    List.rev res
 
   type resolved_deps =
     { resolved : t list Resolve.t
@@ -1409,27 +1402,35 @@ end = struct
   let resolve_complex_deps db deps ~private_deps ~stack : resolved_deps =
     let resolve_select { Lib_dep.Select.result_fn; choices; loc } =
       let res, src_fn =
-        match
-          List.find_map choices ~f:(fun { required; forbidden; file } ->
-              if Lib_name.Set.exists forbidden ~f:(available_internal db ~stack)
-              then
-                None
+        let open Memo.Build.O in
+        let select =
+          Memo.Build.List.find_map choices
+            ~f:(fun { required; forbidden; file } ->
+              let forbidden = Lib_name.Set.to_list forbidden in
+              let* exists =
+                Memo.Build.List.exists forbidden
+                  ~f:(available_internal db ~stack)
+              in
+              if exists then
+                Memo.Build.return None
               else
-                match
-                  Resolve.peek
-                    (let deps =
-                       Lib_name.Set.fold required ~init:[] ~f:(fun x acc ->
-                           (loc, x) :: acc)
-                     in
-                     resolve_simple_deps ~private_deps db deps ~stack)
-                with
+                Resolve.peek
+                  (let deps =
+                     Lib_name.Set.fold required ~init:[] ~f:(fun x acc ->
+                         (loc, x) :: acc)
+                   in
+                   resolve_simple_deps ~private_deps db deps ~stack)
+                >>| function
                 | Ok ts -> Some (ts, file)
                 | Error () -> None)
-        with
-        | Some (ts, file) -> (Resolve.return ts, Resolve.return file)
-        | None ->
-          let e () = Error.no_solution_found_for_select ~loc in
-          (e (), e ())
+        in
+        let get which =
+          let* res = select >>| Option.map ~f:which in
+          match res with
+          | Some rs -> Resolve.return rs
+          | None -> Error.no_solution_found_for_select ~loc
+        in
+        (get fst, get snd)
       in
       (res, { Resolved_select.src_fn; dst_fn = result_fn })
     in
@@ -1550,12 +1551,43 @@ end = struct
 
      Assertion: libraries is a list of virtual libraries with no implementation.
      The goal is to find which libraries can safely be defaulted. *)
+
+  type state =
+    { vlib_default_parent : lib list Map.t
+    ; visited : [ `Visiting | `Visited ] Map.t
+    }
+
   let resolve_default_libraries libraries =
     (* Map from a vlib to vlibs that are implemented in the transitive closure
        of its default impl. *)
-    let vlib_status = Vlib.Visit.create () in
-    (* Reverse map *)
-    let vlib_default_parent = ref Map.empty in
+    let module R = struct
+      module M =
+        State.Make
+          (struct
+            type t = state
+          end)
+          (Resolve)
+
+      module Option = Monad.Option (M)
+      module List = Monad.List (M)
+      include M
+
+      let visit lib ~stack ~f =
+        let open O in
+        let* s = get in
+        match Map.find s.visited lib with
+        | Some `Visited -> return ()
+        | Some `Visiting ->
+          lift (Error.default_implementation_cycle (lib.info :: stack))
+        | None ->
+          let* () = set { s with visited = Map.set s.visited lib `Visiting } in
+          let* res = f lib in
+          let+ () =
+            modify (fun s ->
+                { s with visited = Map.set s.visited lib `Visited })
+          in
+          res
+    end in
     let avoid_direct_parent vlib (impl : lib) =
       match impl.implements with
       | None -> Resolve.return true
@@ -1567,176 +1599,228 @@ end = struct
     let impl_for vlib =
       match vlib.default_implementation with
       | None -> Resolve.return None
-      | Some d -> Resolve.map ~f:Option.some (Lazy.force d)
+      | Some d -> Resolve.map ~f:Option.some (Memo.Lazy.force d)
     in
     let impl_different_from_vlib_default vlib (impl : lib) =
       impl_for vlib >>| function
       | None -> true
       | Some lib -> lib <> impl
     in
-    let library_is_default lib =
-      match Map.find !vlib_default_parent lib with
-      | Some (_ :: _) -> None
+    let library_is_default vlib_default_parent lib =
+      match Map.find vlib_default_parent lib with
+      | Some (_ :: _) -> Resolve.return None
       | None
-      | Some [] ->
-        Option.bind lib.default_implementation ~f:(fun (lazy default) ->
-            match Resolve.peek default with
+      | Some [] -> (
+        match lib.default_implementation with
+        | None -> Resolve.return None
+        | Some default ->
+          let open Memo.Build.O in
+          let* default = Memo.Lazy.force default in
+          Resolve.return
+            (match Resolve.Base.peek default with
             | Error () -> None
             | Ok default ->
               let implements_via =
                 Dep_stack.Implements_via.Default_for lib.unique_id
               in
-              Some (implements_via, default))
+              Some (implements_via, default)))
     in
     (* Gather vlibs that are transitively implemented by another vlib's default
        implementation. *)
-    let rec visit ~stack ancestor_vlib =
-      Vlib.Visit.visit vlib_status ~stack ~f:(fun lib ->
+    let rec visit ~stack ancestor_vlib lib =
+      R.visit lib ~stack ~f:(fun lib ->
+          let open R.O in
           (* Visit direct dependencies *)
-          let* deps = lib.requires in
+          let* deps = R.lift lib.requires in
           let* () =
-            List.filter deps ~f:(fun x ->
-                match Resolve.peek (avoid_direct_parent x lib) with
-                | Ok x -> x
-                | Error () -> false)
-            |> Resolve.List.iter
-                 ~f:(visit ~stack:(lib.info :: stack) ancestor_vlib)
+            R.lift
+              (Resolve.List.filter deps ~f:(fun x ->
+                   let open Memo.Build.O in
+                   let+ peek = Resolve.peek (avoid_direct_parent x lib) in
+                   Resolve.Base.return
+                     (match peek with
+                     | Ok x -> x
+                     | Error () -> false)))
+            >>= R.List.iter ~f:(visit ~stack:(lib.info :: stack) ancestor_vlib)
           in
           (* If the library is an implementation of some virtual library that
              overrides default, add a link in the graph. *)
           let* () =
-            Resolve.Option.iter lib.implements ~f:(fun vlib ->
-                let* vlib = vlib in
-                let* res = impl_different_from_vlib_default vlib lib in
+            R.Option.iter lib.implements ~f:(fun vlib ->
+                let* vlib = R.lift vlib in
+                let* res = R.lift (impl_different_from_vlib_default vlib lib) in
                 match (res, ancestor_vlib) with
                 | true, None ->
                   (* Recursion: no ancestor, vlib is explored *)
                   visit ~stack:(lib.info :: stack) None vlib
                 | true, Some ancestor ->
-                  vlib_default_parent :=
-                    Map.Multi.cons !vlib_default_parent lib ancestor;
+                  let* () =
+                    R.modify (fun s ->
+                        { s with
+                          vlib_default_parent =
+                            Map.Multi.cons s.vlib_default_parent lib ancestor
+                        })
+                  in
                   visit ~stack:(lib.info :: stack) None vlib
                 | false, _ ->
                   (* If lib is the default implementation, we'll manage it when
                      handling virtual lib. *)
-                  Resolve.return ())
+                  R.return ())
           in
           (* If the library has an implementation according to variants or
              default impl. *)
           let virtual_ = Lib_info.virtual_ lib.info in
           if Option.is_none virtual_ then
-            Resolve.return ()
+            R.return ()
           else
-            let* impl = impl_for lib in
+            let* impl = R.lift (impl_for lib) in
             match impl with
-            | None -> Resolve.return ()
+            | None -> R.return ()
             | Some impl -> visit ~stack:(lib.info :: stack) (Some lib) impl)
     in
     (* For each virtual library we know which vlibs will be implemented when
        enabling its default implementation. *)
-    let+ () = Resolve.List.iter ~f:(visit ~stack:[] None) libraries in
-    List.filter_map ~f:library_is_default libraries
+    let open Resolve.O in
+    let* status, () =
+      R.run
+        (R.List.iter ~f:(visit ~stack:[] None) libraries)
+        { visited = Map.empty; vlib_default_parent = Map.empty }
+    in
+    Resolve.List.filter_map
+      ~f:(library_is_default status.vlib_default_parent)
+      libraries
 
   module Closure = struct
     type nonrec t =
-      { mutable result : (t * Dep_stack.t) list
-      ; mutable visited : Set.t
-      ; mutable unimplemented : Vlib.Unimplemented.t
-      ; db : db option
+      { db : db option
       ; forbidden_libraries : Loc.t Map.t
       ; orig_stack : Dep_stack.t
       }
 
-    let result t ~linking =
-      Vlib.associate (List.rev t.result) ~linking ~orig_stack:t.orig_stack
-
     let make ~db ~forbidden_libraries ~orig_stack =
-      { result = []
-      ; visited = Set.empty
-      ; unimplemented = Vlib.Unimplemented.empty
-      ; db
-      ; forbidden_libraries
-      ; orig_stack
-      }
+      { db; forbidden_libraries; orig_stack }
+
+    module R = struct
+      type state =
+        { result : (lib * Dep_stack.t) list
+        ; visited : Set.t
+        ; unimplemented : Vlib.Unimplemented.t
+        }
+
+      let empty_state =
+        { result = []
+        ; visited = Set.empty
+        ; unimplemented = Vlib.Unimplemented.empty
+        }
+
+      module M =
+        State.Make
+          (struct
+            type t = state
+          end)
+          (Resolve)
+
+      module List = Monad.List (M)
+      include M
+    end
+
+    let result t computation ~linking =
+      let* state, () = R.run computation R.empty_state in
+      Vlib.associate (List.rev state.result) ~linking ~orig_stack:t.orig_stack
 
     let rec visit (t : t) ~stack (implements_via, lib) =
-      if Set.mem t.visited lib then
-        Resolve.return ()
+      let open R.O in
+      let* state = R.get in
+      if Set.mem state.visited lib then
+        R.return ()
       else
         match Map.find t.forbidden_libraries lib with
         | Some loc ->
           let req_by = Dep_stack.to_required_by stack ~stop_at:t.orig_stack in
-          Error.make ~loc
-            [ Pp.textf "Library %S was pulled in." (Lib_name.to_string lib.name)
-            ; Dep_path.pp req_by
-            ]
+          R.lift
+            (Error.make ~loc
+               [ Pp.textf "Library %S was pulled in."
+                   (Lib_name.to_string lib.name)
+               ; Dep_path.pp req_by
+               ])
         | None ->
-          t.visited <- Set.add t.visited lib;
+          let* () = R.set { state with visited = Set.add state.visited lib } in
           let* () =
             match t.db with
-            | None -> Resolve.return ()
+            | None -> R.return ()
             | Some db -> (
               match Lib_info.status lib.info with
-              | Private (_, Some _) -> Resolve.return ()
-              | _ -> (
-                match find_internal db lib.name ~stack with
-                | Status.Found lib' ->
-                  if lib = lib' then
-                    Resolve.return ()
-                  else
-                    let req_by =
-                      Dep_stack.to_required_by stack ~stop_at:t.orig_stack
-                    in
-                    Error.overlap ~in_workspace:lib'.info
-                      ~installed:(lib.info, req_by)
-                | found ->
-                  Code_error.raise "Unexpected find result"
-                    [ ("found", Status.to_dyn found)
-                    ; ("lib.name", Lib_name.to_dyn lib.name)
-                    ]))
+              | Private (_, Some _) -> R.return ()
+              | _ ->
+                R.lift
+                  (let open Memo.Build.O in
+                  find_internal db lib.name ~stack >>= function
+                  | Status.Found lib' ->
+                    if lib = lib' then
+                      Resolve.return ()
+                    else
+                      let req_by =
+                        Dep_stack.to_required_by stack ~stop_at:t.orig_stack
+                      in
+                      Error.overlap ~in_workspace:lib'.info
+                        ~installed:(lib.info, req_by)
+                  | found ->
+                    Code_error.raise "Unexpected find result"
+                      [ ("found", Status.to_dyn found)
+                      ; ("lib.name", Lib_name.to_dyn lib.name)
+                      ]))
           in
-          let* new_stack = Dep_stack.push stack ~implements_via (to_id lib) in
-          let* deps = lib.requires in
-          let* unimplemented' = Vlib.Unimplemented.add t.unimplemented lib in
-          t.unimplemented <- unimplemented';
-          let+ () =
-            Resolve.List.iter deps ~f:(fun l ->
-                visit t (None, l) ~stack:new_stack)
+          let* new_stack =
+            R.lift (Dep_stack.push stack ~implements_via (to_id lib))
           in
-          t.result <- (lib, stack) :: t.result
+          let* deps = R.lift lib.requires in
+          let* unimplemented' =
+            R.lift (Vlib.Unimplemented.add state.unimplemented lib)
+          in
+          let* () =
+            R.modify (fun state ->
+                { state with unimplemented = unimplemented' })
+          in
+          let* () =
+            R.List.iter deps ~f:(fun l -> visit t (None, l) ~stack:new_stack)
+          in
+          R.modify (fun state ->
+              { state with result = (lib, stack) :: state.result })
   end
 
   let step1_closure db ts ~stack:orig_stack ~forbidden_libraries =
-    let state = Closure.make ~db ~forbidden_libraries ~orig_stack in
-    let+ () =
-      Resolve.List.iter ts ~f:(fun lib ->
-          Closure.visit state ~stack:orig_stack (None, lib))
-    in
-    state
+    let closure = Closure.make ~db ~forbidden_libraries ~orig_stack in
+    ( closure
+    , Closure.R.List.iter ts ~f:(fun lib ->
+          Closure.visit closure ~stack:orig_stack (None, lib)) )
 
   let compile_closure_with_overlap_checks db ts ~stack ~forbidden_libraries =
-    let* state = step1_closure db ts ~stack ~forbidden_libraries in
-    Closure.result state ~linking:false
+    let closure, state = step1_closure db ts ~stack ~forbidden_libraries in
+    Closure.result closure state ~linking:false
 
   let linking_closure_with_overlap_checks db ts ~stack ~forbidden_libraries =
-    let* state = step1_closure db ts ~stack ~forbidden_libraries in
-    let rec impls_via_defaults () =
-      let* defaults =
-        Vlib.Unimplemented.with_default_implementations state.unimplemented
-        |> resolve_default_libraries
+    let closure, state = step1_closure db ts ~stack ~forbidden_libraries in
+    let res =
+      let open Closure.R.O in
+      let rec impls_via_defaults () =
+        let* defaults =
+          let* state = Closure.R.get in
+          Vlib.Unimplemented.with_default_implementations state.unimplemented
+          |> resolve_default_libraries |> Closure.R.lift
+        in
+        match defaults with
+        | _ :: _ -> fill_impls defaults
+        | [] -> Closure.R.return ()
+      and fill_impls libs =
+        let* () =
+          Closure.R.List.iter libs ~f:(fun (via, lib) ->
+              Closure.visit closure (Some via, lib) ~stack)
+        in
+        impls_via_defaults ()
       in
-      match defaults with
-      | _ :: _ -> fill_impls defaults
-      | [] -> Resolve.return ()
-    and fill_impls libs =
-      let* () =
-        Resolve.List.iter libs ~f:(fun (via, lib) ->
-            Closure.visit state (Some via, lib) ~stack)
-      in
-      impls_via_defaults ()
+      state >>> impls_via_defaults ()
     in
-    let* () = impls_via_defaults () in
-    Closure.result state ~linking:true
+    Closure.result closure res ~linking:true
 end
 
 let closure l ~linking =
@@ -1754,7 +1838,7 @@ module Compile = struct
 
   type nonrec t =
     { direct_requires : t list Resolve.t
-    ; requires_link : t list Resolve.t Lazy.t
+    ; requires_link : t list Resolve.Lazy.t
     ; pps : t list Resolve.t
     ; resolved_selects : Resolved_select.t list Resolve.t
     ; sub_systems : Sub_system0.Instance.t Memo.Lazy.t Sub_system_name.Map.t
@@ -1769,17 +1853,17 @@ module Compile = struct
         match t.default_implementation with
         | None -> Resolve.return ()
         | Some i ->
-          let+ (_ : lib) = Lazy.force i in
+          let+ (_ : lib) = Memo.Lazy.force i in
           ()
       in
       t.requires
     in
     let requires_link =
       let db = Option.some_if (not allow_overlaps) db in
-      lazy
-        (requires
-        >>= Resolve_names.compile_closure_with_overlap_checks db
-              ~stack:Dep_stack.empty ~forbidden_libraries:Map.empty)
+      Memo.lazy_ (fun () ->
+          requires
+          >>= Resolve_names.compile_closure_with_overlap_checks db
+                ~stack:Dep_stack.empty ~forbidden_libraries:Map.empty)
     in
     let merlin_ident = Merlin_ident.for_lib t.name in
     { direct_requires = requires
@@ -1846,8 +1930,7 @@ module DB = struct
       ~lib_config () =
     { parent
     ; resolve
-    ; table = Table.create (module Lib_name) 1024
-    ; all = Lazy.from_fun all
+    ; all = Memo.lazy_ all
     ; lib_config
     ; instrument_with = lib_config.Lib_config.instrument_with
     ; projects_by_package
@@ -1865,7 +1948,8 @@ module DB = struct
                ]);
          t)
       ~resolve:(fun name ->
-        match Findlib.find findlib name with
+        let open Memo.Build.O in
+        Findlib.find findlib name >>| function
         | Ok (Library pkg) -> Found (Dune_package.Lib.info pkg)
         | Ok (Deprecated_library_name d) ->
           Redirect (None, (d.loc, d.new_public_name))
@@ -1875,11 +1959,12 @@ module DB = struct
           | Invalid_dune_package why -> Invalid why
           | Not_found -> Not_found))
       ~all:(fun () ->
-        Findlib.all_packages findlib |> List.map ~f:Dune_package.Entry.name)
+        let open Memo.Build.O in
+        Findlib.all_packages findlib >>| List.map ~f:Dune_package.Entry.name)
 
   let find t name =
-    match Resolve_names.find_internal t name ~stack:Dep_stack.empty with
-    | Status.Initializing _ -> assert false
+    let open Memo.Build.O in
+    Resolve_names.find_internal t name ~stack:Dep_stack.empty >>| function
     | Found t -> Some t
     | Not_found
     | Invalid _
@@ -1887,8 +1972,8 @@ module DB = struct
       None
 
   let find_even_when_hidden t name =
-    match Resolve_names.find_internal t name ~stack:Dep_stack.empty with
-    | Initializing _ -> assert false
+    let open Memo.Build.O in
+    Resolve_names.find_internal t name ~stack:Dep_stack.empty >>| function
     | Found t
     | Hidden { lib = t; reason = _; path = _ } ->
       Some t
@@ -1897,23 +1982,28 @@ module DB = struct
       None
 
   let resolve_when_exists t (loc, name) =
-    match Resolve_names.find_internal t name ~stack:Dep_stack.empty with
-    | Status.Initializing _ -> assert false
-    | Found t -> Some (Resolve.return t)
-    | Invalid w -> Some (Resolve.of_result (Error w))
-    | Not_found -> None
-    | Hidden h -> Some (Hidden.error h ~loc ~name)
+    let open Memo.Build.O in
+    Resolve_names.find_internal t name ~stack:Dep_stack.empty >>= function
+    | Found t -> Memo.Build.return @@ Some (Resolve.Base.return t)
+    | Invalid w -> Some (Resolve.Base.of_result (Error w)) |> Memo.Build.return
+    | Not_found -> None |> Memo.Build.return
+    | Hidden h ->
+      let+ res = Hidden.error h ~loc ~name in
+      Some res
 
   let resolve t (loc, name) =
-    match resolve_when_exists t (loc, name) with
+    let open Memo.Build.O in
+    resolve_when_exists t (loc, name) >>= function
     | None -> Error.not_found ~loc ~name
-    | Some k -> k
+    | Some k -> Memo.Build.return k
 
   let available t name =
     Resolve_names.available_internal t name ~stack:Dep_stack.empty
 
   let get_compile_info t ?(allow_overlaps = false) name =
-    match find_even_when_hidden t name with
+    let open Memo.Build.O in
+    let+ find = find_even_when_hidden t name in
+    match find with
     | None ->
       Code_error.raise "Lib.DB.get_compile_info got library that doesn't exist"
         [ ("name", Lib_name.to_dyn name) ]
@@ -1931,35 +2021,37 @@ module DB = struct
         ~dune_version:(Some dune_version)
     in
     let requires_link =
-      lazy
-        (let* forbidden_libraries =
-           let* l =
-             Resolve.List.map forbidden_libraries ~f:(fun (loc, name) ->
-                 let+ lib = resolve t (loc, name) in
-                 (lib, loc))
-           in
-           match Map.of_list l with
-           | Ok res -> Resolve.return res
-           | Error (lib, _, loc) ->
-             Error.make ~loc
-               [ Pp.textf "Library %S appears for the second time"
-                   (Lib_name.to_string lib.name)
-               ]
-         and+ res = res in
-         Resolve.push_stack_frame
-           (Resolve_names.linking_closure_with_overlap_checks
-              ~stack:Dep_stack.empty
-              (Option.some_if (not allow_overlaps) t)
-              ~forbidden_libraries res)
-           ~human_readable_description:(fun () ->
-             match exes with
-             | [ (loc, name) ] ->
-               Pp.textf "executable %s in %s" name (Loc.to_file_colon_line loc)
-             | names ->
-               let loc, _ = List.hd names in
-               Pp.textf "executables %s in %s"
-                 (String.enumerate_and (List.map ~f:snd names))
-                 (Loc.to_file_colon_line loc)))
+      Memo.Lazy.create (fun () ->
+          let open Resolve.O in
+          let* forbidden_libraries =
+            let* l =
+              Resolve.List.map forbidden_libraries ~f:(fun (loc, name) ->
+                  let+ lib = resolve t (loc, name) in
+                  (lib, loc))
+            in
+            match Map.of_list l with
+            | Ok res -> Resolve.return res
+            | Error (lib, _, loc) ->
+              Error.make ~loc
+                [ Pp.textf "Library %S appears for the second time"
+                    (Lib_name.to_string lib.name)
+                ]
+          and+ res = res in
+          Resolve.push_stack_frame
+            (fun () ->
+              Resolve_names.linking_closure_with_overlap_checks
+                ~stack:Dep_stack.empty
+                (Option.some_if (not allow_overlaps) t)
+                ~forbidden_libraries res)
+            ~human_readable_description:(fun () ->
+              match exes with
+              | [ (loc, name) ] ->
+                Pp.textf "executable %s in %s" name (Loc.to_file_colon_line loc)
+              | names ->
+                let loc, _ = List.hd names in
+                Pp.textf "executables %s in %s"
+                  (String.enumerate_and (List.map ~f:snd names))
+                  (Loc.to_file_colon_line loc)))
     in
     let merlin_ident = Merlin_ident.for_exes ~names:(List.map ~f:snd exes) in
     { Compile.direct_requires = res
@@ -1977,23 +2069,23 @@ module DB = struct
       ~stack:Dep_stack.empty
 
   let rec all ?(recursive = false) t =
-    let l =
-      List.fold_left (Lazy.force t.all)
-        ~f:(fun libs name ->
-          match find t name with
-          | Some x -> Set.add libs x
-          | None -> libs)
-        ~init:Set.empty
+    let open Memo.Build.O in
+    let* l =
+      Memo.Lazy.force t.all >>= Memo.Build.parallel_map ~f:(find t)
+      >>| fun libs -> List.filter_opt libs |> Set.of_list
     in
     match (recursive, t.parent) with
-    | true, Some t -> Set.union (all ~recursive t) l
-    | _ -> l
+    | true, Some t ->
+      let+ parent = all ~recursive t in
+      Set.union parent l
+    | _ -> Memo.Build.return l
 
   let instrumentation_backend t libname =
     instrumentation_backend t.instrument_with (resolve t) libname
 end
 
-let to_dune_lib ({ info; _ } as lib) ~modules ~foreign_objects ~dir =
+let to_dune_lib ({ info; _ } as lib) ~modules ~foreign_objects ~dir :
+    Dune_package.Lib.t Resolve.t =
   let loc = Lib_info.loc info in
   let mangled_name lib =
     match Lib_info.status lib.info with
@@ -2022,34 +2114,35 @@ let to_dune_lib ({ info; _ } as lib) ~modules ~foreign_objects ~dir =
       let+ field = field in
       Some (loc, mangled_name field)
   in
-  Memo.Build.map (Sub_system.public_info lib) ~f:(fun sub_systems ->
-      let open Resolve.O in
-      let+ implements =
-        use_public_name ~info_field:(Lib_info.implements info)
-          ~lib_field:(implements lib)
-      and+ default_implementation =
-        use_public_name
-          ~info_field:(Lib_info.default_implementation info)
-          ~lib_field:(Option.map ~f:Lazy.force lib.default_implementation)
-      and+ ppx_runtime_deps = lib.ppx_runtime_deps
-      and+ main_module_name = main_module_name lib
-      and+ requires = lib.requires
-      and+ re_exports = lib.re_exports in
-      let ppx_runtime_deps = add_loc ppx_runtime_deps in
-      let requires =
-        List.map requires ~f:(fun lib ->
-            if List.exists re_exports ~f:(fun r -> r = lib) then
-              Lib_dep.Re_export (loc, mangled_name lib)
-            else
-              Direct (loc, mangled_name lib))
-      in
-      let name = mangled_name lib in
-      let info =
-        Lib_info.for_dune_package info ~name ~ppx_runtime_deps ~requires
-          ~foreign_objects ~obj_dir ~implements ~default_implementation
-          ~sub_systems ~modules
-      in
-      Dune_package.Lib.of_dune_lib ~info ~modules ~main_module_name)
+  let open Memo.Build.O in
+  let* sub_systems = Sub_system.public_info lib in
+  let open Resolve.O in
+  let* main_module_name = main_module_name lib in
+  let+ implements =
+    use_public_name ~info_field:(Lib_info.implements info)
+      ~lib_field:lib.implements
+  and+ default_implementation =
+    use_public_name
+      ~info_field:(Lib_info.default_implementation info)
+      ~lib_field:(Option.map ~f:Memo.Lazy.force lib.default_implementation)
+  and+ ppx_runtime_deps = lib.ppx_runtime_deps
+  and+ requires = lib.requires
+  and+ re_exports = lib.re_exports in
+  let ppx_runtime_deps = add_loc ppx_runtime_deps in
+  let requires =
+    List.map requires ~f:(fun lib ->
+        if List.exists re_exports ~f:(fun r -> r = lib) then
+          Lib_dep.Re_export (loc, mangled_name lib)
+        else
+          Direct (loc, mangled_name lib))
+  in
+  let name = mangled_name lib in
+  let info =
+    Lib_info.for_dune_package info ~name ~ppx_runtime_deps ~requires
+      ~foreign_objects ~obj_dir ~implements ~default_implementation ~sub_systems
+      ~modules
+  in
+  Dune_package.Lib.of_dune_lib ~info ~modules ~main_module_name
 
 module Local : sig
   type t = private lib

@@ -246,9 +246,10 @@ let host t = Option.value t.host ~default:t
 
 let any_package_aux ~packages ~context pkg =
   match Package.Name.Map.find packages pkg with
-  | Some p -> Some (Expander.Local p)
+  | Some p -> Memo.Build.return (Some (Expander.Local p))
   | None -> (
-    match Findlib.find_root_package context.Context.findlib pkg with
+    let open Memo.Build.O in
+    Findlib.find_root_package context.Context.findlib pkg >>| function
     | Ok p -> Some (Expander.Installed p)
     | Error Not_found -> None
     | Error (Invalid_dune_package exn) -> Exn.raise exn)
@@ -267,7 +268,8 @@ let get_site_of_packages_aux ~loc ~any_package ~pkg ~site =
             (Section.Site.to_string site)
         ]
   in
-  match any_package pkg with
+  let open Memo.Build.O in
+  any_package pkg >>| function
   | Some (Expander.Local p) -> find_site p.Package.sites ~pkg ~site
   | Some (Expander.Installed p) -> find_site p.sites ~pkg ~site
   | None ->
@@ -466,7 +468,7 @@ let get_installed_binaries stanzas ~(context : Context.t) =
               let project = Scope.project d.scope in
               let dune_version = Dune_project.dune_version project in
               let+ pps =
-                Resolve.read_memo_build
+                Resolve.Build.read_memo_build
                   (Preprocess.Per_module.with_instrumentation
                      exes.buildable.preprocess
                      ~instrumentation_backend:
@@ -477,8 +479,10 @@ let get_installed_binaries stanzas ~(context : Context.t) =
                 exes.names exes.buildable.libraries ~pps ~dune_version
                 ~allow_overlaps:exes.buildable.allow_overlapping_dependencies
             in
-            let available =
-              Resolve.is_ok (Lib.Compile.direct_requires compile_info)
+            let* available =
+              let open Memo.Build.O in
+              let+ available = Lib.Compile.direct_requires compile_info in
+              Resolve.is_ok available
             in
             if available then
               binaries_from_install files
@@ -489,19 +493,21 @@ let get_installed_binaries stanzas ~(context : Context.t) =
   >>| Path.Build.Set.union_all
 
 let create_lib_entries_by_package ~public_libs stanzas =
-  Dir_with_dune.deep_fold stanzas ~init:[] ~f:(fun d stanza acc ->
+  Dir_with_dune.Memo.deep_fold stanzas ~init:[] ~f:(fun d stanza acc ->
       match stanza with
       | Dune_file.Library ({ visibility = Private (Some pkg); _ } as lib) -> (
-        match
+        let+ lib =
           let db = Scope.libs d.scope in
           Lib.DB.find db (Dune_file.Library.best_name lib)
-        with
+        in
+        match lib with
         | None -> acc
         | Some lib ->
           let name = Package.name pkg in
           (name, Lib_entry.Library (Lib.Local.of_lib_exn lib)) :: acc)
       | Dune_file.Library { visibility = Public pub; _ } -> (
-        match Lib.DB.find public_libs (Dune_file.Public_lib.name pub) with
+        let+ lib = Lib.DB.find public_libs (Dune_file.Public_lib.name pub) in
+        match lib with
         | None ->
           (* Skip hidden or unavailable libraries. TODO we should assert that
              the library name is always found somehow *)
@@ -514,9 +520,10 @@ let create_lib_entries_by_package ~public_libs stanzas =
           ({ old_name = old_public_name, _; _ } as d) ->
         let package = Dune_file.Public_lib.package old_public_name in
         let name = Package.name package in
-        (name, Lib_entry.Deprecated_library_name d) :: acc
-      | _ -> acc)
-  |> Package.Name.Map.of_list_multi
+        Memo.Build.return ((name, Lib_entry.Deprecated_library_name d) :: acc)
+      | _ -> Memo.Build.return acc)
+  >>| fun libs ->
+  Package.Name.Map.of_list_multi libs
   |> Package.Name.Map.map
        ~f:
          (List.sort ~compare:(fun a b ->
@@ -585,11 +592,13 @@ let create ~(context : Context.t) ~host ~projects ~packages ~stanzas =
       | None -> Some (Section.Set.singleton section)
       | Some s -> Some (Section.Set.add s section))
   in
-  let package_sections =
-    Dir_with_dune.deep_fold stanzas ~init:Package.Name.Map.empty
+  let* package_sections =
+    Dir_with_dune.Memo.deep_fold stanzas ~init:Package.Name.Map.empty
       ~f:(fun _ stanza acc ->
         let add_in_package_sites acc pkg site loc =
-          let section = get_site_of_packages_aux ~loc ~any_package ~pkg ~site in
+          let+ section =
+            get_site_of_packages_aux ~loc ~any_package ~pkg ~site
+          in
           add_in_package_section acc pkg section
         in
         match stanza with
@@ -597,17 +606,19 @@ let create ~(context : Context.t) ~host ~projects ~packages ~stanzas =
           add_in_package_sites acc pkg site loc
         | Dune_file.Plugin { site = loc, (pkg, site); _ } ->
           add_in_package_sites acc pkg site loc
-        | _ -> acc)
+        | _ -> Memo.Build.return acc)
   in
   (* Add the site of the local package: it should only useful for making sure
      that at least one location is given to the site of local package because if
      the site is used it should already be in [packages_sections] *)
-  let package_sections =
-    Package.Name.Map.foldi ~init:package_sections packages
-      ~f:(fun package_name package acc ->
-        Section.Site.Map.fold ~init:acc package.Package.sites
-          ~f:(fun section acc ->
-            add_in_package_section acc package_name section))
+  let* package_sections =
+    Package.Name.Map.to_list packages
+    |> Memo.Build.List.fold_left ~init:package_sections
+         ~f:(fun acc (package_name, package) ->
+           Section.Site.Map.to_list package.Package.sites
+           |> Memo.Build.List.fold_left ~init:acc ~f:(fun acc (_, section) ->
+                  Memo.Build.return
+                    (add_in_package_section acc package_name section)))
   in
   let env_dune_dir_locations =
     let install_dir = Local_install_path.dir ~context:context.Context.name in
@@ -680,7 +691,7 @@ let create ~(context : Context.t) ~host ~projects ~packages ~stanzas =
     Dune_project.File_key.Map.of_list_map_exn projects ~f:(fun project ->
         (Dune_project.file_key project, project))
   in
-  let lib_entries_by_package =
+  let+ lib_entries_by_package =
     create_lib_entries_by_package ~public_libs stanzas
   in
   let t =
@@ -703,7 +714,7 @@ let create ~(context : Context.t) ~host ~projects ~packages ~stanzas =
   in
   Fdecl.set modules_of_lib_for_scope (fun ~dir ~name ->
       Fdecl.get modules_of_lib t ~dir ~name);
-  Memo.Build.return t
+  t
 
 let filter_out_stanzas_from_hidden_packages ~visible_pkgs =
   List.filter_map ~f:(fun stanza ->

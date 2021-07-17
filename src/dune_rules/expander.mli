@@ -23,7 +23,7 @@ val make :
   -> lib_artifacts:Artifacts.Public_libs.t
   -> lib_artifacts_host:Artifacts.Public_libs.t
   -> bin_artifacts_host:Artifacts.Bin.t
-  -> find_package:(Package.Name.t -> any_package option)
+  -> find_package:(Package.Name.t -> any_package option Memo.Build.t)
   -> t
 
 val set_foreign_flags :
@@ -147,4 +147,4 @@ val map_exe : t -> Path.t -> Path.t
 
 val artifacts : t -> Artifacts.Bin.t
 
-val find_package : t -> Package.Name.t -> any_package option
+val find_package : t -> Package.Name.t -> any_package option Memo.Build.t
