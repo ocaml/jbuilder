@@ -661,12 +661,6 @@ let all_packages t =
            (Dune_package.Entry.name a)
            (Dune_package.Entry.name b))
 
-(* CR-someday amokhov: Remove the mutable table below and add:
-
-   - A memoized function for finding packages by names (see [find]).
-
-   - A [Memo.Lazy.Async.t] storing the set of all packages (see
-   [root_packages]). *)
 let create ~paths ~(lib_config : Lib_config.t) : t =
   let stdlib_dir = lib_config.stdlib_dir in
   let version = lib_config.ocaml_version in
